@@ -8,7 +8,7 @@ import PdfPreview from '@/components/preview/PdfPreview.vue'
 import TextPreview from '@/components/preview/TextPreview.vue'
 import WordPreview from '@/components/preview/WordPreview.vue'
 import PreviewFallback from '@/components/preview/PreviewFallback.vue'
-import { getCategoryLabel } from '@/constants/fileTypes'
+import { getCategoryLabel, getCategoryTagType } from '@/constants/fileTypes'
 import { getPreviewKind, openPreviewDownload, resolvePreviewRecord } from '@/services/preview'
 import { useFileStore } from '@/stores/files'
 import type { FileRecord } from '@/types/file'
@@ -121,7 +121,9 @@ watch(
                 {{ current?.name || '文件预览' }}
               </span>
               <div v-if="current && previewKind !== 'text'" class="preview-view__tags">
-                <el-tag size="small" type="info">{{ getCategoryLabel(current.category) }}</el-tag>
+                <el-tag size="small" :type="getCategoryTagType(current.category)">{{
+                  getCategoryLabel(current.category)
+                }}</el-tag>
                 <el-tag v-if="current.size" size="small" type="success">
                   {{ formatBytes(current.size) }}
                 </el-tag>

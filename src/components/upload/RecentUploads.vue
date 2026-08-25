@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { getCategoryLabel } from '@/constants/fileTypes'
+import { getCategoryLabel, getCategoryTagType } from '@/constants/fileTypes'
 import { useFileStore } from '@/stores/files'
 import { formatBytes } from '@/utils/format'
 
@@ -36,7 +36,9 @@ function goToFileList() {
       <el-table-column prop="name" label="文件名" min-width="140" show-overflow-tooltip />
       <el-table-column label="类型" width="88">
         <template #default="{ row }">
-          {{ getCategoryLabel(row.category) }}
+          <el-tag size="small" :type="getCategoryTagType(row.category)">{{
+            getCategoryLabel(row.category)
+          }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="大小" width="88">
@@ -55,7 +57,9 @@ function goToFileList() {
       <li v-for="row in recentRecords" :key="row.id" class="recent-uploads__card">
         <div class="recent-uploads__card-name">{{ row.name }}</div>
         <div class="recent-uploads__card-meta">
-          <el-tag size="small" type="info">{{ getCategoryLabel(row.category) }}</el-tag>
+          <el-tag size="small" :type="getCategoryTagType(row.category)">{{
+            getCategoryLabel(row.category)
+          }}</el-tag>
           <span>{{ formatBytes(row.size) }}</span>
           <span>{{ formatTime(row.uploadedAt) }}</span>
         </div>

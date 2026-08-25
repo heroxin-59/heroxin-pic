@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { CopyDocument, Download, Refresh } from '@element-plus/icons-vue'
 import type { FileRecord } from '@/types/file'
-import { getCategoryLabel } from '@/constants/fileTypes'
+import { getCategoryLabel, getCategoryTagType } from '@/constants/fileTypes'
 import { loadTextContent, type TextPreviewResult } from '@/services/text'
 import { formatBytes } from '@/utils/format'
 import { getErrorMessage, toAppError } from '@/utils/error'
@@ -93,7 +93,9 @@ watch(
   <div class="text-preview">
     <div class="text-preview__toolbar">
       <div class="text-preview__tags">
-        <el-tag size="small" type="info">{{ getCategoryLabel(record.category) }}</el-tag>
+        <el-tag size="small" :type="getCategoryTagType(record.category)">{{
+          getCategoryLabel(record.category)
+        }}</el-tag>
         <el-tag v-if="record.size" size="small" type="success">{{
           formatBytes(record.size)
         }}</el-tag>

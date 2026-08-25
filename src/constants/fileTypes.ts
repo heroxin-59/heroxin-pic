@@ -47,6 +47,25 @@ export function getCategoryLabel(category: FileCategory): string {
   return CATEGORY_LABEL[category]
 }
 
+/** Element Plus Tag 类型，按文件类别区分颜色 */
+export type CategoryTagType = 'success' | 'warning' | 'danger' | 'primary' | 'info'
+
+/**
+ * 图片绿 / PDF红 / Word蓝 / 文本橙 / 其他灰
+ * 文本用 warning（橙），比自定义紫更贴合 Element 体系、也更好区分
+ */
+const CATEGORY_TAG_TYPE: Record<FileCategory, CategoryTagType> = {
+  image: 'success',
+  pdf: 'danger',
+  word: 'primary',
+  text: 'warning',
+  other: 'info',
+}
+
+export function getCategoryTagType(category: FileCategory): CategoryTagType {
+  return CATEGORY_TAG_TYPE[category]
+}
+
 export function getCatalogByExt(ext: string): FileTypeDefinition | undefined {
   return FILE_TYPE_CATALOG.find((item) => item.ext === ext.toLowerCase())
 }

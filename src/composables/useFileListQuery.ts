@@ -6,8 +6,8 @@ export type FileSortKey = 'time' | 'name' | 'size'
 export type FileSortOrder = 'asc' | 'desc'
 export type FileCategoryFilter = 'all' | FileCategory
 
-export const DEFAULT_FILE_PAGE_SIZE = 50
-export const FILE_PAGE_SIZE_OPTIONS = [20, 50, 100, 200]
+export const DEFAULT_FILE_PAGE_SIZE = 10
+export const FILE_PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 200]
 
 export interface FileSortOption {
   value: string

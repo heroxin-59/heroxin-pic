@@ -20,8 +20,8 @@ const colorMap: Record<FileCategory, string> = {
   image: '#67c23a',
   pdf: '#f56c6c',
   word: '#409eff',
-  text: '#909399',
-  other: '#e6a23c',
+  text: '#e6a23c',
+  other: '#909399',
 }
 </script>
 

@@ -6,7 +6,7 @@ import PdfPreview from '@/components/preview/PdfPreview.vue'
 import TextPreview from '@/components/preview/TextPreview.vue'
 import WordPreview from '@/components/preview/WordPreview.vue'
 import PreviewFallback from '@/components/preview/PreviewFallback.vue'
-import { getCategoryLabel } from '@/constants/fileTypes'
+import { getCategoryLabel, getCategoryTagType } from '@/constants/fileTypes'
 import { getPreviewKind, openPreviewDownload, resolvePreviewRecord } from '@/services/preview'
 import { useFileStore } from '@/stores/files'
 import type { FileRecord } from '@/types/file'
@@ -120,7 +120,9 @@ watch(
         <span class="file-preview-dialog__title" :title="dialogTitle">{{ dialogTitle }}</span>
         <!-- 文本预览自带类型/大小/编码标签，避免拆成两行 -->
         <div v-if="current && previewKind !== 'text'" class="file-preview-dialog__tags">
-          <el-tag size="small" type="info">{{ getCategoryLabel(current.category) }}</el-tag>
+          <el-tag size="small" :type="getCategoryTagType(current.category)">{{
+            getCategoryLabel(current.category)
+          }}</el-tag>
           <el-tag v-if="current.size" size="small" type="success">
             {{ formatBytes(current.size) }}
           </el-tag>
@@ -199,9 +201,15 @@ watch(
 </style>
 
 <style>
-/* append-to-body 后需非 scoped 控制弹窗高度 */
+/* append-to-body：强制相对视口垂直水平居中，避免内容少时贴底 */
+.el-overlay-dialog:has(> .file-preview-dialog) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .file-preview-dialog.el-dialog {
-  margin-bottom: 4vh;
+  margin: 0 !important;
   max-width: 960px;
   max-height: 92vh;
   display: flex;
@@ -209,23 +217,29 @@ watch(
 }
 
 .file-preview-dialog .el-dialog__body {
-  flex: 1;
   overflow: auto;
   max-height: calc(92vh - 72px);
   padding-top: 8px;
 }
 
 @media (max-width: 767px) {
+  .el-overlay-dialog:has(> .file-preview-dialog) {
+    align-items: stretch;
+  }
+
   .file-preview-dialog.el-dialog {
     width: 100vw !important;
     max-width: 100vw;
     margin: 0 !important;
     border-radius: 0;
     max-height: 100dvh;
+    height: 100dvh;
   }
 
   .file-preview-dialog .el-dialog__body {
-    max-height: calc(100dvh - 64px);
+    max-height: none;
+    flex: 1;
+    overflow: auto;
   }
 }
 </style>

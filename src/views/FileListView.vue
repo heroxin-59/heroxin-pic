@@ -22,7 +22,7 @@ import {
   FILE_SORT_OPTIONS,
   useFileListQuery,
 } from '@/composables/useFileListQuery'
-import { getCategoryLabel } from '@/constants/fileTypes'
+import { getCategoryLabel, getCategoryTagType } from '@/constants/fileTypes'
 import { getAccessUrl, getDownloadUrl } from '@/services/fileList'
 import { useFileStore, type FolderBreadcrumb } from '@/stores/files'
 import type { FileRecord, FolderEntry } from '@/types/file'
@@ -243,8 +243,8 @@ onMounted(() => {
           </div>
           <el-button
             size="small"
+            text
             type="primary"
-            plain
             :icon="Refresh"
             :loading="loading"
             class="file-list__refresh-btn"
@@ -405,7 +405,9 @@ onMounted(() => {
           </el-table-column>
           <el-table-column label="类型" width="100">
             <template #default="{ row }">
-              <el-tag size="small" type="info">{{ getCategoryLabel(row.category) }}</el-tag>
+              <el-tag size="small" :type="getCategoryTagType(row.category)">{{
+                getCategoryLabel(row.category)
+              }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="大小" width="100">
@@ -473,7 +475,9 @@ onMounted(() => {
             <div class="file-list__card-head">
               <FileTypeIcon :category="row.category" :size="22" />
               <span class="file-list__card-name">{{ row.name }}</span>
-              <el-tag size="small" type="info">{{ getCategoryLabel(row.category) }}</el-tag>
+              <el-tag size="small" :type="getCategoryTagType(row.category)">{{
+                getCategoryLabel(row.category)
+              }}</el-tag>
             </div>
             <div class="file-list__card-meta">
               <span>{{ formatBytes(row.size) }}</span>
@@ -514,7 +518,7 @@ onMounted(() => {
 
       <p class="file-list__hint">
         <template v-if="showAllFiles">
-          已从 OSS 加载全部历史文件；列表分页在本地完成（默认每页 50 条）。
+          已从 OSS 加载全部历史文件；列表分页在本地完成（默认每页 10 条）。
         </template>
         <template v-else>
           层级目录模式（与控制台类似）：仅显示当前目录下的文件夹与文件；点击文件夹进入下一级。
@@ -567,7 +571,8 @@ onMounted(() => {
 }
 
 .file-list__refresh-btn {
-  min-height: 36px;
+  min-height: 32px;
+  padding: 4px 8px;
   touch-action: manipulation;
 }
 
