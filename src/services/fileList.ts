@@ -191,9 +191,17 @@ export async function getDownloadUrl(key: string, filename: string): Promise<str
   })
 }
 
-/** 重新签发预览/复制用签名 URL */
-export async function getAccessUrl(key: string): Promise<string> {
-  return withOssClient(async (client) => client.getSignedUrl(key))
+/** 重新签发预览/复制用签名 URL（可带图片处理 process） */
+export async function getAccessUrl(
+  key: string,
+  options?: { expires?: number; process?: string },
+): Promise<string> {
+  return withOssClient(async (client) =>
+    client.getSignedUrl(key, {
+      expires: options?.expires,
+      process: options?.process,
+    }),
+  )
 }
 
 /** 通过 SDK 拉取对象 Blob（图片/文本预览更稳妥） */

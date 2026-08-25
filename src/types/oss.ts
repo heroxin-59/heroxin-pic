@@ -61,6 +61,11 @@ export interface OssListResult {
 export interface OssSignedUrlOptions {
   /** 过期秒数，默认 3600 */
   expires?: number
+  /**
+   * 阿里云图片处理参数（签名进 URL），如 `image/resize,m_lfit,w_480`。
+   * 需 Bucket 开通图片处理；未开通时不要配置。
+   */
+  process?: string
   /** 下载时建议的文件名 */
   response?: {
     'content-disposition'?: string

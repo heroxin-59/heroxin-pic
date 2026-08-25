@@ -17,6 +17,11 @@ const props = defineProps<{
   modelValue: boolean
   /** 打开弹窗时要预览的文件；关闭后可清空 */
   record: FileRecord | null
+  /**
+   * 可选：限定图片左右切换范围（如「仅图片」相册当前列表）。
+   * 不传则使用 store 中全部已加载图片。
+   */
+  gallery?: FileRecord[]
 }>()
 
 const emit = defineEmits<{
@@ -39,7 +44,12 @@ const visible = computed({
 const previewKind = computed(() => (current.value ? getPreviewKind(current.value) : null))
 
 const imageGallery = computed(() => {
-  const images = records.value.filter((item) => item.category === 'image')
+  const fromProp = props.gallery?.filter((item) => item.category === 'image') ?? null
+  const images =
+    fromProp && fromProp.length > 0
+      ? fromProp
+      : records.value.filter((item) => item.category === 'image')
+
   if (!current.value || current.value.category !== 'image') return images
   if (!images.some((item) => item.key === current.value!.key)) {
     return [current.value, ...images]

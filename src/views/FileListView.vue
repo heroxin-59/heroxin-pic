@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { ElMessageBox } from 'element-plus'
@@ -14,6 +14,7 @@ import {
   View,
 } from '@element-plus/icons-vue'
 import FileTypeIcon from '@/components/file-list/FileTypeIcon.vue'
+import ImageAlbumView from '@/components/file-list/ImageAlbumView.vue'
 import FilePreviewDialog from '@/components/preview/FilePreviewDialog.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import {
@@ -26,7 +27,9 @@ import { getCategoryLabel, getCategoryTagType } from '@/constants/fileTypes'
 import { getAccessUrl, getDownloadUrl } from '@/services/fileList'
 import { useFileStore, type FolderBreadcrumb } from '@/stores/files'
 import type { FileRecord, FolderEntry } from '@/types/file'
+import type { AlbumImageMeta } from '@/services/imageMeta'
 import { formatBytes } from '@/utils/format'
+import { groupRecordsByUploadDay } from '@/utils/albumGroup'
 import { showAppError, showAppSuccess, showAppWarning } from '@/utils/message'
 
 const router = useRouter()
@@ -50,23 +53,30 @@ const {
 const {
   keyword,
   category,
+  imagesOnly,
   sortValue,
   page,
   pageSize,
   filteredTotal,
   filteredBytes,
+  filteredRecords,
   paginatedRecords,
   pageRangeStart,
   pageRangeEnd,
+  setImagesOnly,
   resetQuery,
 } = useFileListQuery(() => records.value)
 
 const hasActiveQuery = computed(
   () =>
-    keyword.value.trim().length > 0 || category.value !== 'all' || sortValue.value !== 'time-desc',
+    keyword.value.trim().length > 0 ||
+    category.value !== 'all' ||
+    imagesOnly.value ||
+    sortValue.value !== 'time-desc',
 )
 
 const filteredFolders = computed(() => {
+  if (imagesOnly.value) return []
   const query = keyword.value.trim().toLowerCase()
   if (!query) return folders.value
   return folders.value.filter(
@@ -88,10 +98,39 @@ const canGoParent = computed(() => !showAllFiles.value && breadcrumbs.value.leng
 
 const previewVisible = ref(false)
 const previewRecord = ref<FileRecord | null>(null)
+const albumMetaMap = shallowRef(new Map<string, AlbumImageMeta>())
 
-/** 列表统计文案（原右上角标签内容） */
+/** 相册预览切换顺序：与按日分组展示一致（优先 EXIF 拍摄日） */
+const albumPreviewGallery = computed(() => {
+  if (!imagesOnly.value) return undefined
+  return groupRecordsByUploadDay(filteredRecords.value, albumMetaMap.value).flatMap(
+    (group) => group.records,
+  )
+})
+
+function onAlbumMetaMapChange(metaMap: Map<string, AlbumImageMeta>) {
+  albumMetaMap.value = metaMap
+}
+
+watch(imagesOnly, (enabled) => {
+  if (!enabled) {
+    albumMetaMap.value = new Map()
+  }
+})
+
+const imageCountInScope = computed(
+  () => records.value.filter((item) => item.category === 'image').length,
+)
+
+/** 列表统计文案 */
 const statsLabel = computed(() => {
   if (!loaded.value || errorMessage.value) return ''
+  if (imagesOnly.value) {
+    if (filteredTotal.value !== imageCountInScope.value) {
+      return `图片 ${filteredTotal.value}/${imageCountInScope.value} · ${formatBytes(filteredBytes.value)}`
+    }
+    return `图片 ${filteredTotal.value} 张 · ${formatBytes(filteredBytes.value)}`
+  }
   if (showAllFiles.value) {
     if (filteredTotal.value !== total.value) {
       return `匹配 ${filteredTotal.value}/${total.value} · ${formatBytes(filteredBytes.value)}`
@@ -100,6 +139,10 @@ const statsLabel = computed(() => {
   }
   return `${filteredFolders.value.length}/${folderCount.value} 文件夹 · ${filteredTotal.value}/${total.value} 文件`
 })
+
+function onImagesOnlyChange(value: string | number | boolean) {
+  setImagesOnly(Boolean(value))
+}
 
 function formatTime(value: string) {
   return new Date(value).toLocaleString()
@@ -173,7 +216,7 @@ async function copyUrl(row: FileRecord) {
   }
 }
 
-async function downloadFile(row: FileRecord) {
+async function downloadFile(row: FileRecord): Promise<boolean> {
   try {
     const url = await getDownloadUrl(row.key, row.name)
     const anchor = document.createElement('a')
@@ -184,8 +227,10 @@ async function downloadFile(row: FileRecord) {
     document.body.appendChild(anchor)
     anchor.click()
     document.body.removeChild(anchor)
+    return true
   } catch (error) {
     showAppError(error)
+    return false
   }
 }
 
@@ -214,6 +259,67 @@ async function deleteFile(row: FileRecord) {
   }
 }
 
+const albumBatchBusy = ref(false)
+
+function delay(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
+}
+
+async function onAlbumBatchDownload(items: FileRecord[]) {
+  if (items.length === 0 || albumBatchBusy.value) return
+  albumBatchBusy.value = true
+  let ok = 0
+  try {
+    for (const row of items) {
+      const success = await downloadFile(row)
+      if (success) ok += 1
+      // 浏览器常拦截连点下载，稍作间隔
+      await delay(350)
+    }
+    if (ok > 0) showAppSuccess(`已触发 ${ok} 个下载`)
+    if (ok < items.length) showAppWarning(`${items.length - ok} 个下载失败`)
+  } finally {
+    albumBatchBusy.value = false
+  }
+}
+
+async function onAlbumBatchDelete(items: FileRecord[]) {
+  if (items.length === 0 || albumBatchBusy.value) return
+  try {
+    await ElMessageBox.confirm(
+      `确定从 OSS 删除选中的 ${items.length} 张图片吗？此操作不可恢复。`,
+      '批量删除确认',
+      {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        confirmButtonClass: 'el-button--danger',
+      },
+    )
+  } catch {
+    return
+  }
+
+  albumBatchBusy.value = true
+  let ok = 0
+  try {
+    for (const row of items) {
+      try {
+        await fileStore.deleteRecord(row)
+        ok += 1
+      } catch (error) {
+        showAppError(error)
+      }
+    }
+    if (ok > 0) showAppSuccess(`已删除 ${ok} 张`)
+    if (ok < items.length) showAppWarning(`${items.length - ok} 张删除失败`)
+  } finally {
+    albumBatchBusy.value = false
+  }
+}
+
 onMounted(() => {
   void fileStore.loadFromOss().catch((error) => {
     showAppError(error)
@@ -239,6 +345,17 @@ onMounted(() => {
               inactive-text="否"
               :disabled="loading"
               @change="onShowAllFilesChange"
+            />
+          </div>
+          <div class="file-list__mode">
+            <span class="file-list__mode-label">仅图片</span>
+            <el-switch
+              :model-value="imagesOnly"
+              inline-prompt
+              active-text="是"
+              inactive-text="否"
+              :disabled="loading"
+              @change="onImagesOnlyChange"
             />
           </div>
           <el-button
@@ -312,7 +429,12 @@ onMounted(() => {
           :placeholder="showAllFiles ? '搜索文件名 / Key / 扩展名' : '搜索本目录名称 / Key'"
           :prefix-icon="Search"
         />
-        <el-select v-model="category" class="file-list__filter" placeholder="类型">
+        <el-select
+          v-model="category"
+          class="file-list__filter"
+          placeholder="类型"
+          :disabled="imagesOnly"
+        >
           <el-option
             v-for="item in FILE_CATEGORY_FILTERS"
             :key="item.value"
@@ -334,14 +456,24 @@ onMounted(() => {
       <el-empty v-if="showEmptyFilter" class="file-list__empty">
         <template #description>
           <p>没有符合条件的文件</p>
-          <p class="file-list__empty-hint">试试调整搜索关键词或类型筛选</p>
+          <p class="file-list__empty-hint">
+            {{
+              imagesOnly
+                ? '当前范围没有图片，可关闭「仅图片」或换目录'
+                : '试试调整搜索关键词或类型筛选'
+            }}
+          </p>
         </template>
         <el-button type="primary" plain @click="resetQuery">清除筛选</el-button>
       </el-empty>
 
       <template v-else>
         <p v-if="filteredTotal > 0 || filteredFolders.length > 0" class="file-list__range">
-          <template v-if="showAllFiles">
+          <template v-if="imagesOnly">
+            <span class="file-list__range-prefix">仅图片</span>
+            <el-tag size="small" type="success">{{ statsLabel }}</el-tag>
+          </template>
+          <template v-else-if="showAllFiles">
             <span class="file-list__range-prefix">全部</span>
             <el-tag size="small" type="success">{{ statsLabel }}</el-tag>
             <span v-if="filteredTotal > 0" class="file-list__range-extra">
@@ -354,181 +486,209 @@ onMounted(() => {
           </template>
         </p>
 
-        <el-table
-          v-if="!showAllFiles && filteredFolders.length > 0"
-          v-loading="loading"
-          :data="filteredFolders"
-          stripe
-          class="file-list__table file-list__folder-table"
-        >
-          <el-table-column label="名称" min-width="200">
-            <template #default="{ row }">
-              <button type="button" class="file-list__folder-btn" @click="openFolder(row)">
-                <el-icon class="file-list__folder-icon" :size="18"><Folder /></el-icon>
-                <span class="file-list__folder-name">{{ row.name }}</span>
-              </button>
-            </template>
-          </el-table-column>
-          <el-table-column label="类型" width="100">
-            <template #default>
-              <el-tag size="small" type="warning">文件夹</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="大小" width="100">
-            <template #default>—</template>
-          </el-table-column>
-          <el-table-column label="上传时间" width="170">
-            <template #default>—</template>
-          </el-table-column>
-          <el-table-column label="操作" width="340" fixed="right">
-            <template #default="{ row }">
-              <el-button size="small" text type="primary" @click="openFolder(row)">打开</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <ImageAlbumView
+          v-if="imagesOnly"
+          :records="filteredRecords"
+          :loading="loading"
+          :batch-busy="albumBatchBusy"
+          @select="previewFile"
+          @meta-map-change="onAlbumMetaMapChange"
+          @batch-download="onAlbumBatchDownload"
+          @batch-delete="onAlbumBatchDelete"
+        />
 
-        <el-table
-          v-if="paginatedRecords.length > 0"
-          v-loading="loading"
-          :data="paginatedRecords"
-          stripe
-          class="file-list__table"
-          :show-header="showAllFiles || filteredFolders.length === 0"
-        >
-          <el-table-column label="名称" min-width="200">
-            <template #default="{ row }">
-              <div class="file-list__name-cell">
-                <FileTypeIcon :category="row.category" />
-                <span class="file-list__name" :title="row.name">{{ row.name }}</span>
+        <template v-else>
+          <el-table
+            v-if="!showAllFiles && filteredFolders.length > 0"
+            v-loading="loading"
+            :data="filteredFolders"
+            stripe
+            class="file-list__table file-list__folder-table"
+          >
+            <el-table-column label="名称" min-width="200">
+              <template #default="{ row }">
+                <button type="button" class="file-list__folder-btn" @click="openFolder(row)">
+                  <el-icon class="file-list__folder-icon" :size="18"><Folder /></el-icon>
+                  <span class="file-list__folder-name">{{ row.name }}</span>
+                </button>
+              </template>
+            </el-table-column>
+            <el-table-column label="类型" width="100">
+              <template #default>
+                <el-tag size="small" type="warning">文件夹</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="大小" width="100">
+              <template #default>—</template>
+            </el-table-column>
+            <el-table-column label="上传时间" width="170">
+              <template #default>—</template>
+            </el-table-column>
+            <el-table-column label="操作" width="340" fixed="right">
+              <template #default="{ row }">
+                <el-button size="small" text type="primary" @click="openFolder(row)"
+                  >打开</el-button
+                >
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <el-table
+            v-if="paginatedRecords.length > 0"
+            v-loading="loading"
+            :data="paginatedRecords"
+            stripe
+            class="file-list__table"
+            :show-header="showAllFiles || filteredFolders.length === 0"
+          >
+            <el-table-column label="名称" min-width="200">
+              <template #default="{ row }">
+                <div class="file-list__name-cell">
+                  <FileTypeIcon :category="row.category" />
+                  <span class="file-list__name" :title="row.name">{{ row.name }}</span>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="类型" width="100">
+              <template #default="{ row }">
+                <el-tag size="small" :type="getCategoryTagType(row.category)">{{
+                  getCategoryLabel(row.category)
+                }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="大小" width="100">
+              <template #default="{ row }">
+                {{ formatBytes(row.size) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="上传时间" width="170">
+              <template #default="{ row }">
+                {{ formatTime(row.uploadedAt) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="340" fixed="right">
+              <template #default="{ row }">
+                <div class="file-list__actions">
+                  <el-button
+                    size="small"
+                    text
+                    type="primary"
+                    :icon="View"
+                    @click="previewFile(row)"
+                  >
+                    预览
+                  </el-button>
+                  <el-button
+                    size="small"
+                    text
+                    type="primary"
+                    :icon="Download"
+                    @click="downloadFile(row)"
+                  >
+                    下载
+                  </el-button>
+                  <el-button
+                    size="small"
+                    text
+                    type="primary"
+                    :icon="CopyDocument"
+                    @click="copyUrl(row)"
+                  >
+                    复制
+                  </el-button>
+                  <el-button
+                    size="small"
+                    text
+                    type="danger"
+                    :icon="Delete"
+                    :loading="deletingKey === row.key"
+                    @click="deleteFile(row)"
+                  >
+                    删除
+                  </el-button>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <ul v-loading="loading" class="file-list__cards">
+            <li
+              v-for="folder in filteredFolders"
+              :key="folder.prefix"
+              class="file-list__card file-list__card--folder"
+            >
+              <button type="button" class="file-list__folder-card-btn" @click="openFolder(folder)">
+                <el-icon class="file-list__folder-icon" :size="22"><Folder /></el-icon>
+                <span class="file-list__card-name">{{ folder.name }}</span>
+                <el-tag size="small" type="warning">文件夹</el-tag>
+              </button>
+            </li>
+            <li v-for="row in paginatedRecords" :key="row.id" class="file-list__card">
+              <div class="file-list__card-head">
+                <FileTypeIcon :category="row.category" :size="22" />
+                <span class="file-list__card-name">{{ row.name }}</span>
+                <el-tag size="small" :type="getCategoryTagType(row.category)">{{
+                  getCategoryLabel(row.category)
+                }}</el-tag>
               </div>
-            </template>
-          </el-table-column>
-          <el-table-column label="类型" width="100">
-            <template #default="{ row }">
-              <el-tag size="small" :type="getCategoryTagType(row.category)">{{
-                getCategoryLabel(row.category)
-              }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="大小" width="100">
-            <template #default="{ row }">
-              {{ formatBytes(row.size) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="上传时间" width="170">
-            <template #default="{ row }">
-              {{ formatTime(row.uploadedAt) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="340" fixed="right">
-            <template #default="{ row }">
-              <div class="file-list__actions">
-                <el-button size="small" text type="primary" :icon="View" @click="previewFile(row)">
-                  预览
-                </el-button>
-                <el-button
-                  size="small"
-                  text
-                  type="primary"
-                  :icon="Download"
-                  @click="downloadFile(row)"
+              <div class="file-list__card-meta">
+                <span>{{ formatBytes(row.size) }}</span>
+                <span>{{ formatTime(row.uploadedAt) }}</span>
+              </div>
+              <div class="file-list__card-actions">
+                <el-button type="primary" plain size="large" @click="previewFile(row)"
+                  >预览</el-button
                 >
-                  下载
-                </el-button>
-                <el-button
-                  size="small"
-                  text
-                  type="primary"
-                  :icon="CopyDocument"
-                  @click="copyUrl(row)"
+                <el-button type="primary" plain size="large" @click="downloadFile(row)"
+                  >下载</el-button
                 >
-                  复制
-                </el-button>
+                <el-button type="primary" plain size="large" @click="copyUrl(row)">复制</el-button>
                 <el-button
-                  size="small"
-                  text
                   type="danger"
-                  :icon="Delete"
+                  plain
+                  size="large"
                   :loading="deletingKey === row.key"
                   @click="deleteFile(row)"
                 >
                   删除
                 </el-button>
               </div>
-            </template>
-          </el-table-column>
-        </el-table>
+            </li>
+          </ul>
 
-        <ul v-loading="loading" class="file-list__cards">
-          <li
-            v-for="folder in filteredFolders"
-            :key="folder.prefix"
-            class="file-list__card file-list__card--folder"
-          >
-            <button type="button" class="file-list__folder-card-btn" @click="openFolder(folder)">
-              <el-icon class="file-list__folder-icon" :size="22"><Folder /></el-icon>
-              <span class="file-list__card-name">{{ folder.name }}</span>
-              <el-tag size="small" type="warning">文件夹</el-tag>
-            </button>
-          </li>
-          <li v-for="row in paginatedRecords" :key="row.id" class="file-list__card">
-            <div class="file-list__card-head">
-              <FileTypeIcon :category="row.category" :size="22" />
-              <span class="file-list__card-name">{{ row.name }}</span>
-              <el-tag size="small" :type="getCategoryTagType(row.category)">{{
-                getCategoryLabel(row.category)
-              }}</el-tag>
-            </div>
-            <div class="file-list__card-meta">
-              <span>{{ formatBytes(row.size) }}</span>
-              <span>{{ formatTime(row.uploadedAt) }}</span>
-            </div>
-            <div class="file-list__card-actions">
-              <el-button type="primary" plain size="large" @click="previewFile(row)"
-                >预览</el-button
-              >
-              <el-button type="primary" plain size="large" @click="downloadFile(row)"
-                >下载</el-button
-              >
-              <el-button type="primary" plain size="large" @click="copyUrl(row)">复制</el-button>
-              <el-button
-                type="danger"
-                plain
-                size="large"
-                :loading="deletingKey === row.key"
-                @click="deleteFile(row)"
-              >
-                删除
-              </el-button>
-            </div>
-          </li>
-        </ul>
+          <el-pagination
+            v-if="filteredTotal > 0"
+            v-model:current-page="page"
+            v-model:page-size="pageSize"
+            class="file-list__pagination"
+            :page-sizes="FILE_PAGE_SIZE_OPTIONS"
+            :total="filteredTotal"
+            :layout="paginationLayout"
+            background
+          />
+        </template>
 
-        <el-pagination
-          v-if="filteredTotal > 0"
-          v-model:current-page="page"
-          v-model:page-size="pageSize"
-          class="file-list__pagination"
-          :page-sizes="FILE_PAGE_SIZE_OPTIONS"
-          :total="filteredTotal"
-          :layout="paginationLayout"
-          background
-        />
+        <p class="file-list__hint">
+          <template v-if="imagesOnly">
+            仅图片相册：优先按拍摄日期分组；有 GPS 时显示地点（缩略图进入视口后解析 EXIF）。
+          </template>
+          <template v-else-if="showAllFiles">
+            已从 OSS 加载全部历史文件；列表分页在本地完成（默认每页 10 条）。
+          </template>
+          <template v-else>
+            层级目录模式（与控制台类似）：仅显示当前目录下的文件夹与文件；点击文件夹进入下一级。
+          </template>
+          删除会真实移除 OSS 对象（需 DeleteObject 权限）。
+        </p>
       </template>
-
-      <p class="file-list__hint">
-        <template v-if="showAllFiles">
-          已从 OSS 加载全部历史文件；列表分页在本地完成（默认每页 10 条）。
-        </template>
-        <template v-else>
-          层级目录模式（与控制台类似）：仅显示当前目录下的文件夹与文件；点击文件夹进入下一级。
-        </template>
-        删除会真实移除 OSS 对象（需 DeleteObject 权限）。
-      </p>
     </template>
   </el-card>
 
-  <FilePreviewDialog v-model="previewVisible" v-model:record="previewRecord" />
+  <FilePreviewDialog
+    v-model="previewVisible"
+    v-model:record="previewRecord"
+    :gallery="albumPreviewGallery"
+  />
 </template>
 
 <style scoped>

@@ -170,6 +170,7 @@ export class OssClient {
     return this.client.signatureUrl(key, {
       expires,
       response: options.response,
+      process: options.process,
     })
   }
 

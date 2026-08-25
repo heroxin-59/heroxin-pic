@@ -9,6 +9,26 @@ export type FileCategoryFilter = 'all' | FileCategory
 export const DEFAULT_FILE_PAGE_SIZE = 10
 export const FILE_PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 200]
 
+const IMAGES_ONLY_STORAGE_KEY = 'heroxin-pic:images-only'
+
+function readImagesOnlyPreference(): boolean {
+  try {
+    const raw = localStorage.getItem(IMAGES_ONLY_STORAGE_KEY)
+    if (raw === null) return false
+    return raw === '1' || raw === 'true'
+  } catch {
+    return false
+  }
+}
+
+function writeImagesOnlyPreference(value: boolean) {
+  try {
+    localStorage.setItem(IMAGES_ONLY_STORAGE_KEY, value ? '1' : '0')
+  } catch {
+    // ignore
+  }
+}
+
 export interface FileSortOption {
   value: string
   label: string
@@ -56,6 +76,8 @@ function compareRecords(
 export function useFileListQuery(getRecords: () => FileRecord[]) {
   const keyword = ref('')
   const category = ref<FileCategoryFilter>('all')
+  /** true：仅展示图片 */
+  const imagesOnly = ref(readImagesOnlyPreference())
   const sortValue = ref('time-desc')
   const page = ref(1)
   const pageSize = ref(DEFAULT_FILE_PAGE_SIZE)
@@ -64,12 +86,17 @@ export function useFileListQuery(getRecords: () => FileRecord[]) {
     return FILE_SORT_OPTIONS.find((item) => item.value === sortValue.value) ?? FILE_SORT_OPTIONS[0]
   })
 
+  const effectiveCategory = computed<FileCategoryFilter>(() =>
+    imagesOnly.value ? 'image' : category.value,
+  )
+
   const filteredRecords = computed(() => {
     const query = keyword.value.trim().toLowerCase()
     const sort = currentSort.value
+    const cat = effectiveCategory.value
 
     const filtered = getRecords().filter((item) => {
-      if (category.value !== 'all' && item.category !== category.value) {
+      if (cat !== 'all' && item.category !== cat) {
         return false
       }
       if (!query) return true
@@ -105,8 +132,15 @@ export function useFileListQuery(getRecords: () => FileRecord[]) {
     return Math.min(page.value * pageSize.value, filteredTotal.value)
   })
 
-  watch([keyword, category, sortValue, pageSize], () => {
+  watch([keyword, category, imagesOnly, sortValue, pageSize], () => {
     page.value = 1
+  })
+
+  watch(imagesOnly, (value) => {
+    writeImagesOnlyPreference(value)
+    if (value) {
+      category.value = 'image'
+    }
   })
 
   watch(filteredTotal, (total) => {
@@ -116,9 +150,15 @@ export function useFileListQuery(getRecords: () => FileRecord[]) {
     }
   })
 
+  function setImagesOnly(value: boolean) {
+    imagesOnly.value = value
+  }
+
   function resetQuery() {
     keyword.value = ''
     category.value = 'all'
+    imagesOnly.value = false
+    writeImagesOnlyPreference(false)
     sortValue.value = 'time-desc'
     page.value = 1
     pageSize.value = DEFAULT_FILE_PAGE_SIZE
@@ -127,6 +167,7 @@ export function useFileListQuery(getRecords: () => FileRecord[]) {
   return {
     keyword,
     category,
+    imagesOnly,
     sortValue,
     page,
     pageSize,
@@ -137,6 +178,7 @@ export function useFileListQuery(getRecords: () => FileRecord[]) {
     pageCount,
     pageRangeStart,
     pageRangeEnd,
+    setImagesOnly,
     resetQuery,
   }
 }

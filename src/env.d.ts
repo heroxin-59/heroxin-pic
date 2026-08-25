@@ -29,6 +29,13 @@ interface ImportMetaEnv {
   readonly VITE_ALLOWED_EXT: string
   /** 重名策略：uuid | timestamp | overwrite | suffix */
   readonly VITE_DUPLICATE_STRATEGY?: string
+  /**
+   * 相册缩略图 OSS 图片处理（可选），如 image/resize,m_lfit,w_480/quality,q_80
+   * 需开通图片处理；留空则使用原图 Blob
+   */
+  readonly VITE_OSS_THUMB_PROCESS?: string
+  /** 相册缩略图并发数，默认 4 */
+  readonly VITE_ALBUM_THUMB_CONCURRENCY?: string
 }
 
 interface ImportMeta {
