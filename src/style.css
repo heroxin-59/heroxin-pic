@@ -15,4 +15,5 @@ body {
   font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   color: #303133;
   background-color: #f5f7fa;
+  -webkit-tap-highlight-color: transparent;
 }

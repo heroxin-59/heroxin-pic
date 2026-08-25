@@ -41,3 +41,7 @@ coverage
 
 # Vite
 vite.config.ts.timestamp-*
+public/pdfjs/
+
+# ESLint
+.eslintcache
