@@ -100,7 +100,7 @@ const previewVisible = ref(false)
 const previewRecord = ref<FileRecord | null>(null)
 const albumMetaMap = shallowRef(new Map<string, AlbumImageMeta>())
 
-/** 相册预览切换顺序：与按日分组展示一致（优先 EXIF 拍摄日） */
+/** 相册预览切换顺序：与按日分组展示一致（优先 OSS 归档目录日） */
 const albumPreviewGallery = computed(() => {
   if (!imagesOnly.value) return undefined
   return groupRecordsByUploadDay(filteredRecords.value, albumMetaMap.value).flatMap(

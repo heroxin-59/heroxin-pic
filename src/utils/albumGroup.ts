@@ -1,5 +1,6 @@
 import type { FileRecord } from '@/types/file'
 import type { AlbumImageMeta } from '@/services/imageMeta'
+import { parseArchiveDateFromObjectKey } from '@/utils/archiveDate'
 
 /** 相册按日分组 */
 export interface AlbumDayGroup {
@@ -34,9 +35,32 @@ function readMeta(map: AlbumMetaMap | undefined, key: string): AlbumImageMeta | 
   return map[key]
 }
 
-/** 分组用时间：优先 EXIF 拍摄时间，否则 uploadedAt */
+/**
+ * 组内排序用时间：优先 EXIF 拍摄时间，否则 uploadedAt。
+ * （不影响日期标题分组键）
+ */
 export function getAlbumSortTime(record: FileRecord, meta?: AlbumImageMeta): string {
   return meta?.captureAt || record.uploadedAt
+}
+
+/**
+ * 相册日期标题用：优先 Object Key 中的归档目录日 `yyyy/MM/dd`，
+ * 再 EXIF 拍摄日，再上传日。
+ */
+export function getAlbumGroupDateParts(
+  record: FileRecord,
+  meta?: AlbumImageMeta,
+): { y: number; m: number; d: number; key: string } | null {
+  const fromKey = parseArchiveDateFromObjectKey(record.key)
+  if (fromKey) {
+    return {
+      y: fromKey.year,
+      m: fromKey.month,
+      d: fromKey.day,
+      key: `${fromKey.year}-${String(fromKey.month).padStart(2, '0')}-${String(fromKey.day).padStart(2, '0')}`,
+    }
+  }
+  return toDateParts(getAlbumSortTime(record, meta))
 }
 
 function pickGroupLocation(items: FileRecord[], metaMap?: AlbumMetaMap): string | undefined {
@@ -58,8 +82,8 @@ function pickGroupLocation(items: FileRecord[], metaMap?: AlbumMetaMap): string 
 }
 
 /**
- * 将图片记录按日分组（优先 EXIF 拍摄日，回退上传日）。
- * 日期组：新 → 旧；组内：新 → 旧。
+ * 将图片记录按日分组。
+ * 日期标题：优先 OSS 归档目录日 → EXIF → 上传日；组内仍按拍摄/上传时间新→旧。
  */
 export function groupRecordsByUploadDay(
   records: FileRecord[],
@@ -69,7 +93,7 @@ export function groupRecordsByUploadDay(
 
   for (const record of records) {
     const meta = readMeta(metaMap, record.key)
-    const parts = toDateParts(getAlbumSortTime(record, meta))
+    const parts = getAlbumGroupDateParts(record, meta)
     const key = parts?.key ?? 'unknown'
     const label = parts ? formatAlbumDateLabel(parts.y, parts.m, parts.d) : '未知日期'
 

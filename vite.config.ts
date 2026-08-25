@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 import vue from '@vitejs/plugin-vue'
 import type { Plugin } from 'vite'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 
 const rootDir = dirname(fileURLToPath(import.meta.url))
 
@@ -53,5 +53,9 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['ali-oss', 'pdfjs-dist'],
+  },
+  test: {
+    environment: 'node',
+    include: ['src/**/*.{spec,test}.ts'],
   },
 })

@@ -105,6 +105,19 @@ export interface BuildObjectKeyOptions {
   reservedKeys?: Set<string>
   /** suffix 策略：记录同名文件出现次数 */
   basenameCounter?: Map<string, number>
+  /**
+   * 归档目录日 `yyyy/MM/dd`（3.12）。
+   * 不传或非法时回退为上传当天。
+   */
+  archiveDatePath?: string
+}
+
+const ARCHIVE_PATH_RE = /^\d{4}\/\d{2}\/\d{2}$/
+
+function resolveArchiveFolderSegment(archiveDatePath?: string, now = new Date()): string {
+  const trimmed = archiveDatePath?.trim().replace(/^\/+|\/+$/g, '') ?? ''
+  if (trimmed && ARCHIVE_PATH_RE.test(trimmed)) return trimmed
+  return datePath(now)
 }
 
 /**
@@ -113,6 +126,8 @@ export interface BuildObjectKeyOptions {
  * - timestamp:     `{dir}{yyyy}/{MM}/{dd}/{stem}-{timestamp}{ext}`
  * - overwrite:     `{dir}{yyyy}/{MM}/{dd}/{filename}`
  * - suffix:        `{dir}{yyyy}/{MM}/{dd}/{filename}`，重名则 `{stem}-1.ext`
+ *
+ * `yyyy/MM/dd` 默认上传当天；图片可传入 `archiveDatePath`（文件名/EXIF 解析结果）。
  */
 export function buildObjectKey(options: BuildObjectKeyOptions): string {
   const {
@@ -121,11 +136,12 @@ export function buildObjectKey(options: BuildObjectKeyOptions): string {
     strategy = 'uuid',
     reservedKeys = new Set<string>(),
     basenameCounter = new Map<string, number>(),
+    archiveDatePath,
   } = options
 
   const normalizedDir = normalizeDir(dir)
   const safeName = sanitizeFilename(filename)
-  const folder = `${normalizedDir}${datePath()}/`
+  const folder = `${normalizedDir}${resolveArchiveFolderSegment(archiveDatePath)}/`
 
   if (strategy === 'uuid') {
     return `${folder}${withTokenFilename(safeName, createId())}`
@@ -176,13 +192,17 @@ export class ObjectKeyPlanner {
     }
   }
 
-  plan(filename: string): string {
+  /**
+   * @param archiveDatePath 可选 `yyyy/MM/dd`；图片归档日由调用方解析后传入
+   */
+  plan(filename: string, archiveDatePath?: string): string {
     const key = buildObjectKey({
       filename,
       dir: this.dir,
       strategy: this.strategy,
       reservedKeys: this.reserved,
       basenameCounter: this.basenameCounter,
+      archiveDatePath,
     })
     this.reserved.add(key)
     return key

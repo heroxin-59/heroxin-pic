@@ -139,7 +139,31 @@
 - [x] **3.9** 上传成功后回写：文件名、大小、类型、OSS URL / Key、上传时间（`useFileStore` 会话列表）
 - [x] **3.10** 移动端适配：大按钮、避免依赖 hover；相机拍照上传（`accept` + `capture` 按需）
 
-> 阶段 3 上传功能已全部完成。不包含图片压缩（3.11 已取消，保持源文件上传/下载）。
+> 阶段 3.1–3.10 已完成。不包含图片压缩（3.11 已取消，保持源文件上传/下载）。  
+> **3.12** 为增补能力：图片按「文件名日期 / EXIF 日期」归档到对应日期目录（非图片仍按上传当日目录）。
+
+- [x] **3.12** 图片上传按内容日期归档到 OSS 日期目录（仅图片；非图片行为不变）
+  - **背景**：当前 Object Key 使用**上传当天**的 `yyyy/MM/dd`（见 `src/utils/objectKey.ts`）。历史照片若今天上传，会进今天的目录，与拍摄日/文件名日期不一致，相册与层级浏览易错乱。
+  - **目标**：上传**图片**时，优先根据文件名中的日期或 EXIF 拍摄日期，写入对应 `yyyy/MM/dd` 目录；解析失败则回退上传当日（与现网一致）。
+  - **说明**：[`docs/archive-date.md`](./docs/archive-date.md) · 实现 `src/utils/archiveDate.ts` + 上传队列接线
+  - [x] **3.12.1** 范围约定：仅图片类型（与现有图片白名单一致，如 jpg/jpeg/png/webp/heic/gif 等）；PDF / Word / 文本等仍用上传当日目录 → `shouldUseContentArchiveDate`
+  - [x] **3.12.2** 日期解析优先级（建议）：
+    1. 文件名中的日期（见 3.12.3）
+    2. EXIF 拍摄时间（`DateTimeOriginal` → `CreateDate` → `ModifyDate`，可复用相册 EXIF 能力）
+    3. 回退：上传当天本地日期
+    → `ARCHIVE_DATE_PRIORITY` + `resolveArchiveDateParts` / `resolveArchiveDateForFile`
+  - [x] **3.12.3** 文件名日期解析：覆盖常见格式（需可扩展、单测友好），至少包括：
+    - `YYYYMMDD` / `YYYY-MM-DD` / `YYYY_MM_DD` / `YYYY.MM.DD`
+    - `YYYY年M月D日` / `YYYY年MM月DD日`
+    - `YYYYMMDD_HHmmss`、`YYYY-MM-DD_HH-mm-ss`、`YYYYMMDDHHmmss`
+    - 带前缀/后缀：如 `IMG_20260315_120001.jpg`、`photo-2026-03-15.jpg`、`截图2026年3月15日.png`
+    - 歧义处理：多个候选时取**最像完整日历日**且合法的一个；无法判定则跳过文件名解析
+    → `parseDateFromFilename`
+  - [x] **3.12.4** EXIF 日期：上传前对图片 Blob 轻量读取（可用现有 `exifr`）；无 EXIF / 解析失败不阻断上传 → `readExifArchiveDateParts` / `resolveArchiveDateForFile`
+  - [x] **3.12.5** 改造 `buildObjectKey` / `ObjectKeyPlanner`：支持传入「归档日」或异步解析结果，生成 `{dir}{yyyy}/{MM}/{dd}/...`；非图片忽略该逻辑 → `archiveDatePath` 参数
+  - [x] **3.12.6** 接入上传队列：选文件 / 入队时解析归档日（注意批量上传性能：并发限流、同批缓存）；UI 可选展示「将归档到：2026/03/15」（弱提示即可）
+  - [x] **3.12.7** 边界：仅有时间无日期、时区、未来日期、明显非法日期 → 回退上传当日；时分秒不影响目录（只按日历日）
+  - [x] **3.12.8** 单测：文件名解析用例表 + 关键优先级用例；文档：README / `docs` 补充规则说明与示例 → `pnpm test` · [`docs/archive-date.md`](./docs/archive-date.md)
 
 ---
 
@@ -158,7 +182,7 @@
 - [x] **4.10** 「仅图片」开关：是=列表只显示图片（隐藏文件夹与其它类型）
 - [x] **4.11** 「仅图片」相册样式（一期已完成）
   - [x] **4.11.1** 相册视图开关：`仅图片=是` 时用相册布局，关闭后恢复表格/卡片
-  - [x] **4.11.2** 按日分组：用 `uploadedAt` 按「YYYY年M月D日」分组，组内按时间新→旧
+  - [x] **4.11.2** 按日分组：优先 Object Key 归档目录日 `yyyy/MM/dd`，再 EXIF / `uploadedAt`；组内按时间新→旧
   - [x] **4.11.3** 缩略图加载：签发访问 URL（或 Blob Object URL），失败占位；注意签名过期刷新
   - [x] **4.11.4** 网格布局：日期标题 + 缩略图网格（桌面约 4–6 列，手机约 3 列），`object-fit: cover`
   - [x] **4.11.5** 点击预览：打开现有预览弹窗；左右切换限定当前「仅图片」列表
@@ -167,7 +191,7 @@
   - [x] **4.11.8** 性能（一期）：缩略图视口懒加载
   - [x] **4.11.9** 文档：README 勾选说明完成项
 - [x] **4.12** 「仅图片」相册样式二期（已完成）
-  - [x] **4.12.1** EXIF 解析：前端读取拍摄时间 / GPS（可选优先用 EXIF 日期分组，回退 `uploadedAt`）
+  - [x] **4.12.1** EXIF 解析：前端读取拍摄时间 / GPS（分组标题优先用 OSS 目录日；EXIF 用于地点与组内排序，无目录日时回退 EXIF / `uploadedAt`）
   - [x] **4.12.2** 地点展示：有 GPS 时显示地点文案（逆地理编码需第三方服务；无地点则隐藏）
   - [x] **4.12.3** 瀑布流 / 不等高布局（按图片宽高比最短列排布；与虚拟滚动 / 懒加载兼容）
   - [x] **4.12.4** 虚拟滚动：图片很多时按组或按行虚拟化，降低 DOM / 内存占用
@@ -334,11 +358,13 @@ heroxin-pic/
 
 1. 阶段 1 脚手架跑通
 2. 阶段 2 OSS 最小可用直传
-3. 阶段 3 上传（含进度与校验）
+3. 阶段 3 上传（含进度与校验）→ **增补 3.12：图片按文件名/EXIF 日期归档目录**
 4. 阶段 4 列表（可先本地会话列表）
 5. 阶段 5 预览：先图片 → PDF → Word → 其他
 6. 阶段 6 移动端打磨
 7. 阶段 7–8 体验、文档、验收与部署
+
+> 当前建议：阶段 3.12（图片按内容日期归档）已完成，见 [`docs/archive-date.md`](./docs/archive-date.md)。
 
 ---
 
@@ -386,6 +412,11 @@ heroxin-pic/
 | 2026-08-25 | 阶段 4.12.6 完成       | 相册多选批量操作 + 按日定位    |
 | 2026-08-25 | 阶段 4.12.7 完成       | `docs/album-phase2.md` 二期说明 |
 | 2026-08-25 | 阶段 4.12.3 完成       | 相册瀑布流 + 宽高比虚拟布局    |
+| 2026-08-25 | 增补 3.12 任务清单     | 图片按文件名/EXIF 日期归档目录 |
+| 2026-08-25 | 阶段 3.12.1–3.12.3     | archiveDate 范围/优先级/文件名 |
+| 2026-08-25 | 阶段 3.12.4–3.12.5     | EXIF 归档日 + ObjectKey 支持   |
+| 2026-08-25 | 阶段 3.12.6–3.12.7     | 上传队列接线 + 未来日边界      |
+| 2026-08-25 | 阶段 3.12.8 完成       | vitest + `docs/archive-date.md` |
 
 ---
 
@@ -420,12 +451,15 @@ pnpm preview
 
 「仅图片」相册二期（EXIF / 地点 / 虚拟滚动 / 缩略图缓存 / 多选）说明见 [`docs/album-phase2.md`](./docs/album-phase2.md)。
 
+图片上传按文件名 / EXIF 日期归档说明见 [`docs/archive-date.md`](./docs/archive-date.md)。
+
 ### 代码质量检查
 
 ```bash
 pnpm lint          # ESLint
 pnpm format:check  # Prettier
-pnpm check         # lint + format + build 一键校验
+pnpm test          # Vitest 单测
+pnpm check         # lint + format + test + build 一键校验
 ```
 
 ### OSS 环境变量（后续上传功能需要）

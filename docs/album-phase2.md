@@ -9,7 +9,7 @@
 
 | 项 | 状态 | 说明 |
 | -- | ---- | ---- |
-| 4.12.1 EXIF 拍摄日分组 | 已完成 | 优先 `DateTimeOriginal` 等，无则回退 `uploadedAt` |
+| 4.12.1 EXIF 拍摄日分组 | 已完成 | 日期**标题**优先 Object Key 目录日；无则 EXIF / `uploadedAt`；EXIF 仍用于地点 |
 | 4.12.2 GPS / 地点 | 已完成 | 有坐标则逆地理；失败显示坐标文案；无 GPS 不展示地点 |
 | 4.12.3 瀑布流 | 已完成 | 按宽高比最短列排布；未知比例先按 1:1，加载后校正 |
 | 4.12.4 虚拟滚动 | 已完成 | 按纵向 offset 虚拟化（头 + 单张），带像素 overscan |
@@ -32,7 +32,7 @@ EXIF 写在**图片文件二进制内部**，不是文件名，也不是 OSS Obj
 2. 使用 [`exifr`](https://github.com/MikeKovarik/exifr) 读取：
    - 时间：`DateTimeOriginal` → `CreateDate` → `ModifyDate`
    - 位置：`latitude` / `longitude`（或 GPS 字段）
-3. 分组：`src/utils/albumGroup.ts` 优先 EXIF 时间，否则 `FileRecord.uploadedAt`。
+3. 分组：`src/utils/albumGroup.ts` **优先 Object Key 中的 `yyyy/MM/dd` 归档目录**，再 EXIF，再 `uploadedAt`。
 4. 元数据缓存在内存（`src/services/imageMeta.ts`），按对象 Key 去重。
 
 ### 注意

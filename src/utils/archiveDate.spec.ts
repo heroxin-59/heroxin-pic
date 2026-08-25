@@ -1,0 +1,133 @@
+import { describe, expect, it } from 'vitest'
+import {
+  formatArchiveDatePath,
+  isValidArchiveCalendarDate,
+  parseArchiveDateFromObjectKey,
+  parseDateFromFilename,
+  resolveArchiveDateParts,
+  shouldUseContentArchiveDate,
+} from './archiveDate'
+import { buildObjectKey } from './objectKey'
+
+const now = new Date(2026, 7, 25) // 2026-08-25 local
+
+describe('shouldUseContentArchiveDate (3.12.1)', () => {
+  it('accepts image extensions from catalog', () => {
+    expect(shouldUseContentArchiveDate('a.jpg')).toBe(true)
+    expect(shouldUseContentArchiveDate('a.JPEG')).toBe(true)
+    expect(shouldUseContentArchiveDate('x/y/z.png')).toBe(true)
+  })
+
+  it('rejects non-image types', () => {
+    expect(shouldUseContentArchiveDate('a.pdf')).toBe(false)
+    expect(shouldUseContentArchiveDate('a.docx')).toBe(false)
+    expect(shouldUseContentArchiveDate('a.txt')).toBe(false)
+  })
+})
+
+describe('parseDateFromFilename (3.12.3)', () => {
+  const cases: Array<[string, string | null]> = [
+    ['IMG_20260315_120001.jpg', '2026/03/15'],
+    ['photo-2026-03-15.jpg', '2026/03/15'],
+    ['截图2026年3月15日.png', '2026/03/15'],
+    ['2026_03_15_vacation.webp', '2026/03/15'],
+    ['2026.03.15.gif', '2026/03/15'],
+    ['shot-20260315120001.jpg', '2026/03/15'],
+    ['2026-03-15_12-30-00.jpeg', '2026/03/15'],
+    ['2026年03月15日-笔记.png', '2026/03/15'],
+    ['no-date.png', null],
+    ['report.pdf', null],
+    ['IMG_20991231.jpg', null], // future
+    ['photo-1990-01-01.jpg', '1990/01/01'],
+    ['bad-2026-02-30.jpg', null],
+  ]
+
+  it.each(cases)('%s → %s', (name, expectPath) => {
+    const parts = parseDateFromFilename(name, now)
+    expect(parts ? formatArchiveDatePath(parts) : null).toBe(expectPath)
+  })
+})
+
+describe('isValidArchiveCalendarDate (3.12.7)', () => {
+  it('rejects future dates and invalid calendar days', () => {
+    expect(isValidArchiveCalendarDate({ year: 2026, month: 8, day: 25 }, now)).toBe(true)
+    expect(isValidArchiveCalendarDate({ year: 2026, month: 8, day: 26 }, now)).toBe(false)
+    expect(isValidArchiveCalendarDate({ year: 1989, month: 12, day: 31 }, now)).toBe(false)
+    expect(isValidArchiveCalendarDate({ year: 2026, month: 2, day: 30 }, now)).toBe(false)
+  })
+})
+
+describe('resolveArchiveDateParts priority (3.12.2)', () => {
+  it('uses filename over exif when both present', () => {
+    const result = resolveArchiveDateParts({
+      filename: 'IMG_20260315.jpg',
+      exifParts: { year: 2020, month: 1, day: 1 },
+      now,
+    })
+    expect(result.source).toBe('filename')
+    expect(result.path).toBe('2026/03/15')
+  })
+
+  it('uses exif when filename has no date', () => {
+    const result = resolveArchiveDateParts({
+      filename: 'vacation.jpg',
+      exifParts: { year: 2024, month: 5, day: 6 },
+      now,
+    })
+    expect(result.source).toBe('exif')
+    expect(result.path).toBe('2024/05/06')
+  })
+
+  it('falls back to upload day', () => {
+    const result = resolveArchiveDateParts({
+      filename: 'vacation.jpg',
+      now,
+    })
+    expect(result.source).toBe('upload')
+    expect(result.path).toBe('2026/08/25')
+  })
+
+  it('non-image always uses upload day', () => {
+    const result = resolveArchiveDateParts({
+      filename: 'a.pdf',
+      exifParts: { year: 2020, month: 1, day: 1 },
+      now,
+    })
+    expect(result.source).toBe('upload')
+    expect(result.path).toBe('2026/08/25')
+  })
+})
+
+describe('parseArchiveDateFromObjectKey (album folder date)', () => {
+  it('reads yyyy/MM/dd from object key', () => {
+    expect(parseArchiveDateFromObjectKey('uploads/2026/08/11/微信图片_x.jpg')).toEqual({
+      year: 2026,
+      month: 8,
+      day: 11,
+    })
+    expect(parseArchiveDateFromObjectKey('uploads/2026/08/25/a.jpg')?.day).toBe(25)
+    expect(parseArchiveDateFromObjectKey('no-date/file.jpg')).toBeNull()
+  })
+})
+
+describe('buildObjectKey archiveDatePath (3.12.5)', () => {
+  it('places file under provided archive path', () => {
+    const key = buildObjectKey({
+      filename: 'a.jpg',
+      dir: 'uploads/',
+      strategy: 'overwrite',
+      archiveDatePath: '2026/03/15',
+    })
+    expect(key).toBe('uploads/2026/03/15/a.jpg')
+  })
+
+  it('ignores invalid archive path and uses today', () => {
+    const key = buildObjectKey({
+      filename: 'a.jpg',
+      dir: 'uploads/',
+      strategy: 'overwrite',
+      archiveDatePath: 'not-a-date',
+    })
+    expect(key).toMatch(/^uploads\/\d{4}\/\d{2}\/\d{2}\/a\.jpg$/)
+  })
+})

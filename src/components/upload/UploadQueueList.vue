@@ -9,6 +9,7 @@ import {
 } from '@element-plus/icons-vue'
 import type { Component } from 'vue'
 import type { UploadTask, UploadTaskStatus } from '@/types/upload'
+import type { ArchiveDateSource } from '@/utils/archiveDate'
 import { formatBytes } from '@/utils/format'
 
 defineProps<{
@@ -46,6 +47,12 @@ const statusIcon: Record<UploadTaskStatus, Component> = {
   cancelled: Remove,
 }
 
+const archiveSourceLabel: Record<ArchiveDateSource, string> = {
+  filename: '文件名',
+  exif: '拍摄信息',
+  upload: '上传当日',
+}
+
 function progressStatus(status: UploadTaskStatus) {
   if (status === 'success') return 'success'
   if (status === 'error') return 'exception'
@@ -55,6 +62,14 @@ function progressStatus(status: UploadTaskStatus) {
 
 function canRetry(status: UploadTaskStatus, uploading: boolean | undefined) {
   return !uploading && (status === 'error' || status === 'cancelled')
+}
+
+function archiveHint(task: UploadTask): string | null {
+  if (!task.archiveDatePath) return null
+  const source = task.archiveSource ? archiveSourceLabel[task.archiveSource] : ''
+  return source
+    ? `将归档到：${task.archiveDatePath}（${source}）`
+    : `将归档到：${task.archiveDatePath}`
 }
 </script>
 
@@ -102,6 +117,7 @@ function canRetry(status: UploadTaskStatus, uploading: boolean | undefined) {
 
       <p v-if="task.error" class="upload-queue__error">{{ task.error }}</p>
       <template v-else>
+        <p v-if="archiveHint(task)" class="upload-queue__archive">{{ archiveHint(task) }}</p>
         <p class="upload-queue__key" :title="task.objectKey">{{ task.objectKey }}</p>
         <p class="upload-queue__size">{{ formatBytes(task.file.size) }}</p>
       </template>
@@ -227,6 +243,12 @@ function canRetry(status: UploadTaskStatus, uploading: boolean | undefined) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.upload-queue__archive {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #606266;
 }
 
 .upload-queue__error {

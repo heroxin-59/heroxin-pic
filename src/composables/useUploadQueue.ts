@@ -5,8 +5,13 @@ import { uploadFileToOss } from '@/services/upload'
 import { useFileStore } from '@/stores/files'
 import { isAppError } from '@/types/error'
 import type { UploadBatchSummary, UploadTask } from '@/types/upload'
+import { resolveArchiveDateForFile } from '@/utils/archiveDate'
+import { createLimiter } from '@/utils/concurrency'
 import { getErrorCode, getErrorMessage } from '@/utils/error'
 import { ObjectKeyPlanner } from '@/utils/objectKey'
+
+/** 入队解析 EXIF / 文件名时的并发上限 */
+const ARCHIVE_RESOLVE_CONCURRENCY = 3
 
 function createTaskId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -23,6 +28,7 @@ function isCancelledError(error: unknown): boolean {
 export function useUploadQueue() {
   const tasks = ref<UploadTask[]>([])
   const running = ref(false)
+  const resolvingArchive = ref(false)
   const currentIndex = ref(-1)
   const cancelRequested = ref(false)
   let activeAbort: AbortController | null = null
@@ -82,13 +88,17 @@ export function useUploadQueue() {
   })
 
   function clearTasks() {
-    if (running.value) return
+    if (running.value || resolvingArchive.value) return
     tasks.value = []
     currentIndex.value = -1
     cancelRequested.value = false
   }
 
-  function enqueueFiles(files: File[]) {
+  /**
+   * 入队：图片解析归档日（文件名 / EXIF）后写入对应日期目录 Key。
+   * EXIF 读取并发限流，避免一次选很多图时卡死主线程。
+   */
+  async function enqueueFiles(files: File[]) {
     if (files.length === 0) return
 
     const connection = getOssConnectionConfig()
@@ -98,16 +108,33 @@ export function useUploadQueue() {
       strategy,
       tasks.value.map((item) => item.objectKey),
     )
+    const limiter = createLimiter(ARCHIVE_RESOLVE_CONCURRENCY)
 
-    const nextTasks: UploadTask[] = files.map((file) => ({
-      id: createTaskId(),
-      file,
-      objectKey: planner.plan(file.name),
-      status: 'waiting',
-      percent: 0,
-    }))
+    resolvingArchive.value = true
+    try {
+      const resolved = await Promise.all(
+        files.map((file) =>
+          limiter.run(async () => {
+            const archive = await resolveArchiveDateForFile(file)
+            return { file, archive }
+          }),
+        ),
+      )
 
-    tasks.value = [...tasks.value, ...nextTasks]
+      const nextTasks: UploadTask[] = resolved.map(({ file, archive }) => ({
+        id: createTaskId(),
+        file,
+        objectKey: planner.plan(file.name, archive.path),
+        archiveDatePath: archive.path,
+        archiveSource: archive.source,
+        status: 'waiting',
+        percent: 0,
+      }))
+
+      tasks.value = [...tasks.value, ...nextTasks]
+    } finally {
+      resolvingArchive.value = false
+    }
   }
 
   /** 取消当前上传，并将仍等待的任务标记为已取消 */
@@ -218,6 +245,7 @@ export function useUploadQueue() {
   return {
     tasks,
     running,
+    resolvingArchive,
     uploading,
     hasTasks,
     hasRetryable,

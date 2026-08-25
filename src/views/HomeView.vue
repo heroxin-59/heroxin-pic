@@ -40,11 +40,13 @@ const {
   retryTask,
   retryFailed,
   clearTasks,
+  resolvingArchive,
 } = useUploadQueue()
 
 const canUpload = computed(() => connectionReady && credentialSource !== '未配置')
 const queueBytes = computed(() => sumFileSizes(tasks.value.map((item) => item.file)))
 const activeTaskId = computed(() => currentTask.value?.id ?? null)
+const queueBusy = computed(() => uploading.value || resolvingArchive.value)
 
 async function reportBatchResult() {
   const result = summary.value
@@ -109,7 +111,7 @@ async function onSelectFiles(files: File[]) {
     }
   }
 
-  enqueueFiles(accepted)
+  await enqueueFiles(accepted)
   await startUpload()
   await reportBatchResult()
 }
@@ -166,7 +168,9 @@ function onClearQueue() {
         </div>
       </template>
 
-      <UploadPanel multiple :disabled="!canUpload || uploading" @select="onSelectFiles" />
+      <UploadPanel multiple :disabled="!canUpload || queueBusy" @select="onSelectFiles" />
+
+      <p v-if="resolvingArchive" class="home-view__resolving">正在解析图片归档日期…</p>
 
       <UploadProgressBar
         :uploading="uploading"
@@ -180,11 +184,11 @@ function onClearQueue() {
       <UploadQueueList
         :tasks="tasks"
         :active-task-id="activeTaskId"
-        :uploading="uploading"
+        :uploading="queueBusy"
         @retry="onRetryTask"
       />
 
-      <div v-if="hasTasks && !uploading" class="queue-actions">
+      <div v-if="hasTasks && !queueBusy" class="queue-actions">
         <el-button v-if="hasRetryable" size="small" type="primary" plain @click="onRetryFailed">
           重试失败/取消项
         </el-button>
@@ -205,6 +209,12 @@ function onClearQueue() {
 
 .home-view__alert {
   margin: 0;
+}
+
+.home-view__resolving {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: #909399;
 }
 
 .card-header {
