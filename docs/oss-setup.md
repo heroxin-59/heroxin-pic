@@ -198,13 +198,14 @@ XHR error ... PUT https://xxx.oss-cn-beijing.aliyuncs.com/... -1 (connected: fal
 
 ## 7. 常见问题
 
-| 现象                            | 可能原因                                                |
-| ------------------------------- | ------------------------------------------------------- |
-| 浏览器报 CORS / blocked by CORS | CORS Origin / Methods / Headers 未配全                  |
-| `AccessDenied`                  | RAM 策略 Resource 前缀不对，或未授 `PutObject`          |
-| `InvalidAccessKeyId`            | Key 错误、已禁用，或 STS Token 过期                     |
-| 上传成功但预览 403              | Bucket 私有且未用签名 URL                               |
-| 列举为空                        | `ListObjects` 未授权，或 `prefix`/`VITE_OSS_DIR` 不一致 |
+| 现象                                | 可能原因                                                |
+| ----------------------------------- | ------------------------------------------------------- |
+| 浏览器报 CORS / blocked by CORS     | CORS Origin / Methods / Headers 未配全                  |
+| 提示 set the etag of expose-headers | CORS「暴露 Headers」未包含 `ETag`（分片上传必填）       |
+| `AccessDenied`                      | RAM 策略 Resource 前缀不对，或未授 `PutObject`          |
+| `InvalidAccessKeyId`                | Key 错误、已禁用，或 STS Token 过期                     |
+| 上传成功但预览 403                  | Bucket 私有且未用签名 URL                               |
+| 列举为空                            | `ListObjects` 未授权，或 `prefix`/`VITE_OSS_DIR` 不一致 |
 
 ---
 
@@ -235,7 +236,7 @@ pnpm dev
    - 检查配置
    - 获取凭证
    - 选择文件直传
-   - 在阿里云控制台对象列表确认 Key（形如 `uploads/yyyy/MM/dd/{uuid}-文件名`）
+   - 在阿里云控制台对象列表确认 Key（形如 `uploads/yyyy/MM/dd/{文件名}-{uuid}.扩展名`）
    - 可用页面上的签名 URL 在浏览器打开验证私有读
 
 5. 若失败，对照下方「常见问题」与页面 `ElMessage` 提示（CORS / 权限 / 凭证等）。

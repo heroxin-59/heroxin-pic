@@ -1,15 +1,21 @@
-/** 重名处理策略 */
-export type DuplicateStrategy = 'uuid' | 'overwrite' | 'suffix'
+/** 重名 / Key 命名策略 */
+export type DuplicateStrategy = 'uuid' | 'timestamp' | 'overwrite' | 'suffix'
 
 export const DUPLICATE_STRATEGY_LABEL: Record<DuplicateStrategy, string> = {
-  uuid: 'UUID 前缀（默认，避免冲突）',
+  uuid: '文件名-UUID.扩展名（默认）',
+  timestamp: '文件名-时间戳.扩展名',
   overwrite: '覆盖同名对象',
   suffix: '自动追加序号 (-1, -2…)',
 }
 
 function parseDuplicateStrategy(value: string | undefined): DuplicateStrategy {
   const normalized = value?.trim().toLowerCase()
-  if (normalized === 'overwrite' || normalized === 'suffix' || normalized === 'uuid') {
+  if (
+    normalized === 'overwrite' ||
+    normalized === 'suffix' ||
+    normalized === 'uuid' ||
+    normalized === 'timestamp'
+  ) {
     return normalized
   }
   return 'uuid'

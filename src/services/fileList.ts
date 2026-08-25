@@ -1,7 +1,7 @@
 import { getOssConnectionConfig } from '@/config/oss'
 import { withOssClient } from '@/services/oss'
 import type { OssClient } from '@/services/ossClient'
-import { buildFileRecordFromKey, type FileRecord } from '@/types/file'
+import { buildFileRecordFromKey, type FileRecord, type FolderEntry } from '@/types/file'
 
 const OSS_LIST_BATCH_SIZE = 1000
 
@@ -14,6 +14,27 @@ export interface ListOssFilesResult {
 export interface ListAllOssFilesResult {
   records: FileRecord[]
   totalLoaded: number
+}
+
+export interface ListOssDirectoryResult {
+  /** 当前列举前缀（规范化，以 / 结尾） */
+  prefix: string
+  folders: FolderEntry[]
+  records: FileRecord[]
+}
+
+function normalizeListPrefix(prefix: string): string {
+  const cleaned = prefix.replace(/^\/+/, '')
+  if (!cleaned) return ''
+  return cleaned.endsWith('/') ? cleaned : `${cleaned}/`
+}
+
+/** 相对父前缀的文件夹展示名，如 `24/` */
+function folderNameFromPrefix(fullPrefix: string, parentPrefix: string): string {
+  const rest = fullPrefix.startsWith(parentPrefix)
+    ? fullPrefix.slice(parentPrefix.length)
+    : fullPrefix
+  return rest || fullPrefix
 }
 
 function toIsoTime(value?: string): string {
@@ -99,6 +120,60 @@ export async function listAllOssFiles(): Promise<ListAllOssFilesResult> {
     return {
       records,
       totalLoaded: records.length,
+    }
+  })
+}
+
+/**
+ * 按「虚拟目录」列举：delimiter=/，返回当前层文件夹 + 文件（自动跟进 marker）。
+ * @param prefix 完整 OSS 前缀；缺省为配置的上传根目录
+ */
+export async function listOssDirectory(prefix?: string): Promise<ListOssDirectoryResult> {
+  const connection = getOssConnectionConfig()
+  const listPrefix = normalizeListPrefix(prefix?.trim() || connection.dir)
+
+  return withOssClient(async (client) => {
+    const folderMap = new Map<string, FolderEntry>()
+    const records: FileRecord[] = []
+    let marker: string | undefined
+    let hasMore = true
+
+    while (hasMore) {
+      const result = await client.list({
+        prefix: listPrefix,
+        delimiter: '/',
+        maxKeys: OSS_LIST_BATCH_SIZE,
+        marker,
+      })
+
+      for (const commonPrefix of result.prefixes) {
+        if (!commonPrefix || folderMap.has(commonPrefix)) continue
+        folderMap.set(commonPrefix, {
+          prefix: commonPrefix,
+          name: folderNameFromPrefix(commonPrefix, listPrefix),
+        })
+      }
+
+      const batch = result.objects
+        .filter(
+          (item) => Boolean(item.name) && !item.name.endsWith('/') && item.name !== listPrefix,
+        )
+        .map((item) => mapObjectToRecord(client, item))
+
+      records.push(...batch)
+      marker = result.nextMarker ?? undefined
+      hasMore = Boolean(result.isTruncated && marker)
+    }
+
+    const folders = [...folderMap.values()].sort((a, b) =>
+      a.name.localeCompare(b.name, 'zh-CN', { sensitivity: 'base', numeric: true }),
+    )
+    records.sort((a, b) => Date.parse(b.uploadedAt) - Date.parse(a.uploadedAt))
+
+    return {
+      prefix: listPrefix,
+      folders,
+      records,
     }
   })
 }

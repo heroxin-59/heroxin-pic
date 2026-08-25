@@ -27,7 +27,7 @@ interface ImportMetaEnv {
   readonly VITE_MAX_TOTAL_SIZE_MB: string
   /** 允许上传的扩展名，逗号分隔 */
   readonly VITE_ALLOWED_EXT: string
-  /** 重名策略：uuid | overwrite | suffix */
+  /** 重名策略：uuid | timestamp | overwrite | suffix */
   readonly VITE_DUPLICATE_STRATEGY?: string
 }
 

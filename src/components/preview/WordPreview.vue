@@ -4,7 +4,7 @@ import { Download, Refresh } from '@element-plus/icons-vue'
 import type { FileRecord } from '@/types/file'
 import { renderDocxToContainer } from '@/services/word'
 import { getErrorMessage, toAppError } from '@/utils/error'
-import { showAppError, showAppSuccess } from '@/utils/message'
+import { showAppError } from '@/utils/message'
 
 const props = defineProps<{
   record: FileRecord
@@ -17,7 +17,9 @@ const emit = defineEmits<{
 const bodyRef = ref<HTMLElement | null>(null)
 const styleRef = ref<HTMLElement | null>(null)
 const loading = ref(false)
+const refreshing = ref(false)
 const loadError = ref('')
+const hasContent = ref(false)
 let renderToken = 0
 
 async function waitForContainer(timeoutMs = 4000): Promise<HTMLElement> {
@@ -30,7 +32,8 @@ async function waitForContainer(timeoutMs = 4000): Promise<HTMLElement> {
   throw new Error('预览容器未就绪，请重试')
 }
 
-async function loadDocument() {
+async function loadDocument(options: { soft?: boolean } = {}) {
+  const soft = Boolean(options.soft && hasContent.value)
   const token = ++renderToken
   loading.value = true
   loadError.value = ''
@@ -38,16 +41,36 @@ async function loadDocument() {
   try {
     const body = await waitForContainer()
     if (token !== renderToken) return
-    await renderDocxToContainer({
-      key: props.record.key,
-      bodyContainer: body,
-      styleContainer: styleRef.value ?? undefined,
-    })
-    if (token !== renderToken) return
-    showAppSuccess('Word 文档已加载')
+
+    if (soft) {
+      // 先渲染到临时节点，再一次性替换，避免清空旧内容闪白
+      const tempBody = document.createElement('div')
+      const tempStyle = document.createElement('div')
+      await renderDocxToContainer({
+        key: props.record.key,
+        bodyContainer: tempBody,
+        styleContainer: tempStyle,
+      })
+      if (token !== renderToken) return
+      body.replaceChildren(...Array.from(tempBody.childNodes))
+      if (styleRef.value) {
+        styleRef.value.replaceChildren(...Array.from(tempStyle.childNodes))
+      }
+    } else {
+      await renderDocxToContainer({
+        key: props.record.key,
+        bodyContainer: body,
+        styleContainer: styleRef.value ?? undefined,
+      })
+      if (token !== renderToken) return
+    }
+
+    hasContent.value = true
   } catch (error) {
     if (token !== renderToken) return
-    if (bodyRef.value) bodyRef.value.innerHTML = ''
+    if (!soft && bodyRef.value) bodyRef.value.innerHTML = ''
+    if (!soft && styleRef.value) styleRef.value.innerHTML = ''
+    if (!soft) hasContent.value = false
     loadError.value = getErrorMessage(toAppError(error)) || 'Word 预览失败'
     showAppError(error)
   } finally {
@@ -57,9 +80,20 @@ async function loadDocument() {
   }
 }
 
+async function onReload() {
+  if (refreshing.value) return
+  refreshing.value = true
+  try {
+    await loadDocument({ soft: true })
+  } finally {
+    refreshing.value = false
+  }
+}
+
 watch(
   () => props.record.key,
   () => {
+    hasContent.value = false
     void loadDocument()
   },
   { immediate: true },
@@ -77,20 +111,38 @@ onUnmounted(() => {
     <div class="word-preview__toolbar">
       <el-tag size="small" type="info">仅支持 .docx</el-tag>
       <div class="word-preview__actions">
-        <el-button :icon="Refresh" circle :loading="loading" @click="loadDocument" />
+        <el-button
+          :icon="Refresh"
+          circle
+          :loading="refreshing"
+          :disabled="loading && !hasContent"
+          @click="onReload"
+        />
         <el-button type="primary" :icon="Download" @click="emit('download')">下载</el-button>
       </div>
     </div>
 
-    <div v-loading="loading" class="word-preview__stage">
-      <el-result v-if="loadError" icon="warning" title="无法预览 Word" :sub-title="loadError">
+    <div
+      v-loading="loading && !loadError"
+      element-loading-text="加载中…"
+      element-loading-background="rgba(255, 255, 255, 0.55)"
+      class="word-preview__stage"
+    >
+      <el-result
+        v-if="loadError && !hasContent"
+        icon="warning"
+        title="无法预览 Word"
+        :sub-title="loadError"
+      >
         <template #extra>
-          <el-button type="primary" :loading="loading" @click="loadDocument">重新加载</el-button>
+          <el-button type="primary" :loading="refreshing || loading" @click="onReload"
+            >重新加载</el-button
+          >
           <el-button @click="emit('download')">下载后查看</el-button>
         </template>
       </el-result>
 
-      <div v-show="!loadError" class="word-preview__scroll">
+      <div v-show="hasContent || !loadError" class="word-preview__scroll">
         <div ref="styleRef" class="word-preview__styles" />
         <div ref="bodyRef" class="word-preview__body" />
       </div>
@@ -125,6 +177,7 @@ onUnmounted(() => {
 }
 
 .word-preview__stage {
+  position: relative;
   min-height: 360px;
   border: 1px solid #ebeef5;
   border-radius: 12px;

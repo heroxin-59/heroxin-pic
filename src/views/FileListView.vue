@@ -1,10 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { ElMessageBox } from 'element-plus'
-import { CopyDocument, Delete, Download, Refresh, Search, View } from '@element-plus/icons-vue'
+import {
+  ArrowLeft,
+  CopyDocument,
+  Delete,
+  Download,
+  Folder,
+  Refresh,
+  Search,
+  View,
+} from '@element-plus/icons-vue'
 import FileTypeIcon from '@/components/file-list/FileTypeIcon.vue'
+import FilePreviewDialog from '@/components/preview/FilePreviewDialog.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import {
   FILE_CATEGORY_FILTERS,
@@ -14,16 +24,28 @@ import {
 } from '@/composables/useFileListQuery'
 import { getCategoryLabel } from '@/constants/fileTypes'
 import { getAccessUrl, getDownloadUrl } from '@/services/fileList'
-import { useFileStore } from '@/stores/files'
-import type { FileRecord } from '@/types/file'
+import { useFileStore, type FolderBreadcrumb } from '@/stores/files'
+import type { FileRecord, FolderEntry } from '@/types/file'
 import { formatBytes } from '@/utils/format'
 import { showAppError, showAppSuccess, showAppWarning } from '@/utils/message'
 
 const router = useRouter()
 const { isMobile } = useBreakpoint()
 const fileStore = useFileStore()
-const { records, total, totalBytes, loading, loaded, errorMessage, deletingKey } =
-  storeToRefs(fileStore)
+const {
+  records,
+  folders,
+  showAllFiles,
+  breadcrumbs,
+  total,
+  folderCount,
+  totalBytes,
+  hasListContent,
+  loading,
+  loaded,
+  errorMessage,
+  deletingKey,
+} = storeToRefs(fileStore)
 
 const {
   keyword,
@@ -44,13 +66,40 @@ const hasActiveQuery = computed(
     keyword.value.trim().length > 0 || category.value !== 'all' || sortValue.value !== 'time-desc',
 )
 
-const showEmptyFilter = computed(
-  () => loaded.value && !errorMessage.value && total.value > 0 && filteredTotal.value === 0,
-)
+const filteredFolders = computed(() => {
+  const query = keyword.value.trim().toLowerCase()
+  if (!query) return folders.value
+  return folders.value.filter(
+    (item) => item.name.toLowerCase().includes(query) || item.prefix.toLowerCase().includes(query),
+  )
+})
+
+const showEmptyFilter = computed(() => {
+  if (!loaded.value || errorMessage.value) return false
+  if (!hasListContent.value) return false
+  return filteredTotal.value === 0 && filteredFolders.value.length === 0
+})
 
 const paginationLayout = computed(() =>
   isMobile.value ? 'total, sizes, prev, pager, next' : 'total, sizes, prev, pager, next, jumper',
 )
+
+const canGoParent = computed(() => !showAllFiles.value && breadcrumbs.value.length > 1)
+
+const previewVisible = ref(false)
+const previewRecord = ref<FileRecord | null>(null)
+
+/** 列表统计文案（原右上角标签内容） */
+const statsLabel = computed(() => {
+  if (!loaded.value || errorMessage.value) return ''
+  if (showAllFiles.value) {
+    if (filteredTotal.value !== total.value) {
+      return `匹配 ${filteredTotal.value}/${total.value} · ${formatBytes(filteredBytes.value)}`
+    }
+    return `${total.value} 个 · ${formatBytes(totalBytes.value)}`
+  }
+  return `${filteredFolders.value.length}/${folderCount.value} 文件夹 · ${filteredTotal.value}/${total.value} 文件`
+})
 
 function formatTime(value: string) {
   return new Date(value).toLocaleString()
@@ -63,11 +112,52 @@ function goUpload() {
 async function refresh() {
   try {
     await fileStore.loadFromOss()
-    if (fileStore.total === 0) {
-      showAppWarning('当前前缀下暂无文件')
-    } else {
+    if (!fileStore.hasListContent) {
+      showAppWarning(showAllFiles.value ? '当前前缀下暂无文件' : '当前目录为空')
+    } else if (showAllFiles.value) {
       showAppSuccess(`已加载 ${fileStore.total} 个文件`)
+    } else {
+      showAppSuccess(`本目录 ${fileStore.folderCount} 个文件夹 · ${fileStore.total} 个文件`)
     }
+  } catch (error) {
+    showAppError(error)
+  }
+}
+
+async function onShowAllFilesChange(value: string | number | boolean) {
+  try {
+    resetQuery()
+    await fileStore.setShowAllFiles(Boolean(value))
+    if (!fileStore.hasListContent) {
+      showAppWarning(value ? '当前前缀下暂无文件' : '当前目录为空')
+    }
+  } catch (error) {
+    showAppError(error)
+  }
+}
+
+async function openFolder(folder: FolderEntry) {
+  try {
+    resetQuery()
+    await fileStore.enterFolder(folder.prefix)
+  } catch (error) {
+    showAppError(error)
+  }
+}
+
+async function onBreadcrumbClick(crumb: FolderBreadcrumb) {
+  try {
+    resetQuery()
+    await fileStore.navigateToPrefix(crumb.prefix)
+  } catch (error) {
+    showAppError(error)
+  }
+}
+
+async function goParent() {
+  try {
+    resetQuery()
+    await fileStore.goParentFolder()
   } catch (error) {
     showAppError(error)
   }
@@ -100,10 +190,8 @@ async function downloadFile(row: FileRecord) {
 }
 
 function previewFile(row: FileRecord) {
-  router.push({
-    name: 'preview',
-    query: { key: row.key, name: row.name },
-  })
+  previewRecord.value = row
+  previewVisible.value = true
 }
 
 async function deleteFile(row: FileRecord) {
@@ -142,12 +230,17 @@ onMounted(() => {
           <el-tag size="small" type="info">OSS 历史文件</el-tag>
         </div>
         <div class="file-list__meta">
-          <el-tag v-if="loaded && !errorMessage" size="small" type="success">
-            <template v-if="filteredTotal !== total">
-              匹配 {{ filteredTotal }}/{{ total }} · {{ formatBytes(filteredBytes) }}
-            </template>
-            <template v-else> {{ total }} 个 · {{ formatBytes(totalBytes) }} </template>
-          </el-tag>
+          <div class="file-list__mode">
+            <span class="file-list__mode-label">显示全部文件</span>
+            <el-switch
+              :model-value="showAllFiles"
+              inline-prompt
+              active-text="是"
+              inactive-text="否"
+              :disabled="loading"
+              @change="onShowAllFilesChange"
+            />
+          </div>
           <el-button
             size="small"
             type="primary"
@@ -175,21 +268,48 @@ onMounted(() => {
       </template>
     </el-result>
 
-    <el-empty v-else-if="loaded && total === 0" class="file-list__empty">
+    <el-empty v-else-if="loaded && !hasListContent" class="file-list__empty">
       <template #description>
-        <p>当前 OSS 前缀下暂无文件</p>
+        <p>{{ showAllFiles ? '当前 OSS 前缀下暂无文件' : '当前目录为空' }}</p>
         <p class="file-list__empty-hint">上传成功后会出现在此列表</p>
       </template>
       <el-button type="primary" @click="goUpload">去上传</el-button>
     </el-empty>
 
-    <template v-else-if="total > 0">
+    <template v-else-if="hasListContent">
+      <div v-if="!showAllFiles" class="file-list__breadcrumb">
+        <el-button
+          text
+          type="primary"
+          :icon="ArrowLeft"
+          :disabled="!canGoParent || loading"
+          class="file-list__back"
+          @click="goParent"
+        >
+          返回上一级
+        </el-button>
+        <nav class="file-list__crumbs" aria-label="目录路径">
+          <template v-for="(crumb, index) in breadcrumbs" :key="crumb.prefix">
+            <span v-if="index > 0" class="file-list__crumb-sep">/</span>
+            <button
+              type="button"
+              class="file-list__crumb"
+              :class="{ 'is-current': index === breadcrumbs.length - 1 }"
+              :disabled="loading || index === breadcrumbs.length - 1"
+              @click="onBreadcrumbClick(crumb)"
+            >
+              {{ crumb.label }}
+            </button>
+          </template>
+        </nav>
+      </div>
+
       <div class="file-list__toolbar">
         <el-input
           v-model="keyword"
           class="file-list__search"
           clearable
-          placeholder="搜索文件名 / Key / 扩展名"
+          :placeholder="showAllFiles ? '搜索文件名 / Key / 扩展名' : '搜索本目录名称 / Key'"
           :prefix-icon="Search"
         />
         <el-select v-model="category" class="file-list__filter" placeholder="类型">
@@ -220,11 +340,61 @@ onMounted(() => {
       </el-empty>
 
       <template v-else>
-        <p v-if="filteredTotal > 0" class="file-list__range">
-          第 {{ pageRangeStart }}–{{ pageRangeEnd }} 条，共 {{ filteredTotal }} 条
+        <p v-if="filteredTotal > 0 || filteredFolders.length > 0" class="file-list__range">
+          <template v-if="showAllFiles">
+            <span class="file-list__range-prefix">全部</span>
+            <el-tag size="small" type="success">{{ statsLabel }}</el-tag>
+            <span v-if="filteredTotal > 0" class="file-list__range-extra">
+              · 第 {{ pageRangeStart }}–{{ pageRangeEnd }} 条
+            </span>
+          </template>
+          <template v-else>
+            <span class="file-list__range-prefix">本目录</span>
+            <el-tag size="small" type="success">{{ statsLabel }}</el-tag>
+          </template>
         </p>
 
-        <el-table v-loading="loading" :data="paginatedRecords" stripe class="file-list__table">
+        <el-table
+          v-if="!showAllFiles && filteredFolders.length > 0"
+          v-loading="loading"
+          :data="filteredFolders"
+          stripe
+          class="file-list__table file-list__folder-table"
+        >
+          <el-table-column label="名称" min-width="200">
+            <template #default="{ row }">
+              <button type="button" class="file-list__folder-btn" @click="openFolder(row)">
+                <el-icon class="file-list__folder-icon" :size="18"><Folder /></el-icon>
+                <span class="file-list__folder-name">{{ row.name }}</span>
+              </button>
+            </template>
+          </el-table-column>
+          <el-table-column label="类型" width="100">
+            <template #default>
+              <el-tag size="small" type="warning">文件夹</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="大小" width="100">
+            <template #default>—</template>
+          </el-table-column>
+          <el-table-column label="上传时间" width="170">
+            <template #default>—</template>
+          </el-table-column>
+          <el-table-column label="操作" width="340" fixed="right">
+            <template #default="{ row }">
+              <el-button size="small" text type="primary" @click="openFolder(row)">打开</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <el-table
+          v-if="paginatedRecords.length > 0"
+          v-loading="loading"
+          :data="paginatedRecords"
+          stripe
+          class="file-list__table"
+          :show-header="showAllFiles || filteredFolders.length === 0"
+        >
           <el-table-column label="名称" min-width="200">
             <template #default="{ row }">
               <div class="file-list__name-cell">
@@ -248,44 +418,57 @@ onMounted(() => {
               {{ formatTime(row.uploadedAt) }}
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="280" fixed="right">
+          <el-table-column label="操作" width="340" fixed="right">
             <template #default="{ row }">
-              <el-button size="small" text type="primary" :icon="View" @click="previewFile(row)">
-                预览
-              </el-button>
-              <el-button
-                size="small"
-                text
-                type="primary"
-                :icon="Download"
-                @click="downloadFile(row)"
-              >
-                下载
-              </el-button>
-              <el-button
-                size="small"
-                text
-                type="primary"
-                :icon="CopyDocument"
-                @click="copyUrl(row)"
-              >
-                复制
-              </el-button>
-              <el-button
-                size="small"
-                text
-                type="danger"
-                :icon="Delete"
-                :loading="deletingKey === row.key"
-                @click="deleteFile(row)"
-              >
-                删除
-              </el-button>
+              <div class="file-list__actions">
+                <el-button size="small" text type="primary" :icon="View" @click="previewFile(row)">
+                  预览
+                </el-button>
+                <el-button
+                  size="small"
+                  text
+                  type="primary"
+                  :icon="Download"
+                  @click="downloadFile(row)"
+                >
+                  下载
+                </el-button>
+                <el-button
+                  size="small"
+                  text
+                  type="primary"
+                  :icon="CopyDocument"
+                  @click="copyUrl(row)"
+                >
+                  复制
+                </el-button>
+                <el-button
+                  size="small"
+                  text
+                  type="danger"
+                  :icon="Delete"
+                  :loading="deletingKey === row.key"
+                  @click="deleteFile(row)"
+                >
+                  删除
+                </el-button>
+              </div>
             </template>
           </el-table-column>
         </el-table>
 
         <ul v-loading="loading" class="file-list__cards">
+          <li
+            v-for="folder in filteredFolders"
+            :key="folder.prefix"
+            class="file-list__card file-list__card--folder"
+          >
+            <button type="button" class="file-list__folder-card-btn" @click="openFolder(folder)">
+              <el-icon class="file-list__folder-icon" :size="22"><Folder /></el-icon>
+              <span class="file-list__card-name">{{ folder.name }}</span>
+              <el-tag size="small" type="warning">文件夹</el-tag>
+            </button>
+          </li>
           <li v-for="row in paginatedRecords" :key="row.id" class="file-list__card">
             <div class="file-list__card-head">
               <FileTypeIcon :category="row.category" :size="22" />
@@ -330,11 +513,18 @@ onMounted(() => {
       </template>
 
       <p class="file-list__hint">
-        已从 OSS 加载全部历史文件；列表分页在本地完成（默认每页 50 条）。删除会真实移除 OSS 对象（需
-        DeleteObject 权限）。
+        <template v-if="showAllFiles">
+          已从 OSS 加载全部历史文件；列表分页在本地完成（默认每页 50 条）。
+        </template>
+        <template v-else>
+          层级目录模式（与控制台类似）：仅显示当前目录下的文件夹与文件；点击文件夹进入下一级。
+        </template>
+        删除会真实移除 OSS 对象（需 DeleteObject 权限）。
       </p>
     </template>
   </el-card>
+
+  <FilePreviewDialog v-model="previewVisible" v-model:record="previewRecord" />
 </template>
 
 <style scoped>
@@ -360,11 +550,72 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.file-list__mode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-list__mode-label {
+  font-size: 13px;
+  color: #606266;
+  white-space: nowrap;
 }
 
 .file-list__refresh-btn {
   min-height: 36px;
   touch-action: manipulation;
+}
+
+.file-list__breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: #f5f7fa;
+  border-radius: 6px;
+}
+
+.file-list__back {
+  padding: 0 4px;
+  min-height: 32px;
+}
+
+.file-list__crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.file-list__crumb {
+  border: none;
+  background: transparent;
+  padding: 2px 4px;
+  color: #409eff;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.file-list__crumb:disabled {
+  color: #303133;
+  text-decoration: none;
+  cursor: default;
+  font-weight: 600;
+}
+
+.file-list__crumb-sep {
+  color: #c0c4cc;
+  font-size: 12px;
 }
 
 .file-list__toolbar {
@@ -418,9 +669,21 @@ onMounted(() => {
 }
 
 .file-list__range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   margin: 0 0 10px;
   font-size: 13px;
   color: #606266;
+}
+
+.file-list__range-prefix {
+  flex-shrink: 0;
+}
+
+.file-list__range-extra {
+  color: #909399;
 }
 
 .file-list__name-cell {
@@ -431,6 +694,50 @@ onMounted(() => {
 }
 
 .file-list__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-list__actions {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0;
+  white-space: nowrap;
+}
+
+.file-list__actions :deep(.el-button) {
+  margin: 0;
+  padding: 4px 6px;
+  flex-shrink: 0;
+}
+
+.file-list__folder-table {
+  margin-bottom: 8px;
+}
+
+.file-list__folder-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.file-list__folder-icon {
+  flex-shrink: 0;
+  color: #e6a23c;
+}
+
+.file-list__folder-name {
+  color: #409eff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -452,6 +759,18 @@ onMounted(() => {
   border-bottom: none;
 }
 
+.file-list__folder-card-btn {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
 .file-list__card-head {
   display: flex;
   align-items: flex-start;
@@ -465,6 +784,12 @@ onMounted(() => {
   color: #303133;
   line-height: 1.4;
   word-break: break-all;
+}
+
+.file-list__card--folder .file-list__card-name {
+  color: #409eff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .file-list__card-meta {
@@ -506,6 +831,11 @@ onMounted(() => {
   .file-list__header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .file-list__meta {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .file-list__refresh-btn {

@@ -132,7 +132,7 @@
 - [x] **3.2** 支持多选文件上传（顺序队列 + `UploadQueueList`）
 - [x] **3.3** 文件类型白名单（可配置）：扩展名 + MIME 校验，按分类展示（`fileTypes` + `filterAllowedFiles`）
 - [x] **3.4** 单文件大小限制与总体积限制（`VITE_MAX_SIZE_MB` / `VITE_MAX_TOTAL_SIZE_MB`）
-- [x] **3.5** 上传前校验：扩展名、MIME、空文件、重名策略（`uuid` / `overwrite` / `suffix`）
+- [x] **3.5** 上传前校验：扩展名、MIME、空文件、重名策略（`uuid` / `timestamp` / `overwrite` / `suffix`）
 - [x] **3.6** 上传进度展示（总进度条 + 单文件进度 + 队列状态：等待/上传中/成功/失败）
 - [x] **3.7** 支持取消上传 / 失败重试（`AbortSignal` + 队列重试）
 - [x] **3.8** Object Key 命名规则（见 `src/utils/objectKey.ts` + `VITE_DUPLICATE_STRATEGY`）
@@ -150,10 +150,11 @@
   - ~~B. 会话内本地维护列表~~（已弃用为列表主数据源；上传页「最近上传」仍可乐观展示）
 - [x] **4.3** 搜索 / 按类型筛选（图片、PDF、Word、文本、其他）
 - [x] **4.4** 排序：时间、名称、大小
-- [x] **4.5** 操作：预览、下载（签名 URL）、复制链接、删除（确认弹窗 + OSS DeleteObject）
+- [x] **4.5** 操作：预览（列表内弹窗，点遮罩关闭）、下载（签名 URL）、复制链接、删除（确认弹窗 + OSS DeleteObject）
 - [x] **4.6** 空状态、加载中、加载失败 UI
 - [x] **4.7** 分页：默认每页 50，可选 20 / 50 / 100 / 200（OSS 全量列举 + 本地分页）
 - [x] **4.8** 桌面端表格 / 移动端卡片列表双布局
+- [x] **4.9** 「显示全部文件」开关：是=扁平全量列表；否=OSS 层级目录（delimiter + 面包屑导航）
 
 ---
 
@@ -269,17 +270,17 @@ heroxin-pic/
 
 ## 五、环境变量草案（实现时再定名）
 
-| 变量名（草案）            | 含义                      | 备注                            |
-| ------------------------- | ------------------------- | ------------------------------- |
-| `VITE_OSS_REGION`         | OSS 地域                  | 如 `oss-cn-hangzhou`            |
-| `VITE_OSS_BUCKET`         | Bucket 名                 |                                 |
-| `VITE_OSS_ENDPOINT`       | Endpoint（可选）          | 自定义域名时使用                |
-| `VITE_OSS_DIR`            | 上传目录前缀              | 如 `uploads/`                   |
-| `VITE_STS_URL`            | 获取 STS 的接口           | 推荐生产使用                    |
-| `VITE_MAX_SIZE_MB`        | 单文件上限（MB）          | 默认 50                         |
-| `VITE_MAX_TOTAL_SIZE_MB`  | 本批/队列总体积上限（MB） | 默认 200                        |
-| `VITE_ALLOWED_EXT`        | 允许扩展名列表            | 逗号分隔                        |
-| `VITE_DUPLICATE_STRATEGY` | 重名策略                  | `uuid` / `overwrite` / `suffix` |
+| 变量名（草案）            | 含义                      | 备注                                                                     |
+| ------------------------- | ------------------------- | ------------------------------------------------------------------------ |
+| `VITE_OSS_REGION`         | OSS 地域                  | 如 `oss-cn-hangzhou`                                                     |
+| `VITE_OSS_BUCKET`         | Bucket 名                 |                                                                          |
+| `VITE_OSS_ENDPOINT`       | Endpoint（可选）          | 自定义域名时使用                                                         |
+| `VITE_OSS_DIR`            | 上传目录前缀              | 如 `uploads/`                                                            |
+| `VITE_STS_URL`            | 获取 STS 的接口           | 推荐生产使用                                                             |
+| `VITE_MAX_SIZE_MB`        | 单文件上限（MB）          | 默认 50                                                                  |
+| `VITE_MAX_TOTAL_SIZE_MB`  | 本批/队列总体积上限（MB） | 默认 200                                                                 |
+| `VITE_ALLOWED_EXT`        | 允许扩展名列表            | 逗号分隔                                                                 |
+| `VITE_DUPLICATE_STRATEGY` | 重名策略                  | `uuid`（默认，文件名-UUID.扩展名）/ `timestamp` / `overwrite` / `suffix` |
 
 ---
 

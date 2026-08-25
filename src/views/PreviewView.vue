@@ -120,7 +120,7 @@ watch(
               <span class="preview-view__title">
                 {{ current?.name || '文件预览' }}
               </span>
-              <div v-if="current" class="preview-view__tags">
+              <div v-if="current && previewKind !== 'text'" class="preview-view__tags">
                 <el-tag size="small" type="info">{{ getCategoryLabel(current.category) }}</el-tag>
                 <el-tag v-if="current.size" size="small" type="success">
                   {{ formatBytes(current.size) }}

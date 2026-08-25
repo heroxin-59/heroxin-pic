@@ -85,6 +85,14 @@ export function toAppError(error: unknown): AppError {
     )
   }
 
+  // 分片上传需要读取响应头 ETag；未在 CORS「暴露 Headers」中配置时会报此错
+  if (matchCode(text, [/expose-headers/i, /set the etag/i, /etag of expose/i])) {
+    return new AppError(
+      'CORS',
+      '分片上传需要读取 ETag。请到 OSS 控制台 → Bucket → 跨域设置（CORS）→ 暴露 Headers 中加入 ETag（建议同时加 x-oss-request-id），保存后强制刷新再试。',
+      error,
+    )
+  }
   if (
     matchCode(ossCode, [/AccessDenied/i, /AccessForbidden/i, /InvalidObjectState/i]) ||
     status === 403 ||

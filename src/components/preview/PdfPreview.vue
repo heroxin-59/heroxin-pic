@@ -5,7 +5,7 @@ import type { PDFDocumentProxy } from 'pdfjs-dist'
 import type { FileRecord } from '@/types/file'
 import { loadPdfDocument, renderPdfPage } from '@/services/pdf'
 import { getErrorMessage, toAppError } from '@/utils/error'
-import { showAppError, showAppSuccess } from '@/utils/message'
+import { showAppError } from '@/utils/message'
 
 const props = defineProps<{
   record: FileRecord
@@ -17,6 +17,7 @@ const emit = defineEmits<{
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const loading = ref(false)
+const refreshing = ref(false)
 const rendering = ref(false)
 const loadProgress = ref(0)
 const loadError = ref('')
@@ -24,6 +25,8 @@ const pageCount = ref(0)
 const pageNumber = ref(1)
 const pageInput = ref(1)
 const scale = ref(1.1)
+/** 是否已有可展示内容（软刷新时保留画布） */
+const hasDocument = ref(false)
 
 let pdfDoc: PDFDocumentProxy | null = null
 let destroyDoc: (() => Promise<void>) | null = null
@@ -57,35 +60,67 @@ async function destroyCurrent() {
   pdfDoc = null
   destroyDoc = null
   pageCount.value = 0
+  hasDocument.value = false
 }
 
-async function loadDocument() {
+async function loadDocument(options: { soft?: boolean } = {}) {
+  const soft = Boolean(options.soft && hasDocument.value && pdfDoc)
+  const keepPage = soft ? pageNumber.value : 1
+  const previousDestroy = destroyDoc
+
   loading.value = true
   loadError.value = ''
-  loadProgress.value = 10
-  pageNumber.value = 1
-  pageInput.value = 1
-
-  await destroyCurrent()
+  if (!soft) {
+    loadProgress.value = 10
+    pageNumber.value = 1
+    pageInput.value = 1
+    await destroyCurrent()
+  } else {
+    loadProgress.value = 0
+  }
 
   try {
-    loadProgress.value = 35
+    if (!soft) loadProgress.value = 35
     const handle = await loadPdfDocument(props.record.key)
     pdfDoc = handle.pdf
     destroyDoc = handle.destroy
     pageCount.value = handle.pageCount
-    loadProgress.value = 70
+    hasDocument.value = true
+    if (!soft) loadProgress.value = 70
 
     // 先结束 loading，确保画布区域可见且 ref 已挂载，再绘制
     loading.value = false
     await nextTick()
-    await drawPage(1)
-    loadProgress.value = 100
-    showAppSuccess(`PDF 已加载（共 ${handle.pageCount} 页）`)
+    const target = Math.min(Math.max(1, keepPage), handle.pageCount)
+    try {
+      await drawPage(target)
+      if (!soft) loadProgress.value = 100
+    } finally {
+      if (soft && previousDestroy && previousDestroy !== destroyDoc) {
+        try {
+          await previousDestroy()
+        } catch {
+          // ignore old doc cleanup
+        }
+      }
+    }
   } catch (error) {
     loadError.value = getErrorMessage(toAppError(error)) || 'PDF 加载失败'
     showAppError(error)
     loading.value = false
+    if (!soft) {
+      hasDocument.value = false
+    }
+  }
+}
+
+async function onReload() {
+  if (refreshing.value) return
+  refreshing.value = true
+  try {
+    await loadDocument({ soft: true })
+  } finally {
+    refreshing.value = false
   }
 }
 
@@ -202,13 +237,19 @@ onUnmounted(() => {
           {{ Math.round(scale * 100) }}%
         </el-button>
         <el-button :icon="ZoomIn" circle :disabled="!!loadError || loading" @click="zoomIn" />
-        <el-button :icon="Refresh" circle :loading="loading" @click="loadDocument" />
+        <el-button
+          :icon="Refresh"
+          circle
+          :loading="refreshing"
+          :disabled="loading && !hasDocument"
+          @click="onReload"
+        />
         <el-button type="primary" :icon="Download" @click="emit('download')">下载</el-button>
       </div>
     </div>
 
     <el-progress
-      v-if="loading"
+      v-if="loading && !hasDocument"
       :percentage="loadProgress"
       :stroke-width="6"
       striped
@@ -216,15 +257,27 @@ onUnmounted(() => {
       class="pdf-preview__progress"
     />
 
-    <div v-loading="rendering" class="pdf-preview__stage">
-      <el-result v-if="loadError" icon="warning" title="无法预览 PDF" :sub-title="loadError">
+    <div
+      v-loading="(loading || rendering) && !loadError"
+      element-loading-text="加载中…"
+      element-loading-background="rgba(255, 255, 255, 0.55)"
+      class="pdf-preview__stage"
+    >
+      <el-result
+        v-if="loadError && !hasDocument"
+        icon="warning"
+        title="无法预览 PDF"
+        :sub-title="loadError"
+      >
         <template #extra>
-          <el-button type="primary" :loading="loading" @click="loadDocument">重新加载</el-button>
+          <el-button type="primary" :loading="refreshing || loading" @click="onReload"
+            >重新加载</el-button
+          >
           <el-button @click="emit('download')">下载后查看</el-button>
         </template>
       </el-result>
 
-      <div v-show="!loadError" class="pdf-preview__canvas-wrap">
+      <div v-show="hasDocument || !loadError" class="pdf-preview__canvas-wrap">
         <canvas ref="canvasRef" class="pdf-preview__canvas" />
       </div>
     </div>
@@ -279,6 +332,7 @@ onUnmounted(() => {
 }
 
 .pdf-preview__stage {
+  position: relative;
   min-height: 360px;
   border: 1px solid #ebeef5;
   border-radius: 12px;

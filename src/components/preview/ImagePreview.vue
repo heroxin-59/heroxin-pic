@@ -14,7 +14,7 @@ import {
 import type { FileRecord } from '@/types/file'
 import { loadImageObjectUrl, refreshSignedUrl } from '@/services/preview'
 import { getErrorMessage, toAppError } from '@/utils/error'
-import { showAppError, showAppSuccess } from '@/utils/message'
+import { showAppError } from '@/utils/message'
 
 const props = defineProps<{
   /** 当前预览的图片 */
@@ -63,14 +63,37 @@ function revokeCurrentObjectUrl() {
   }
 }
 
-async function loadCurrentImage() {
+async function loadCurrentImage(options: { soft?: boolean } = {}) {
+  const soft = Boolean(options.soft && imageUrl.value)
   loading.value = true
   loadError.value = ''
-  revokeCurrentObjectUrl()
-  imageUrl.value = ''
+
+  if (!soft) {
+    revokeCurrentObjectUrl()
+    imageUrl.value = ''
+  }
 
   try {
     const objectUrl = await loadImageObjectUrl(props.current.key)
+    const previous = objectUrlToRevoke
+
+    if (soft) {
+      // 先解码再换源，避免清空旧图导致闪白
+      await new Promise<void>((resolve, reject) => {
+        const probe = new Image()
+        probe.onload = () => resolve()
+        probe.onerror = () => reject(new Error('图片解码失败'))
+        probe.src = objectUrl
+      })
+      objectUrlToRevoke = objectUrl
+      imageUrl.value = objectUrl
+      if (previous && previous !== objectUrl) {
+        URL.revokeObjectURL(previous)
+      }
+      loading.value = false
+      return
+    }
+
     objectUrlToRevoke = objectUrl
     imageUrl.value = objectUrl
     imageEpoch.value += 1
@@ -103,10 +126,10 @@ function onImageError() {
 }
 
 async function onReload() {
+  if (refreshing.value) return
   refreshing.value = true
   try {
-    await loadCurrentImage()
-    showAppSuccess('已重新加载')
+    await loadCurrentImage({ soft: true })
   } catch (error) {
     showAppError(error)
   } finally {
@@ -256,13 +279,21 @@ onUnmounted(() => {
           :disabled="!!loadError || !imageUrl"
           @click="openFullscreen"
         />
-        <el-button :icon="Refresh" circle :loading="refreshing || loading" @click="onReload" />
+        <el-button
+          :icon="Refresh"
+          circle
+          :loading="refreshing"
+          :disabled="loading && !imageUrl"
+          @click="onReload"
+        />
         <el-button type="primary" :icon="Download" @click="emit('download')">下载</el-button>
       </div>
     </div>
 
     <div
       v-loading="loading && !loadError"
+      element-loading-text="加载中…"
+      element-loading-background="rgba(255, 255, 255, 0.55)"
       class="image-preview__stage"
       @touchstart.passive="onTouchStart"
       @touchend.passive="onTouchEnd"

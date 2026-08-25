@@ -16,6 +16,11 @@ function datePath(date = new Date()): string {
   return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`
 }
 
+/** 毫秒时间戳 */
+function createTimestampId(date = new Date()): string {
+  return String(date.getTime())
+}
+
 /** 去除路径分隔符，保留原文件名主体 */
 export function sanitizeFilename(filename: string): string {
   const base = filename.split(/[/\\]/).pop() || 'file'
@@ -26,12 +31,69 @@ function normalizeDir(dir: string): string {
   return dir.replace(/^\/+/, '').replace(/\/?$/, '/')
 }
 
+/** 拆成主体与扩展名（含点）；无扩展名时 ext 为空 */
+export function splitFilename(filename: string): { stem: string; ext: string } {
+  const safe = sanitizeFilename(filename)
+  const dot = safe.lastIndexOf('.')
+  if (dot <= 0) {
+    return { stem: safe || 'file', ext: '' }
+  }
+  return {
+    stem: safe.slice(0, dot) || 'file',
+    ext: safe.slice(dot),
+  }
+}
+
+/** 标准 UUID（含连字符） */
+const UUID_PATTERN = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+
+/**
+ * 从存储文件名还原展示用源文件名（不影响 Object Key）。
+ * 支持：
+ * - `报告-{uuid}.docx`（当前默认）
+ * - `{uuid}-报告.docx`（旧前缀）
+ * - `报告-{timestamp}.docx` / `{timestamp}-报告.docx`
+ */
+export function displayNameFromStoredFilename(storedName: string): string {
+  const base = storedName.split(/[/\\]/).pop() || storedName
+  if (!base) return storedName
+
+  const dot = base.lastIndexOf('.')
+  const stem = dot > 0 ? base.slice(0, dot) : base
+  const ext = dot > 0 ? base.slice(dot) : ''
+
+  const uuidSuffix = new RegExp(`^(.+)-(${UUID_PATTERN})$`, 'i').exec(stem)
+  if (uuidSuffix?.[1]) {
+    return `${uuidSuffix[1]}${ext}`
+  }
+
+  const uuidPrefix = new RegExp(`^(${UUID_PATTERN})-(.+)$`, 'i').exec(base)
+  if (uuidPrefix?.[2]) {
+    return uuidPrefix[2]
+  }
+
+  const tsSuffix = /^(.+)-(\d{13})$/.exec(stem)
+  if (tsSuffix?.[1]) {
+    return `${tsSuffix[1]}${ext}`
+  }
+
+  const tsPrefix = /^(\d{13})-(.+)$/.exec(base)
+  if (tsPrefix?.[2]) {
+    return tsPrefix[2]
+  }
+
+  return base
+}
+
+/** `{stem}-{token}{ext}`，例如 `报告-uuid.docx` */
+function withTokenFilename(filename: string, token: string): string {
+  const { stem, ext } = splitFilename(filename)
+  return `${stem}-${token}${ext}`
+}
+
 function withSuffixFilename(filename: string, index: number): string {
   if (index <= 0) return filename
-  const dot = filename.lastIndexOf('.')
-  if (dot < 0) return `${filename}-${index}`
-  const stem = filename.slice(0, dot)
-  const ext = filename.slice(dot)
+  const { stem, ext } = splitFilename(filename)
   return `${stem}-${index}${ext}`
 }
 
@@ -39,7 +101,7 @@ export interface BuildObjectKeyOptions {
   filename: string
   dir?: string
   strategy?: DuplicateStrategy
-  /** suffix / overwrite 策略下用于避免同批 Key 冲突 */
+  /** 同批已占用 Key，避免冲突 */
   reservedKeys?: Set<string>
   /** suffix 策略：记录同名文件出现次数 */
   basenameCounter?: Map<string, number>
@@ -47,9 +109,10 @@ export interface BuildObjectKeyOptions {
 
 /**
  * Object Key 规则（按策略）：
- * - uuid:   `{dir}{yyyy}/{MM}/{dd}/{uuid}-{filename}`
- * - overwrite: `{dir}{yyyy}/{MM}/{dd}/{filename}`
- * - suffix: `{dir}{yyyy}/{MM}/{dd}/{filename}`，重名则 `{stem}-1.ext`
+ * - uuid（默认）: `{dir}{yyyy}/{MM}/{dd}/{stem}-{uuid}{ext}`
+ * - timestamp:     `{dir}{yyyy}/{MM}/{dd}/{stem}-{timestamp}{ext}`
+ * - overwrite:     `{dir}{yyyy}/{MM}/{dd}/{filename}`
+ * - suffix:        `{dir}{yyyy}/{MM}/{dd}/{filename}`，重名则 `{stem}-1.ext`
  */
 export function buildObjectKey(options: BuildObjectKeyOptions): string {
   const {
@@ -65,7 +128,19 @@ export function buildObjectKey(options: BuildObjectKeyOptions): string {
   const folder = `${normalizedDir}${datePath()}/`
 
   if (strategy === 'uuid') {
-    return `${folder}${createId()}-${safeName}`
+    return `${folder}${withTokenFilename(safeName, createId())}`
+  }
+
+  if (strategy === 'timestamp') {
+    let stamp = createTimestampId()
+    let candidate = `${folder}${withTokenFilename(safeName, stamp)}`
+    let guard = 0
+    while (reservedKeys.has(candidate) && guard < 1000) {
+      stamp = String(Number(stamp) + 1)
+      candidate = `${folder}${withTokenFilename(safeName, stamp)}`
+      guard += 1
+    }
+    return candidate
   }
 
   if (strategy === 'overwrite') {
@@ -86,7 +161,7 @@ export function buildObjectKey(options: BuildObjectKeyOptions): string {
   return candidate
 }
 
-/** 同批上传时预分配 Key，避免 suffix/overwrite 策略冲突 */
+/** 同批上传时预分配 Key，避免冲突 */
 export class ObjectKeyPlanner {
   private readonly reserved = new Set<string>()
   private readonly basenameCounter = new Map<string, number>()

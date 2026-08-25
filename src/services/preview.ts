@@ -43,14 +43,14 @@ export async function resolvePreviewRecord(params: {
     return { ...existing, url }
   }
 
-  const name = params.name?.trim() || key.split('/').pop() || key
   const url = await getAccessUrl(key)
   return buildFileRecordFromKey({
     key,
     size: 0,
     url,
     uploadedAt: new Date().toISOString(),
-    originalName: name,
+    // 有显式 name 时用其展示；否则从 Key 去掉 UUID/时间戳还原源文件名
+    originalName: params.name?.trim() || undefined,
   })
 }
 

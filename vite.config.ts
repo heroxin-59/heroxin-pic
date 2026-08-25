@@ -14,12 +14,18 @@ function copyPdfjsAssetsPlugin(): Plugin {
     const outRoot = resolve(rootDir, 'public/pdfjs')
     if (!existsSync(srcRoot)) return
 
-    mkdirSync(outRoot, { recursive: true })
-    cpSync(resolve(srcRoot, 'cmaps'), resolve(outRoot, 'cmaps'), { recursive: true })
-    cpSync(resolve(srcRoot, 'standard_fonts'), resolve(outRoot, 'standard_fonts'), {
-      recursive: true,
-    })
-    cpSync(resolve(srcRoot, 'wasm'), resolve(outRoot, 'wasm'), { recursive: true })
+    try {
+      mkdirSync(outRoot, { recursive: true })
+      cpSync(resolve(srcRoot, 'cmaps'), resolve(outRoot, 'cmaps'), { recursive: true })
+      cpSync(resolve(srcRoot, 'standard_fonts'), resolve(outRoot, 'standard_fonts'), {
+        recursive: true,
+      })
+      cpSync(resolve(srcRoot, 'wasm'), resolve(outRoot, 'wasm'), { recursive: true })
+    } catch (error) {
+      // 开发服务占用文件时可能 EPERM；已有 public/pdfjs 则可跳过
+      const message = error instanceof Error ? error.message : String(error)
+      console.warn(`[copy-pdfjs-assets] skip copy: ${message}`)
+    }
   }
 
   return {
