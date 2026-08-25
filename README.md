@@ -191,13 +191,13 @@
 
 ### 阶段 6：响应式与移动端体验
 
-- [ ] **6.1** 断点约定（与 Element Plus 对齐）：xs / sm / md / lg
-- [ ] **6.2** 布局：顶栏在小屏折叠；上传区全宽；列表改卡片
-- [ ] **6.3** 触摸友好：可点击区域 ≥ 44px；避免过密操作按钮
-- [ ] **6.4** 安全区：适配刘海屏 / 底部 Home 条（`env(safe-area-inset-*)`）
-- [ ] **6.5** 横竖屏基础可用，关键弹层不裁切
-- [ ] **6.6** 真机或浏览器移动模式自测：上传、预览、下载全流程
-- [ ] **6.7** （可选）PWA 基础：可添加到主屏幕（非必须）
+- [x] **6.1** 断点约定（与 Element Plus 对齐）：xs / sm / md / lg / xl → `src/constants/breakpoints.ts` + `useBreakpoint`
+- [x] **6.2** 布局：顶栏小屏折叠（底栏 Tab）；上传区全宽；列表桌面表格 / 移动卡片
+- [x] **6.3** 触摸友好：可点击区域 ≥ 44px；移动端按钮与操作区加大
+- [x] **6.4** 安全区：`viewport-fit=cover` + `env(safe-area-inset-*)`（顶栏 / 底栏 / 主内容 / 弹层）
+- [x] **6.5** 横竖屏基础可用；短屏横屏压缩底栏；弹层留白防裁切
+- [x] **6.6** 真机或浏览器移动模式自测清单 → [`docs/mobile-qa.md`](./docs/mobile-qa.md)
+- [x] **6.7** （可选）PWA 基础：`manifest.webmanifest` + Apple 添加到主屏幕 meta（无 Service Worker 离线包）
 
 ---
 
@@ -357,6 +357,7 @@ heroxin-pic/
 | 2026-08-25 | 阶段 5.2 完成          | pdfjs-dist 按页 PDF 预览       |
 | 2026-08-25 | 阶段 5.3 完成          | docx-preview 仅支持 .docx      |
 | 2026-08-25 | 阶段 5.4 完成          | 文本只读预览（UTF-8 / 截断）   |
+| 2026-08-25 | 阶段 6.1–6.7 完成      | 断点/安全区/触控 + PWA 清单    |
 
 ---
 
@@ -384,6 +385,10 @@ pnpm preview
 ```
 
 预览默认地址 [http://localhost:4173](http://localhost:4173)。
+
+### 移动端自测
+
+断点与安全区已按阶段 6 落地。自测清单见 [`docs/mobile-qa.md`](./docs/mobile-qa.md)。支持「添加到主屏幕」（`manifest.webmanifest`，无离线 Service Worker）。
 
 ### 代码质量检查
 

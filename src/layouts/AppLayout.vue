@@ -1,18 +1,26 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 import { mainNavItems } from '@/constants/navigation'
 
 const route = useRoute()
+const { isMobile, isCompactHeight, isLandscape } = useBreakpoint()
 
 const pageTitle = computed(() => {
   const title = route.meta.title
   return typeof title === 'string' ? title : 'heroxin-pic'
 })
+
+const layoutClass = computed(() => ({
+  'is-mobile': isMobile.value,
+  'is-landscape': isLandscape.value,
+  'is-compact': isMobile.value && isCompactHeight.value,
+}))
 </script>
 
 <template>
-  <div class="app-layout">
+  <div class="app-layout" :class="layoutClass">
     <header class="app-header">
       <div class="brand">heroxin-pic</div>
       <div class="mobile-page-title">{{ pageTitle }}</div>
@@ -64,7 +72,9 @@ const pageTitle = computed(() => {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  min-height: var(--header-height, 52px);
+  padding: calc(10px + var(--safe-top, 0px)) calc(16px + var(--safe-right, 0px)) 10px
+    calc(16px + var(--safe-left, 0px));
   background: rgba(255, 255, 255, 0.92);
   border-bottom: 1px solid #e4e7ed;
   backdrop-filter: blur(8px);
@@ -96,6 +106,7 @@ const pageTitle = computed(() => {
   gap: 6px;
   color: #606266;
   text-decoration: none;
+  min-height: var(--touch-min, 44px);
   padding: 8px 12px;
   border-radius: 8px;
   transition:
@@ -103,9 +114,11 @@ const pageTitle = computed(() => {
     background-color 0.2s;
 }
 
-.desktop-nav__link:hover {
-  color: #409eff;
-  background: #f5f7fa;
+@media (hover: hover) and (pointer: fine) {
+  .desktop-nav__link:hover {
+    color: #409eff;
+    background: #f5f7fa;
+  }
 }
 
 .desktop-nav__link.router-link-active {
@@ -118,6 +131,8 @@ const pageTitle = computed(() => {
   width: min(960px, 100%);
   margin: 0 auto;
   padding: 16px;
+  padding-left: max(16px, var(--safe-left, 0px));
+  padding-right: max(16px, var(--safe-right, 0px));
 }
 
 .mobile-tabbar {
@@ -126,11 +141,13 @@ const pageTitle = computed(() => {
   right: 0;
   bottom: 0;
   z-index: 100;
-  display: grid;
+  display: none;
   grid-template-columns: repeat(3, 1fr);
   background: rgba(255, 255, 255, 0.96);
   border-top: 1px solid #e4e7ed;
-  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-bottom: var(--safe-bottom, 0px);
+  padding-left: var(--safe-left, 0px);
+  padding-right: var(--safe-right, 0px);
   backdrop-filter: blur(8px);
 }
 
@@ -140,9 +157,10 @@ const pageTitle = computed(() => {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  min-height: 56px;
+  min-height: var(--tabbar-height, 56px);
   color: #909399;
   text-decoration: none;
+  touch-action: manipulation;
   transition: color 0.2s;
 }
 
@@ -159,6 +177,7 @@ const pageTitle = computed(() => {
   color: #409eff;
 }
 
+/* xs：手机 — 顶栏折叠为品牌+页标题，底栏导航 */
 @media (max-width: 767px) {
   .app-header {
     grid-template-columns: auto 1fr auto;
@@ -168,15 +187,21 @@ const pageTitle = computed(() => {
     display: block;
   }
 
+  .mobile-tabbar {
+    display: grid;
+  }
+
   .app-main {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0));
+    width: 100%;
+    padding-bottom: calc(var(--tabbar-height, 56px) + 16px + var(--safe-bottom, 0px));
   }
 }
 
+/* sm+：桌面顶栏导航，隐藏底栏 */
 @media (min-width: 768px) {
   .app-header {
     grid-template-columns: auto 1fr;
-    padding: 12px 20px;
+    padding: 12px calc(20px + var(--safe-right, 0px)) 12px calc(20px + var(--safe-left, 0px));
   }
 
   .mobile-page-title {
@@ -187,12 +212,43 @@ const pageTitle = computed(() => {
     display: flex;
   }
 
-  .mobile-tabbar {
-    display: none;
-  }
-
   .app-main {
     padding: 20px;
+    padding-left: max(20px, var(--safe-left, 0px));
+    padding-right: max(20px, var(--safe-right, 0px));
   }
+}
+
+@media (min-width: 992px) {
+  .app-main {
+    width: min(1100px, 100%);
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-main {
+    width: min(1200px, 100%);
+  }
+}
+
+/* 横屏短屏：压缩顶栏/底栏，底栏可只显示图标 */
+.app-layout.is-compact .app-header {
+  min-height: 40px;
+  padding-top: calc(4px + var(--safe-top, 0px));
+  padding-bottom: 4px;
+}
+
+.app-layout.is-compact .mobile-tabbar__item {
+  min-height: 44px;
+  gap: 0;
+}
+
+.app-layout.is-compact .mobile-tabbar__label {
+  display: none;
+}
+
+.app-layout.is-compact .app-main {
+  padding-top: 10px;
+  padding-bottom: calc(48px + 10px + var(--safe-bottom, 0px));
 }
 </style>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="heroxin-pic">
+  <rect width="512" height="512" rx="96" fill="#409eff"/>
+  <rect x="88" y="112" width="336" height="288" rx="28" fill="#fff"/>
+  <circle cx="188" cy="208" r="36" fill="#79bbff"/>
+  <path fill="#a0cfff" d="M88 320 L180 240 L250 300 L320 220 L424 320 L424 372 L88 372 Z"/>
+  <rect x="88" y="372" width="336" height="28" fill="#ecf5ff"/>
+</svg>
