@@ -636,17 +636,26 @@ onMounted(() => {
                 <span>{{ formatTime(row.uploadedAt) }}</span>
               </div>
               <div class="file-list__card-actions">
-                <el-button type="primary" plain size="large" @click="previewFile(row)"
-                  >预览</el-button
-                >
-                <el-button type="primary" plain size="large" @click="downloadFile(row)"
-                  >下载</el-button
-                >
-                <el-button type="primary" plain size="large" @click="copyUrl(row)">复制</el-button>
+                <el-button size="small" text type="primary" :icon="View" @click="previewFile(row)">
+                  预览
+                </el-button>
                 <el-button
+                  size="small"
+                  text
+                  type="primary"
+                  :icon="Download"
+                  @click="downloadFile(row)"
+                >
+                  下载
+                </el-button>
+                <el-button size="small" text type="primary" :icon="CopyDocument" @click="copyUrl(row)">
+                  复制
+                </el-button>
+                <el-button
+                  size="small"
+                  text
                   type="danger"
-                  plain
-                  size="large"
+                  :icon="Delete"
                   :loading="deletingKey === row.key"
                   @click="deleteFile(row)"
                 >
@@ -977,17 +986,24 @@ onMounted(() => {
 }
 
 .file-list__card-actions {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  margin-top: 12px;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px;
+  margin-top: 8px;
+  margin-left: 30px;
 }
 
 .file-list__card-actions :deep(.el-button) {
   margin: 0;
-  min-height: 44px;
-  font-size: 14px;
+  padding: 6px 8px;
+  min-height: 32px;
+  font-size: 13px;
   touch-action: manipulation;
+}
+
+.file-list__card-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .file-list__pagination {
@@ -1032,6 +1048,22 @@ onMounted(() => {
 
   .file-list__cards {
     display: block;
+  }
+
+  .file-list__card {
+    padding: 12px 0;
+  }
+
+  .file-list__card-actions {
+    margin-left: 30px;
+    gap: 0;
+  }
+
+  .file-list__card-actions :deep(.el-button) {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    padding: 8px 4px;
   }
 
   .file-list__pagination {

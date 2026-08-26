@@ -61,6 +61,7 @@ function isFresh(credential: StsCredentialSet): boolean {
 
 /**
  * 仅开发环境：从 .env.local 读取调试密钥。
+ * 若填写了 VITE_OSS_STS_TOKEN，则按官方方式用临时凭证初始化（仍会过期，日常请用 VITE_STS_URL）。
  * 生产构建不会走此分支；且密钥不得提交仓库。
  */
 function getLocalDebugCredentials(): StsCredentialSet | null {
@@ -79,7 +80,6 @@ function getLocalDebugCredentials(): StsCredentialSet | null {
   return {
     accessKeyId,
     accessKeySecret,
-    // 长期 Key 本地调试时可无 Token；ali-oss 允许不传 stsToken
     stsToken,
     expiration: Date.now() + LOCAL_DEBUG_TTL_MS,
   }
@@ -125,7 +125,7 @@ async function loadCredentials(forceRefresh: boolean): Promise<StsCredentialSet>
 
   throw new AppError(
     'CONFIG',
-    '未配置凭证：请设置 VITE_STS_URL，或在开发环境于 .env.local 填写 VITE_OSS_ACCESS_KEY_ID / VITE_OSS_ACCESS_KEY_SECRET（仅本地调试）',
+    '未配置凭证：请设置 VITE_STS_URL（推荐，见 docs/sts-setup.md），或在开发环境于 .env.local 填写临时 AccessKey + VITE_OSS_STS_TOKEN',
   )
 }
 
@@ -166,7 +166,9 @@ export function toOssCredentials(sts: StsCredentialSet): OssCredentials {
 export function getCredentialSourceLabel(): string {
   const connection = getOssConnectionConfig()
   if (hasStsUrl(connection)) return 'STS 接口'
-  if (getLocalDebugCredentials()) return '本地调试 Key（仅 DEV）'
+  const local = getLocalDebugCredentials()
+  if (local?.stsToken) return '本地临时 STS Token（仅 DEV）'
+  if (local) return '本地调试 Key（仅 DEV，无 Token）'
   return '未配置'
 }
 

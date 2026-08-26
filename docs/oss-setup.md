@@ -93,16 +93,19 @@ XHR error ... PUT https://xxx.oss-cn-beijing.aliyuncs.com/... -1 (connected: fal
 
 ### 3.1 推荐生产链路（STS）
 
+完整控制台步骤 + 本仓库 `sts-server` 用法见 **[`sts-setup.md`](./sts-setup.md)**。
+
 ```text
-前端 → 调用你的 STS 接口（或云函数）
+前端 → 调用你的 STS 接口（或本仓库 sts-server / 云函数）
      → 返回临时 AccessKeyId / AccessKeySecret / SecurityToken / Expiration
      → 浏览器 ali-oss 使用临时凭证直传 OSS
 ```
 
 需要：
 
-1. **RAM 角色**（如 `heroxin-pic-oss-uploader`），信任实体为「允许你的 STS 签发服务扮演」
-2. **角色权限策略**：仅授权本 Bucket、指定前缀（如 `uploads/*`）
+1. **RAM 角色**（如 `heroxin-pic-oss`），信任本账号，并绑定 OSS 最小权限
+2. **RAM 用户**（仅 `sts:AssumeRole`）的 AccessKey，**只放在 sts-server/.env**
+3. 前端配置 `VITE_STS_URL`（本地可用 `/api/sts` 代理）
 
 ### 3.2 最小权限策略示例（按前缀收紧）
 
@@ -142,7 +145,9 @@ XHR error ... PUT https://xxx.oss-cn-beijing.aliyuncs.com/... -1 (connected: fal
 
 ## 4. STS 接口约定（前端对接形态）
 
-前端通过 `VITE_STS_URL` 请求临时凭证。建议响应 JSON：
+前端通过 `VITE_STS_URL` 请求临时凭证。本仓库提供开箱即用的签发服务：[`../sts-server`](../sts-server/)（详见 [`sts-setup.md`](./sts-setup.md)）。
+
+建议响应 JSON：
 
 ```json
 {
@@ -169,8 +174,8 @@ XHR error ... PUT https://xxx.oss-cn-beijing.aliyuncs.com/... -1 (connected: fal
 
 **谁提供 STS（决策 D1）：**
 
-- [ ] 已有后端 / 云函数接口，填 `VITE_STS_URL`
-- [ ] 暂无 → 本地用 `.env.local` 调试密钥（仅开发），并行准备 STS
+- [x] 本仓库 `sts-server` 或已有后端 / 云函数接口 → 填 `VITE_STS_URL`
+- [ ] 暂无 → 本地用 `.env.local` 临时 Token（仅开发），并行准备 STS
 
 ---
 
@@ -222,7 +227,7 @@ cp .env.example .env.local
 - `VITE_OSS_REGION`
 - `VITE_OSS_BUCKET`
 - `VITE_OSS_DIR`（默认 `uploads/`）
-- **二选一**：`VITE_STS_URL`，或开发环境本地调试 Key（`VITE_OSS_ACCESS_KEY_ID` / `VITE_OSS_ACCESS_KEY_SECRET`）
+- **二选一**：`VITE_STS_URL`（推荐，见 [`sts-setup.md`](./sts-setup.md)），或开发环境本地临时凭证（`VITE_OSS_ACCESS_KEY_ID` / `SECRET` / `VITE_OSS_STS_TOKEN`）
 
 2. 确认 Bucket CORS 已允许 `http://localhost:5173`
 

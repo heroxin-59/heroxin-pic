@@ -10,8 +10,8 @@
 | `VITE_OSS_BUCKET` | 是 | Bucket 名 |
 | `VITE_OSS_ENDPOINT` | 否 | 自定义域名 / Endpoint |
 | `VITE_OSS_DIR` | 建议 | 对象前缀，默认 `uploads/` |
-| `VITE_STS_URL` | 生产推荐 | STS 临时凭证接口 |
-| `VITE_OSS_ACCESS_KEY_ID` 等 | 仅本地 | 长期 Key，**禁止生产 / 禁止提交** |
+| `VITE_STS_URL` | 生产推荐 | STS 临时凭证接口；本地可用 `/api/sts`（见 [`sts-setup.md`](./sts-setup.md)） |
+| `VITE_OSS_ACCESS_KEY_ID` 等 | 仅本地 | 长期 Key 或手工临时凭证；**禁止生产 / 禁止提交** |
 | `VITE_MAX_SIZE_MB` | 否 | 单文件上限 MB，默认 50 |
 | `VITE_MAX_TOTAL_SIZE_MB` | 否 | 单批上限 MB，默认 200 |
 | `VITE_ALLOWED_EXT` | 否 | 允许扩展名，逗号分隔 |
@@ -40,9 +40,12 @@
 | 预览 / 下载 | `oss:GetObject` |
 | 删除 | `oss:DeleteObject` |
 
-生产用 **STS** 下发短时凭证；本地可用受限子账号调试，勿把长期 Key 打进前端产物。
+生产用 **STS** 下发短时凭证；配置步骤见 [`sts-setup.md`](./sts-setup.md)。勿把长期 Key 打进前端产物。
 
 ## 常见问题
+
+**Q: 控制台大量 `Please use STS Token for safety`？**  
+A: 未带 `stsToken` 时 ali-oss 会提示。配置 `VITE_STS_URL` 走临时凭证即可消除；详见 [`sts-setup.md`](./sts-setup.md)。
 
 **Q: 上传报 XHR -1 / connected: false？**  
 A: 多为 CORS 未配或 Origin 不匹配，见上文 CORS。

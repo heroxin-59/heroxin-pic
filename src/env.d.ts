@@ -10,7 +10,7 @@ interface ImportMetaEnv {
   readonly VITE_OSS_ENDPOINT?: string
   /** 上传目录前缀，如 uploads/ */
   readonly VITE_OSS_DIR: string
-  /** 获取 STS 临时凭证的接口地址（生产推荐） */
+  /** 获取 STS 临时凭证的接口（推荐）；本地可用 /api/sts 代理到 sts-server */
   readonly VITE_STS_URL?: string
   /**
    * 仅本地调试：AccessKeyId（禁止提交、禁止生产使用）
@@ -19,7 +19,7 @@ interface ImportMetaEnv {
   readonly VITE_OSS_ACCESS_KEY_ID?: string
   /** 仅本地调试：AccessKeySecret */
   readonly VITE_OSS_ACCESS_KEY_SECRET?: string
-  /** 仅本地调试：若使用 STS 临时 Key 可填 Token；长期 Key 可留空 */
+  /** 仅本地调试：若使用 STS 临时 Key 必填 SecurityToken；长期 Key 可留空（会有 SDK 警告） */
   readonly VITE_OSS_STS_TOKEN?: string
   /** 单文件大小上限（MB） */
   readonly VITE_MAX_SIZE_MB: string

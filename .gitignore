@@ -20,6 +20,7 @@ lerna-debug.log*
 .env
 .env.local
 .env.*.local
+sts-server/.env
 
 # Editor / IDE
 .vscode/*

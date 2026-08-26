@@ -15,6 +15,42 @@ function normalizeDir(dir?: string): string {
   return dir.replace(/^\/+/, '').replace(/\/?$/, '/')
 }
 
+const ALI_OSS_STS_WARN = 'Please use STS Token for safety'
+
+let devLocalKeyHintLogged = false
+
+/**
+ * 开发环境用长期 Key（无 stsToken）时，ali-oss 每次 new 都会 warn。
+ * 有 STS Token 时不会触发；无 Token 时仅抑制刷屏并提示一次。
+ */
+function createAliOssClient(options: OSS.Options, hasStsToken: boolean): OSS {
+  if (hasStsToken || !import.meta.env.DEV) {
+    return new OSS(options)
+  }
+
+  const originalWarn = console.warn
+  console.warn = (...args: unknown[]) => {
+    const first = args[0]
+    if (typeof first === 'string' && first.includes(ALI_OSS_STS_WARN)) {
+      if (!devLocalKeyHintLogged) {
+        devLocalKeyHintLogged = true
+        originalWarn.call(
+          console,
+          '[heroxin-pic] 当前未使用 STS Token。请配置 VITE_STS_URL（推荐）或本地临时凭证 VITE_OSS_STS_TOKEN。详见 docs/sts-setup.md',
+        )
+      }
+      return
+    }
+    originalWarn.apply(console, args as Parameters<typeof console.warn>)
+  }
+
+  try {
+    return new OSS(options)
+  } finally {
+    console.warn = originalWarn
+  }
+}
+
 function createClientOptions(config: OssClientConfig): OSS.Options {
   const { region, bucket, endpoint, credentials } = config
 
@@ -59,7 +95,8 @@ export class OssClient {
 
   constructor(config: OssClientConfig) {
     this.dir = normalizeDir(config.dir)
-    this.client = new OSS(createClientOptions(config))
+    const options = createClientOptions(config)
+    this.client = createAliOssClient(options, Boolean(config.credentials.stsToken))
   }
 
   /** 将相对路径拼到配置的目录前缀下 */

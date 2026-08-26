@@ -51,6 +51,16 @@ export default defineConfig({
     // ali-oss 部分依赖会引用 Node 的 global
     global: 'globalThis',
   },
+  server: {
+    // 本地 sts-server 默认 :7001；前端设 VITE_STS_URL=/api/sts 即可免跨域
+    proxy: {
+      '/api/sts': {
+        target: 'http://127.0.0.1:7001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/sts/, '/sts'),
+      },
+    },
+  },
   optimizeDeps: {
     include: ['ali-oss', 'pdfjs-dist'],
   },

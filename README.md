@@ -59,7 +59,8 @@
 - 上传使用 **签名 URL** 或 **STS + ali-oss**；Bucket 权限尽量私有 + 签名访问
 - 敏感配置仅放 `.env.local` / 部署环境变量，并写入 `.gitignore`
 
-> 若暂无 STS 服务端，开发阶段可本地用受限子账号 + 环境变量联调，但 README 与代码中必须标明「仅本地调试，上线前必须换 STS」。
+> 若暂无 STS 服务端，开发阶段可本地用受限子账号 + 环境变量联调，但 README 与代码中必须标明「仅本地调试，上线前必须换 STS」。  
+> **推荐**：按 [`docs/sts-setup.md`](./docs/sts-setup.md) 配置 RAM 角色，并用仓库内 [`sts-server`](./sts-server/) 签发临时凭证。
 
 ---
 
@@ -316,7 +317,7 @@ heroxin-pic/
 
 ## 五、环境变量
 
-> 无密钥模板：[`.env.example`](./.env.example)。CORS / STS 细则：[`docs/oss-setup.md`](./docs/oss-setup.md)。FAQ：[`docs/faq.md`](./docs/faq.md)。
+> 无密钥模板：[`.env.example`](./.env.example)。CORS：[`docs/oss-setup.md`](./docs/oss-setup.md)。**STS 控制台配置 + sts-server**：[docs/sts-setup.md](./docs/sts-setup.md)。FAQ：[`docs/faq.md`](./docs/faq.md)。
 
 | 变量名（草案）            | 含义                      | 备注                                                                     |
 | ------------------------- | ------------------------- | ------------------------------------------------------------------------ |
@@ -324,7 +325,7 @@ heroxin-pic/
 | `VITE_OSS_BUCKET`         | Bucket 名                 |                                                                          |
 | `VITE_OSS_ENDPOINT`       | Endpoint（可选）          | 自定义域名时使用                                                         |
 | `VITE_OSS_DIR`            | 上传目录前缀              | 如 `uploads/`                                                            |
-| `VITE_STS_URL`            | 获取 STS 的接口           | 推荐生产使用                                                             |
+| `VITE_STS_URL`            | 获取 STS 的接口           | 推荐；本地可用 `/api/sts`（代理到 `sts-server`）                         |
 | `VITE_MAX_SIZE_MB`        | 单文件上限（MB）          | 默认 50                                                                  |
 | `VITE_MAX_TOTAL_SIZE_MB`  | 本批/队列总体积上限（MB） | 默认 200                                                                 |
 | `VITE_ALLOWED_EXT`        | 允许扩展名列表            | 逗号分隔                                                                 |
@@ -348,7 +349,7 @@ heroxin-pic/
 
 ## 七、风险与决策待办（开发前尽量拍板）
 
-- [ ] **D1** STS 由谁提供？是否已有可调用的临时凭证接口？若无，本地调试策略是什么？
+- [x] **D1** STS：本仓库 [`sts-server`](./sts-server/) + [`docs/sts-setup.md`](./docs/sts-setup.md)；亦可换成自有后端 / 云函数
 - [ ] **D2** Bucket 公共读还是私有读 + 签名 URL？
 - [x] **D3** 文件列表采用 **OSS `list` 实时列举**（非仅会话列表）
 - [x] **D4** Word 预览：仅 `.docx` + `docx-preview`（基础排版保真；`.doc` 下载降级）
@@ -475,7 +476,15 @@ pnpm check         # lint + format + test + build 一键校验
 cp .env.example .env.local
 ```
 
-编辑 `.env.local` 填入 OSS / STS 相关变量后 **重启** `pnpm dev`。变量说明见 `.env.example`、**§五** 与 [`docs/faq.md`](./docs/faq.md)。
+编辑 `.env.local` 填入 OSS / STS 相关变量后 **重启** `pnpm dev`。STS 控制台配置见 [`docs/sts-setup.md`](./docs/sts-setup.md)；变量说明见 `.env.example`、**§五** 与 [`docs/faq.md`](./docs/faq.md)。
+
+本地 STS 签发（另开终端）：
+
+```bash
+pnpm sts:install
+# 编辑 sts-server/.env 后
+pnpm sts:start
+```
 
 > 上线前勿将密钥写入仓库；`.env.local` 已在 `.gitignore` 中忽略。
 

@@ -1,0 +1,15 @@
+{
+  "name": "heroxin-pic-sts-server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "本地 / 自建 STS 签发服务：用 RAM 用户 AssumeRole，向前端返回临时凭证",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs"
+  },
+  "dependencies": {
+    "ali-oss": "^6.23.0",
+    "dotenv": "^16.4.7"
+  }
+}

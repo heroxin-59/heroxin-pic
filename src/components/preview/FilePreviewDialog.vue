@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import ImagePreview from '@/components/preview/ImagePreview.vue'
+import MobileImagePreview from '@/components/preview/MobileImagePreview.vue'
 import { AsyncPdfPreview, AsyncWordPreview } from '@/components/preview/asyncPreview'
 import TextPreview from '@/components/preview/TextPreview.vue'
 import PreviewFallback from '@/components/preview/PreviewFallback.vue'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useFilePreview } from '@/composables/useFilePreview'
 import { getCategoryLabel, getCategoryTagType } from '@/constants/fileTypes'
 import type { FileRecord } from '@/types/file'
@@ -25,6 +27,8 @@ const emit = defineEmits<{
   'update:record': [value: FileRecord | null]
 }>()
 
+const { isMobile } = useBreakpoint()
+
 const {
   current,
   loading,
@@ -44,6 +48,11 @@ const visible = computed({
   set: (value: boolean) => emit('update:modelValue', value),
 })
 
+/** 移动端图片走全屏沉浸预览，非图片仍用对话框 */
+const useMobileImagePreview = computed(
+  () => isMobile.value && props.record?.category === 'image',
+)
+
 const dialogTitle = computed(() => current.value?.name || props.record?.name || '文件预览')
 
 function onChangeImage(next: FileRecord) {
@@ -60,6 +69,14 @@ function onClosed() {
   emit('update:record', null)
 }
 
+function onMobileClosed() {
+  onClosed()
+}
+
+function onRetry() {
+  if (props.record) void load(props.record)
+}
+
 watch(
   () => [props.modelValue, props.record?.key] as const,
   ([open, key]) => {
@@ -72,8 +89,21 @@ watch(
 </script>
 
 <template>
-  <el-dialog
+  <MobileImagePreview
+    v-if="useMobileImagePreview && visible"
     v-model="visible"
+    :current="current"
+    :gallery="imageGallery"
+    :loading="loading"
+    :error-message="errorMessage"
+    @change="onChangeImage"
+    @download="download"
+    @closed="onMobileClosed"
+    @retry="onRetry"
+  />
+
+  <el-dialog
+    v-else-if="visible"
     class="file-preview-dialog"
     :title="dialogTitle"
     width="94%"

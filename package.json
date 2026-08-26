@@ -13,7 +13,10 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "pnpm lint && pnpm format:check && pnpm test && pnpm build"
+    "check": "pnpm lint && pnpm format:check && pnpm test && pnpm build",
+    "sts:install": "pnpm --dir sts-server install",
+    "sts:dev": "pnpm --dir sts-server dev",
+    "sts:start": "pnpm --dir sts-server start"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
