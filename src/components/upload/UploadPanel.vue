@@ -303,16 +303,24 @@ function onPanelKeydown(event: KeyboardEvent) {
 
 .upload-panel__mobile-actions {
   width: 100%;
+  max-width: 320px;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 10px;
 }
 
 .upload-panel__action-btn {
   width: 100%;
+  margin-left: 0;
   min-height: 48px;
   font-size: 16px;
   touch-action: manipulation;
+}
+
+/* Element Plus 默认给相邻按钮加 margin-left，竖排时会错位 */
+.upload-panel__mobile-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .upload-panel__action-btn .el-icon {

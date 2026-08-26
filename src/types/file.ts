@@ -20,6 +20,10 @@ export interface FileRecord {
   uploadedAt: string
 }
 
+/** README / 对外文档中的 FileItem，与 FileRecord 同义 */
+export type FileItem = FileRecord
+
+
 /** OSS 虚拟目录（commonPrefixes） */
 export interface FolderEntry {
   /** 完整前缀，以 / 结尾 */

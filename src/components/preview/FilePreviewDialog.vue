@@ -1,17 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { storeToRefs } from 'pinia'
+import { computed, watch } from 'vue'
 import ImagePreview from '@/components/preview/ImagePreview.vue'
-import PdfPreview from '@/components/preview/PdfPreview.vue'
+import { AsyncPdfPreview, AsyncWordPreview } from '@/components/preview/asyncPreview'
 import TextPreview from '@/components/preview/TextPreview.vue'
-import WordPreview from '@/components/preview/WordPreview.vue'
 import PreviewFallback from '@/components/preview/PreviewFallback.vue'
+import { useFilePreview } from '@/composables/useFilePreview'
 import { getCategoryLabel, getCategoryTagType } from '@/constants/fileTypes'
-import { getPreviewKind, openPreviewDownload, resolvePreviewRecord } from '@/services/preview'
-import { useFileStore } from '@/stores/files'
 import type { FileRecord } from '@/types/file'
 import { formatBytes } from '@/utils/format'
-import { showAppError, showAppSuccess } from '@/utils/message'
 
 const props = defineProps<{
   modelValue: boolean
@@ -29,66 +25,30 @@ const emit = defineEmits<{
   'update:record': [value: FileRecord | null]
 }>()
 
-const fileStore = useFileStore()
-const { records } = storeToRefs(fileStore)
-
-const loading = ref(false)
-const errorMessage = ref('')
-const current = ref<FileRecord | null>(null)
+const {
+  current,
+  loading,
+  errorMessage,
+  previewKind,
+  imageGallery,
+  load,
+  setCurrent,
+  clear,
+  download,
+} = useFilePreview({
+  gallery: () => props.gallery,
+})
 
 const visible = computed({
   get: () => props.modelValue,
   set: (value: boolean) => emit('update:modelValue', value),
 })
 
-const previewKind = computed(() => (current.value ? getPreviewKind(current.value) : null))
-
-const imageGallery = computed(() => {
-  const fromProp = props.gallery?.filter((item) => item.category === 'image') ?? null
-  const images =
-    fromProp && fromProp.length > 0
-      ? fromProp
-      : records.value.filter((item) => item.category === 'image')
-
-  if (!current.value || current.value.category !== 'image') return images
-  if (!images.some((item) => item.key === current.value!.key)) {
-    return [current.value, ...images]
-  }
-  return images
-})
-
 const dialogTitle = computed(() => current.value?.name || props.record?.name || '文件预览')
 
-async function loadPreview(source: FileRecord) {
-  loading.value = true
-  errorMessage.value = ''
-  try {
-    current.value = await resolvePreviewRecord({
-      key: source.key,
-      name: source.name,
-    })
-  } catch (error) {
-    current.value = null
-    errorMessage.value = '无法加载预览'
-    showAppError(error)
-  } finally {
-    loading.value = false
-  }
-}
-
 function onChangeImage(next: FileRecord) {
-  current.value = next
+  setCurrent(next)
   emit('update:record', next)
-}
-
-async function onDownload() {
-  if (!current.value) return
-  try {
-    await openPreviewDownload(current.value)
-    showAppSuccess('已开始下载')
-  } catch (error) {
-    showAppError(error)
-  }
 }
 
 function closeDialog() {
@@ -96,9 +56,7 @@ function closeDialog() {
 }
 
 function onClosed() {
-  current.value = null
-  errorMessage.value = ''
-  loading.value = false
+  clear()
   emit('update:record', null)
 }
 
@@ -108,7 +66,7 @@ watch(
     if (!open || !props.record || !key) return
     // 左右切换已在 onChangeImage 同步 current，勿整页 loading 卸载预览（会闪白）
     if (current.value?.key === key) return
-    void loadPreview(props.record)
+    void load(props.record)
   },
 )
 </script>
@@ -149,7 +107,7 @@ watch(
       :title="errorMessage || '预览失败'"
     >
       <template #extra>
-        <el-button v-if="record" type="primary" @click="loadPreview(record)">重试</el-button>
+        <el-button v-if="record" type="primary" @click="load(record)">重试</el-button>
         <el-button @click="closeDialog">关闭</el-button>
       </template>
     </el-result>
@@ -159,20 +117,20 @@ watch(
       :current="current"
       :gallery="imageGallery"
       @change="onChangeImage"
-      @download="onDownload"
+      @download="download"
     />
 
-    <PdfPreview v-else-if="previewKind === 'pdf'" :record="current" @download="onDownload" />
+    <AsyncPdfPreview v-else-if="previewKind === 'pdf'" :record="current" @download="download" />
 
-    <WordPreview v-else-if="previewKind === 'word'" :record="current" @download="onDownload" />
+    <AsyncWordPreview v-else-if="previewKind === 'word'" :record="current" @download="download" />
 
-    <TextPreview v-else-if="previewKind === 'text'" :record="current" @download="onDownload" />
+    <TextPreview v-else-if="previewKind === 'text'" :record="current" @download="download" />
 
     <PreviewFallback
       v-else
       :record="current"
       :kind="previewKind || 'unsupported'"
-      @download="onDownload"
+      @download="download"
     />
   </el-dialog>
 </template>

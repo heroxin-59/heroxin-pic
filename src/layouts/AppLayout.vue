@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import AppErrorBoundary from '@/components/AppErrorBoundary.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { mainNavItems } from '@/constants/navigation'
 
@@ -17,6 +18,9 @@ const layoutClass = computed(() => ({
   'is-landscape': isLandscape.value,
   'is-compact': isMobile.value && isCompactHeight.value,
 }))
+
+/** 路由变化时重置错误边界，避免卡在错误页 */
+const boundaryKey = computed(() => route.fullPath)
 </script>
 
 <template>
@@ -38,7 +42,9 @@ const layoutClass = computed(() => ({
     </header>
 
     <main class="app-main">
-      <router-view />
+      <AppErrorBoundary :reset-key="boundaryKey">
+        <router-view />
+      </AppErrorBoundary>
     </main>
 
     <nav class="mobile-tabbar" aria-label="底部导航">
@@ -61,7 +67,7 @@ const layoutClass = computed(() => ({
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(160deg, #f5f7fa 0%, #e8eef5 100%);
+  background: linear-gradient(160deg, var(--app-bg) 0%, var(--app-bg-accent) 100%);
 }
 
 .app-header {
@@ -75,22 +81,22 @@ const layoutClass = computed(() => ({
   min-height: var(--header-height, 52px);
   padding: calc(10px + var(--safe-top, 0px)) calc(16px + var(--safe-right, 0px)) 10px
     calc(16px + var(--safe-left, 0px));
-  background: rgba(255, 255, 255, 0.92);
-  border-bottom: 1px solid #e4e7ed;
+  background: color-mix(in srgb, var(--app-surface) 92%, transparent);
+  border-bottom: 1px solid var(--app-border);
   backdrop-filter: blur(8px);
 }
 
 .brand {
   font-weight: 700;
   font-size: 1.05rem;
-  color: #303133;
+  color: var(--app-text);
 }
 
 .mobile-page-title {
   display: none;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #606266;
+  color: var(--app-text-secondary);
   text-align: center;
 }
 
@@ -104,11 +110,11 @@ const layoutClass = computed(() => ({
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #606266;
+  color: var(--app-text-secondary);
   text-decoration: none;
   min-height: var(--touch-min, 44px);
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--app-radius-sm);
   transition:
     color 0.2s,
     background-color 0.2s;
@@ -116,14 +122,14 @@ const layoutClass = computed(() => ({
 
 @media (hover: hover) and (pointer: fine) {
   .desktop-nav__link:hover {
-    color: #409eff;
-    background: #f5f7fa;
+    color: var(--brand-primary);
+    background: var(--app-surface-muted);
   }
 }
 
 .desktop-nav__link.router-link-active {
-  color: #409eff;
-  background: #ecf5ff;
+  color: var(--brand-primary);
+  background: var(--brand-primary-soft);
 }
 
 .app-main {
@@ -143,8 +149,8 @@ const layoutClass = computed(() => ({
   z-index: 100;
   display: none;
   grid-template-columns: repeat(3, 1fr);
-  background: rgba(255, 255, 255, 0.96);
-  border-top: 1px solid #e4e7ed;
+  background: color-mix(in srgb, var(--app-surface) 96%, transparent);
+  border-top: 1px solid var(--app-border);
   padding-bottom: var(--safe-bottom, 0px);
   padding-left: var(--safe-left, 0px);
   padding-right: var(--safe-right, 0px);
@@ -158,7 +164,7 @@ const layoutClass = computed(() => ({
   justify-content: center;
   gap: 4px;
   min-height: var(--tabbar-height, 56px);
-  color: #909399;
+  color: var(--app-text-muted);
   text-decoration: none;
   touch-action: manipulation;
   transition: color 0.2s;
@@ -174,7 +180,7 @@ const layoutClass = computed(() => ({
 }
 
 .mobile-tabbar__item.router-link-active {
-  color: #409eff;
+  color: var(--brand-primary);
 }
 
 /* xs：手机 — 顶栏折叠为品牌+页标题，底栏导航 */

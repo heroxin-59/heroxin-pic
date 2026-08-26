@@ -250,15 +250,15 @@
 
 ### 阶段 7：通用体验与工程质量
 
-- [ ] **7.1** 全局 Loading / Message / MessageBox 规范
-- [ ] **7.2** 主题与品牌色（保持简洁，避免过度装饰）
-- [ ] **7.3** 国际化预留（可先中文硬编码，结构便于后续 i18n）
-- [ ] **7.4** TypeScript 类型：FileItem、UploadStatus、OssConfig、PreviewType 等
-- [ ] **7.5** 可复用 composables：`useOss`、`useUploader`、`useFilePreview`、`useBreakpoint`
-- [ ] **7.6** 错误边界与路由 404 页
-- [ ] **7.7** 基础单测 / 关键工具函数测试（可选但推荐）
-- [ ] **7.8** 构建产物体积关注：PDF/Word 预览库按需异步加载（`defineAsyncComponent` / 动态 `import()`）
-- [ ] **7.9** README 补充：环境变量说明、CORS 配置示例、权限说明、常见问题 FAQ
+- [x] **7.1** 全局 Loading / Message / MessageBox 规范 → `src/utils/message.ts` · `src/utils/loading.ts` · [`docs/ui-feedback.md`](./docs/ui-feedback.md)
+- [x] **7.2** 主题与品牌色（保持简洁，避免过度装饰）→ `src/styles/theme.css`（主色挂钩 Element Plus）
+- [~] **7.3** 国际化预留 — **不做**（产品保持中文硬编码）
+- [x] **7.4** TypeScript 类型：FileItem、UploadStatus、OssConfig、PreviewType 等 → `src/types/*` · [`docs/types-composables.md`](./docs/types-composables.md)
+- [x] **7.5** 可复用 composables：`useOss`、`useUploader`、`useFilePreview`、`useBreakpoint` → 同上
+- [x] **7.6** 错误边界与路由 404 页 → `AppErrorBoundary` · `NotFoundView` · `app.config.errorHandler`
+- [x] **7.7** 基础单测 / 关键工具函数测试 → `error` / `format` / `preview` / `archiveDate` / `albumGroup`（`pnpm test`）
+- [x] **7.8** 构建产物体积关注：PDF/Word 预览库按需异步加载 → `components/preview/asyncPreview.ts`
+- [x] **7.9** README 补充：环境变量说明、CORS 配置示例、权限说明、常见问题 FAQ → [`.env.example`](./.env.example) · [`docs/oss-setup.md`](./docs/oss-setup.md) · [`docs/faq.md`](./docs/faq.md)
 
 ---
 
@@ -314,7 +314,9 @@ heroxin-pic/
 
 ---
 
-## 五、环境变量草案（实现时再定名）
+## 五、环境变量
+
+> 无密钥模板：[`.env.example`](./.env.example)。CORS / STS 细则：[`docs/oss-setup.md`](./docs/oss-setup.md)。FAQ：[`docs/faq.md`](./docs/faq.md)。
 
 | 变量名（草案）            | 含义                      | 备注                                                                     |
 | ------------------------- | ------------------------- | ------------------------------------------------------------------------ |
@@ -419,6 +421,9 @@ heroxin-pic/
 | 2026-08-25 | 阶段 3.12.4–3.12.5     | EXIF 归档日 + ObjectKey 支持   |
 | 2026-08-25 | 阶段 3.12.6–3.12.7     | 上传队列接线 + 未来日边界      |
 | 2026-08-25 | 阶段 3.12.8 完成       | vitest + `docs/archive-date.md` |
+| 2026-08-26 | 阶段 7.1–7.2 完成      | 反馈规范 + 主题色；7.3 不做    |
+| 2026-08-26 | 阶段 7.4–7.5 完成      | 类型出口 + useOss/Uploader/Preview |
+| 2026-08-26 | 阶段 7.6–7.9 完成      | 404/错误边界、单测、异步预览、FAQ  |
 
 ---
 
@@ -470,7 +475,7 @@ pnpm check         # lint + format + test + build 一键校验
 cp .env.example .env.local
 ```
 
-编辑 `.env.local` 填入 OSS / STS 相关变量后 **重启** `pnpm dev`。变量说明见 `.env.example` 与 **§五**。
+编辑 `.env.local` 填入 OSS / STS 相关变量后 **重启** `pnpm dev`。变量说明见 `.env.example`、**§五** 与 [`docs/faq.md`](./docs/faq.md)。
 
 > 上线前勿将密钥写入仓库；`.env.local` 已在 `.gitignore` 中忽略。
 

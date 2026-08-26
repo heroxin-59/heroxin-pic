@@ -53,7 +53,10 @@ function onAction(action: 'preview' | 'download' | 'copy' | 'delete') {
   const record = current.value
   if (!record) return
   close()
-  emit(action, record)
+  if (action === 'preview') emit('preview', record)
+  else if (action === 'download') emit('download', record)
+  else if (action === 'copy') emit('copy', record)
+  else emit('delete', record)
 }
 
 function onDocPointerDown(event: Event) {

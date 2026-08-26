@@ -1,0 +1,63 @@
+/**
+ * 品牌与主题色（阶段 7.2）
+ * 简洁蓝灰，贴近 Element Plus；避免额外装饰与多套主题色。
+ * 在 element-plus 样式之后引入，以覆盖 --el-color-*。
+ */
+
+:root {
+  /* —— 品牌主色 —— */
+  --brand-primary: #409eff;
+  --brand-primary-hover: #79bbff;
+  --brand-primary-active: #337ecc;
+  --brand-primary-soft: #ecf5ff;
+
+  /* —— 语义色（与 Element Plus 对齐） —— */
+  --brand-success: #67c23a;
+  --brand-warning: #e6a23c;
+  --brand-danger: #f56c6c;
+  --brand-info: #909399;
+
+  /* —— 表面与文字 —— */
+  --app-bg: #f5f7fa;
+  --app-bg-accent: #e8eef5;
+  --app-surface: #ffffff;
+  --app-surface-muted: #f5f7fa;
+  --app-border: #e4e7ed;
+  --app-border-strong: #dcdfe6;
+  --app-text: #303133;
+  --app-text-secondary: #606266;
+  --app-text-muted: #909399;
+
+  /* —— 圆角 / 阴影（克制） —— */
+  --app-radius: 12px;
+  --app-radius-sm: 8px;
+  --app-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+
+  /* —— 布局令牌（与 style.css 共用） —— */
+  --color-text: var(--app-text);
+  --color-bg: var(--app-bg);
+
+  /* —— Element Plus 主色挂钩 —— */
+  --el-color-primary: var(--brand-primary);
+  --el-color-primary-light-3: #79bbff;
+  --el-color-primary-light-5: #a0cfff;
+  --el-color-primary-light-7: #c6e2ff;
+  --el-color-primary-light-8: #d9ecff;
+  --el-color-primary-light-9: var(--brand-primary-soft);
+  --el-color-primary-dark-2: var(--brand-primary-active);
+
+  --el-color-success: var(--brand-success);
+  --el-color-warning: var(--brand-warning);
+  --el-color-danger: var(--brand-danger);
+  --el-color-info: var(--brand-info);
+
+  --el-border-radius-base: var(--app-radius-sm);
+  --el-border-color: var(--app-border);
+  --el-border-color-light: var(--app-border);
+  --el-text-color-primary: var(--app-text);
+  --el-text-color-regular: var(--app-text-secondary);
+  --el-text-color-secondary: var(--app-text-muted);
+  --el-bg-color: var(--app-surface);
+  --el-bg-color-page: var(--app-bg);
+  --el-fill-color-blank: var(--app-surface);
+}

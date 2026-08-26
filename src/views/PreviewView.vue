@@ -1,28 +1,21 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { storeToRefs } from 'pinia'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import ImagePreview from '@/components/preview/ImagePreview.vue'
-import PdfPreview from '@/components/preview/PdfPreview.vue'
+import { AsyncPdfPreview, AsyncWordPreview } from '@/components/preview/asyncPreview'
 import TextPreview from '@/components/preview/TextPreview.vue'
-import WordPreview from '@/components/preview/WordPreview.vue'
 import PreviewFallback from '@/components/preview/PreviewFallback.vue'
+import { useFilePreview } from '@/composables/useFilePreview'
 import { getCategoryLabel, getCategoryTagType } from '@/constants/fileTypes'
-import { getPreviewKind, openPreviewDownload, resolvePreviewRecord } from '@/services/preview'
-import { useFileStore } from '@/stores/files'
 import type { FileRecord } from '@/types/file'
 import { formatBytes } from '@/utils/format'
-import { showAppError, showAppSuccess } from '@/utils/message'
 
 const route = useRoute()
 const router = useRouter()
-const fileStore = useFileStore()
-const { records } = storeToRefs(fileStore)
 
-const loading = ref(false)
-const errorMessage = ref('')
-const current = ref<FileRecord | null>(null)
+const { current, loading, errorMessage, previewKind, imageGallery, load, setCurrent, clear, download } =
+  useFilePreview()
 
 const queryKey = computed(() => {
   const value = route.query.key
@@ -34,56 +27,20 @@ const queryName = computed(() => {
   return typeof value === 'string' ? value : undefined
 })
 
-const previewKind = computed(() => (current.value ? getPreviewKind(current.value) : null))
-
-const imageGallery = computed(() => {
-  const images = records.value.filter((item) => item.category === 'image')
-  if (!current.value || current.value.category !== 'image') return images
-  if (!images.some((item) => item.key === current.value!.key)) {
-    return [current.value, ...images]
-  }
-  return images
-})
-
 async function loadPreview() {
   if (!queryKey.value) {
-    current.value = null
-    errorMessage.value = ''
+    clear()
     return
   }
-
-  loading.value = true
-  errorMessage.value = ''
-  try {
-    current.value = await resolvePreviewRecord({
-      key: queryKey.value,
-      name: queryName.value,
-    })
-  } catch (error) {
-    current.value = null
-    errorMessage.value = '无法加载预览'
-    showAppError(error)
-  } finally {
-    loading.value = false
-  }
+  await load({ key: queryKey.value, name: queryName.value })
 }
 
 function onChangeImage(record: FileRecord) {
-  current.value = record
+  setCurrent(record)
   router.replace({
     name: 'preview',
     query: { key: record.key, name: record.name },
   })
-}
-
-async function onDownload() {
-  if (!current.value) return
-  try {
-    await openPreviewDownload(current.value)
-    showAppSuccess('已开始下载')
-  } catch (error) {
-    showAppError(error)
-  }
 }
 
 function goBack() {
@@ -102,8 +59,7 @@ watch(
   () => [queryKey.value, queryName.value] as const,
   ([key]) => {
     if (!key) {
-      current.value = null
-      errorMessage.value = ''
+      clear()
       return
     }
     // 左右切换已在 onChangeImage 同步 current，勿整页 loading 卸载预览（会闪白）
@@ -162,20 +118,24 @@ watch(
         :current="current"
         :gallery="imageGallery"
         @change="onChangeImage"
-        @download="onDownload"
+        @download="download"
       />
 
-      <PdfPreview v-else-if="previewKind === 'pdf'" :record="current" @download="onDownload" />
+      <AsyncPdfPreview v-else-if="previewKind === 'pdf'" :record="current" @download="download" />
 
-      <WordPreview v-else-if="previewKind === 'word'" :record="current" @download="onDownload" />
+      <AsyncWordPreview
+        v-else-if="previewKind === 'word'"
+        :record="current"
+        @download="download"
+      />
 
-      <TextPreview v-else-if="previewKind === 'text'" :record="current" @download="onDownload" />
+      <TextPreview v-else-if="previewKind === 'text'" :record="current" @download="download" />
 
       <PreviewFallback
         v-else
         :record="current"
         :kind="previewKind || 'unsupported'"
-        @download="onDownload"
+        @download="download"
       />
     </el-card>
   </div>

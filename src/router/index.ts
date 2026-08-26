@@ -21,7 +21,16 @@ const router = createRouter({
       component: () => import('@/views/PreviewView.vue'),
       meta: { title: '预览' },
     },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('@/views/NotFoundView.vue'),
+      meta: { title: '页面不存在' },
+    },
   ],
+  scrollBehavior() {
+    return { top: 0 }
+  },
 })
 
 router.afterEach((to) => {

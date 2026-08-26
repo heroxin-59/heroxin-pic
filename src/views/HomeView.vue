@@ -4,13 +4,8 @@ import UploadPanel from '@/components/upload/UploadPanel.vue'
 import UploadProgressBar from '@/components/upload/UploadProgressBar.vue'
 import UploadQueueList from '@/components/upload/UploadQueueList.vue'
 import RecentUploads from '@/components/upload/RecentUploads.vue'
-import { useUploadQueue } from '@/composables/useUploadQueue'
-import {
-  getOssConnectionConfig,
-  getOssConnectionMissing,
-  getUploadLimits,
-  isOssConnectionConfigured,
-} from '@/config/oss'
+import { useOss } from '@/composables/useOss'
+import { useUploader } from '@/composables/useUploader'
 import { getDuplicateStrategy } from '@/config/upload'
 import { AppError } from '@/types/error'
 import { getCredentialSourceLabel } from '@/services/sts'
@@ -18,11 +13,12 @@ import { filterAllowedFiles, findDuplicateFilenames, sumFileSizes } from '@/util
 import { formatBytes } from '@/utils/format'
 import { showAppError, showAppSuccess, showAppWarning } from '@/utils/message'
 
-const connection = getOssConnectionConfig()
-const connectionReady = isOssConnectionConfigured(connection)
-const missing = getOssConnectionMissing(connection)
+const {
+  configured: connectionReady,
+  missingEnvKeys: missing,
+  uploadLimits,
+} = useOss()
 const credentialSource = getCredentialSourceLabel()
-const uploadLimits = getUploadLimits()
 
 const {
   tasks,
@@ -41,9 +37,9 @@ const {
   retryFailed,
   clearTasks,
   resolvingArchive,
-} = useUploadQueue()
+} = useUploader()
 
-const canUpload = computed(() => connectionReady && credentialSource !== '未配置')
+const canUpload = computed(() => connectionReady.value && credentialSource !== '未配置')
 const queueBytes = computed(() => sumFileSizes(tasks.value.map((item) => item.file)))
 const activeTaskId = computed(() => currentTask.value?.id ?? null)
 const queueBusy = computed(() => uploading.value || resolvingArchive.value)
@@ -78,8 +74,8 @@ async function onSelectFiles(files: File[]) {
     showAppError(
       new AppError(
         'CONFIG',
-        missing.length
-          ? `请先配置：${missing.join(', ')}`
+        missing.value.length
+          ? `请先配置：${missing.value.join(', ')}`
           : '未配置凭证，请设置 VITE_STS_URL 或本地调试 Key',
       ),
     )

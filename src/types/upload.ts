@@ -3,6 +3,9 @@ import type { ArchiveDateSource } from '@/utils/archiveDate'
 
 export type UploadTaskStatus = 'waiting' | 'uploading' | 'success' | 'error' | 'cancelled'
 
+/** README / 对外文档中的 UploadStatus，与 UploadTaskStatus 同义 */
+export type UploadStatus = UploadTaskStatus
+
 export interface UploadTask {
   id: string
   file: File

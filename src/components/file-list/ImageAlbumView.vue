@@ -275,13 +275,20 @@ onUnmounted(() => {
       <div class="image-album__toolbar-actions">
         <el-button
           v-if="!selectionMode"
-          size="small"
+          class="image-album__mode-btn"
+          :size="isMobile ? 'default' : 'small'"
           :disabled="records.length === 0 || batchBusy"
           @click="enterSelectionMode"
         >
           多选
         </el-button>
-        <el-button v-else size="small" :disabled="batchBusy" @click="exitSelectionMode">
+        <el-button
+          v-else
+          class="image-album__mode-btn"
+          :size="isMobile ? 'default' : 'small'"
+          :disabled="batchBusy"
+          @click="exitSelectionMode"
+        >
           取消多选
         </el-button>
       </div>
@@ -423,6 +430,7 @@ onUnmounted(() => {
 .image-album__toolbar-actions {
   margin-left: auto;
   display: flex;
+  align-items: center;
   gap: 8px;
 }
 
@@ -430,6 +438,35 @@ onUnmounted(() => {
   margin: 0;
   font-size: 12px;
   color: #909399;
+}
+
+@media (max-width: 767px) {
+  .image-album__toolbar {
+    flex-wrap: nowrap;
+    align-items: stretch;
+  }
+
+  .image-album__jump {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+
+  /* 与全局触摸按钮 --touch-min 对齐，避免选框偏矮、多选偏高 */
+  .image-album__jump :deep(.el-select__wrapper) {
+    min-height: var(--touch-min, 44px);
+  }
+
+  .image-album__toolbar-actions {
+    margin-left: 0;
+    flex-shrink: 0;
+  }
+
+  .image-album__mode-btn {
+    height: var(--touch-min, 44px);
+    min-height: var(--touch-min, 44px);
+    padding: 0 14px;
+  }
 }
 
 .image-album {

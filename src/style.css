@@ -20,8 +20,6 @@
 
   --header-height: 52px;
   --tabbar-height: 56px;
-  --color-text: #303133;
-  --color-bg: #f5f7fa;
 }
 
 html {
@@ -39,8 +37,8 @@ body,
 
 body {
   font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  color: var(--color-text);
-  background-color: var(--color-bg);
+  color: var(--app-text, #303133);
+  background-color: var(--app-bg, #f5f7fa);
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: contain;
 }

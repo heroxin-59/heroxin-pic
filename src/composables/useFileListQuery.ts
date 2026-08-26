@@ -153,6 +153,15 @@ export function useFileListQuery(getRecords: () => FileRecord[]) {
     imagesOnly.value = value
   }
 
+  /** 切换列表范围/目录时清搜索与分页；保留「仅图片」偏好 */
+  function resetListFilters() {
+    keyword.value = ''
+    category.value = imagesOnly.value ? 'image' : 'all'
+    sortValue.value = 'time-desc'
+    page.value = 1
+  }
+
+  /** 重置按钮：清空全部筛选（含仅图片） */
   function resetQuery() {
     keyword.value = ''
     category.value = 'all'
@@ -178,6 +187,7 @@ export function useFileListQuery(getRecords: () => FileRecord[]) {
     pageRangeStart,
     pageRangeEnd,
     setImagesOnly,
+    resetListFilters,
     resetQuery,
   }
 }

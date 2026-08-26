@@ -2,7 +2,6 @@
 import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { ElMessageBox } from 'element-plus'
 import {
   ArrowLeft,
   CopyDocument,
@@ -31,7 +30,7 @@ import type { FileRecord, FolderEntry } from '@/types/file'
 import type { AlbumImageMeta } from '@/services/imageMeta'
 import { formatBytes } from '@/utils/format'
 import { groupRecordsByUploadDay } from '@/utils/albumGroup'
-import { showAppError, showAppSuccess, showAppWarning } from '@/utils/message'
+import { confirmApp, confirmAppDelete, showAppError, showAppSuccess, showAppWarning } from '@/utils/message'
 
 const router = useRouter()
 const { isMobile } = useBreakpoint()
@@ -65,6 +64,7 @@ const {
   pageRangeStart,
   pageRangeEnd,
   setImagesOnly,
+  resetListFilters,
   resetQuery,
 } = useFileListQuery(() => records.value)
 
@@ -183,7 +183,7 @@ async function refresh() {
 
 async function onShowAllFilesChange(value: string | number | boolean) {
   try {
-    resetQuery()
+    resetListFilters()
     await fileStore.setShowAllFiles(Boolean(value))
     if (!fileStore.hasListContent) {
       showAppWarning(value ? '当前前缀下暂无文件' : '当前目录为空')
@@ -195,7 +195,7 @@ async function onShowAllFilesChange(value: string | number | boolean) {
 
 async function openFolder(folder: FolderEntry) {
   try {
-    resetQuery()
+    resetListFilters()
     await fileStore.enterFolder(folder.prefix)
   } catch (error) {
     showAppError(error)
@@ -204,7 +204,7 @@ async function openFolder(folder: FolderEntry) {
 
 async function onBreadcrumbClick(crumb: FolderBreadcrumb) {
   try {
-    resetQuery()
+    resetListFilters()
     await fileStore.navigateToPrefix(crumb.prefix)
   } catch (error) {
     showAppError(error)
@@ -213,7 +213,7 @@ async function onBreadcrumbClick(crumb: FolderBreadcrumb) {
 
 async function goParent() {
   try {
-    resetQuery()
+    resetListFilters()
     await fileStore.goParentFolder()
   } catch (error) {
     showAppError(error)
@@ -246,16 +246,8 @@ function previewFile(row: FileRecord) {
 }
 
 async function deleteFile(row: FileRecord) {
-  try {
-    await ElMessageBox.confirm(`确定从 OSS 删除「${row.name}」吗？此操作不可恢复。`, '删除确认', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-      confirmButtonClass: 'el-button--danger',
-    })
-  } catch {
-    return
-  }
+  const confirmed = await confirmAppDelete(row.name)
+  if (!confirmed) return
 
   try {
     await fileStore.deleteRecord(row)
@@ -293,20 +285,15 @@ async function onAlbumBatchDownload(items: FileRecord[]) {
 
 async function onAlbumBatchDelete(items: FileRecord[]) {
   if (items.length === 0 || albumBatchBusy.value) return
-  try {
-    await ElMessageBox.confirm(
-      `确定从 OSS 删除选中的 ${items.length} 张图片吗？此操作不可恢复。`,
-      '批量删除确认',
-      {
-        type: 'warning',
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
-        confirmButtonClass: 'el-button--danger',
-      },
-    )
-  } catch {
-    return
-  }
+  const confirmed = await confirmApp(
+    `确定从 OSS 删除选中的 ${items.length} 张图片吗？此操作不可恢复。`,
+    {
+      title: '批量删除确认',
+      confirmButtonText: '删除',
+      danger: true,
+    },
+  )
+  if (!confirmed) return
 
   albumBatchBusy.value = true
   let ok = 0
@@ -339,7 +326,7 @@ onMounted(() => {
       <div class="file-list__header">
         <div class="file-list__title-wrap">
           <span class="file-list__title">文件列表</span>
-          <el-tag size="small" type="info">OSS 历史文件</el-tag>
+          <el-tag size="small" type="info">OSS</el-tag>
         </div>
         <div class="file-list__meta">
           <div class="file-list__mode">

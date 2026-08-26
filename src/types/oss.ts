@@ -17,6 +17,9 @@ export interface OssClientConfig {
   credentials: OssCredentials
 }
 
+/** README / 对外文档中的 OssConfig，与 OssClientConfig 同义 */
+export type OssConfig = OssClientConfig
+
 export interface OssUploadOptions {
   /** 对象完整 Key；不传则由调用方自行拼好再传入 key */
   key: string

@@ -4,19 +4,19 @@ import { Download } from '@element-plus/icons-vue'
 import FileTypeIcon from '@/components/file-list/FileTypeIcon.vue'
 import { getCategoryLabel } from '@/constants/fileTypes'
 import type { FileRecord } from '@/types/file'
-import type { PreviewKind } from '@/services/preview'
+import type { PreviewType } from '@/types/preview'
 import { formatBytes } from '@/utils/format'
 
 const props = defineProps<{
   record: FileRecord
-  kind: PreviewKind
+  kind: PreviewType
 }>()
 
 const emit = defineEmits<{
   download: []
 }>()
 
-const kindHint: Record<PreviewKind, string> = {
+const kindHint: Record<PreviewType, string> = {
   image: '',
   pdf: 'PDF 预览失败或未启用时，请下载后查看',
   word: 'Word 预览失败时，请下载后查看',
