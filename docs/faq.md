@@ -6,6 +6,7 @@
 
 | 变量 | 必填 | 含义 |
 | --- | --- | --- |
+| `VITE_BASE` | 否 | 部署子路径，如 `/pic/`；根路径 `/`；见 [`deploy.md`](./deploy.md) |
 | `VITE_OSS_REGION` | 是 | 地域，如 `oss-cn-beijing` |
 | `VITE_OSS_BUCKET` | 是 | Bucket 名 |
 | `VITE_OSS_ENDPOINT` | 否 | 自定义域名 / Endpoint |
@@ -56,8 +57,11 @@ A: 站内下载已走 SDK Blob（`downloadOssFile`），勿再依赖跨域 `<a h
 **Q: 预览空白 / PDF 中文乱码？**  
 A: PDF 依赖 `public/pdfjs` 资源；确认构建时拷贝了 cmaps。Word 仅支持 `.docx`。
 
-**Q: 仅图片关闭后类型仍是「图片」？**  
-A: 关闭「仅图片」会自动切回类型「全部」。
+**Q: 图片页和文件列表有什么区别？**  
+A: 文件列表展示全部类型，并保留「显示全部文件」层级浏览。图片页（顶栏「图片」）只展示图片相册（原「仅图片」能力），进入时扁平加载前缀下全部图片。
 
 **Q: 访问未知路径？**  
 A: 会进入 404 页（`NotFoundView`）；渲染异常由 `AppErrorBoundary` 承接。
+
+**Q: 子路径部署后白屏 / 路由 404？**  
+A: 构建时设置 `VITE_BASE=/your-path/`，并配置 SPA fallback；详见 [`deploy.md`](./deploy.md)。

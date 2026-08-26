@@ -2,7 +2,7 @@
 export type DuplicateStrategy = 'uuid' | 'timestamp' | 'overwrite' | 'suffix'
 
 export const DUPLICATE_STRATEGY_LABEL: Record<DuplicateStrategy, string> = {
-  uuid: '文件名-UUID.扩展名（默认）',
+  uuid: 'UUID-文件名（默认；列表/下载不显示 UUID）',
   timestamp: '文件名-时间戳.扩展名',
   overwrite: '覆盖同名对象',
   suffix: '自动追加序号 (-1, -2…)',

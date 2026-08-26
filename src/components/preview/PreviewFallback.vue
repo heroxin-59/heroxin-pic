@@ -24,13 +24,7 @@ const kindHint: Record<PreviewType, string> = {
   unsupported: '该类型暂不支持在线预览',
 }
 
-const hintText = computed(() => {
-  const ext = props.record.extension.toLowerCase()
-  if (ext === 'doc') {
-    return '暂不支持 .doc 老格式在线预览，请下载后用 Word 打开，或转换为 .docx 后再上传'
-  }
-  return kindHint[props.kind]
-})
+const hintText = computed(() => kindHint[props.kind])
 </script>
 
 <template>

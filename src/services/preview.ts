@@ -2,7 +2,7 @@ import { getAccessUrl, downloadOssFile, getObjectBlob } from '@/services/fileLis
 import { useFileStore } from '@/stores/files'
 import { buildFileRecordFromKey, type FileRecord } from '@/types/file'
 import type { PreviewType } from '@/types/preview'
-import { isDocxFile } from '@/services/word'
+import { isWordPreviewFile } from '@/services/word'
 
 export type { PreviewKind, PreviewType } from '@/types/preview'
 
@@ -10,8 +10,7 @@ export function getPreviewKind(record: FileRecord): PreviewType {
   if (record.category === 'image') return 'image'
   if (record.category === 'pdf') return 'pdf'
   if (record.category === 'word') {
-    // 仅支持 .docx；.doc 老格式走 Fallback
-    return isDocxFile(record.extension || record.name) ? 'word' : 'unsupported'
+    return isWordPreviewFile(record.extension || record.name) ? 'word' : 'unsupported'
   }
   if (record.category === 'text') return 'text'
   return 'unsupported'

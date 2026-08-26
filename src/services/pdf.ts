@@ -13,7 +13,7 @@ export interface PdfDocumentHandle {
   destroy: () => Promise<void>
 }
 
-/** 从 OSS 拉取 PDF 并交由 pdf.js 解析（按页渲染，不一次性画全部页） */
+/** 从 OSS 拉取 PDF 并交由 pdf.js 解析（预览组件连续渲染全部页） */
 export async function loadPdfDocument(key: string): Promise<PdfDocumentHandle> {
   const blob = await getObjectBlob(key)
   const data = new Uint8Array(await blob.arrayBuffer())

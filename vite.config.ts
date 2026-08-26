@@ -4,6 +4,7 @@ import { fileURLToPath, URL } from 'node:url'
 import vue from '@vitejs/plugin-vue'
 import type { Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
+import { stsDevPlugin } from './vite-plugins/stsDevPlugin.ts'
 
 const rootDir = dirname(fileURLToPath(import.meta.url))
 
@@ -39,9 +40,18 @@ function copyPdfjsAssetsPlugin(): Plugin {
   }
 }
 
+/** 子路径部署：构建前设置 VITE_BASE=/pic/（须以 / 开头并以 / 结尾；根路径用 /） */
+function resolveBase(): string {
+  const raw = (process.env.VITE_BASE ?? '/').trim() || '/'
+  if (raw === '/') return '/'
+  const withLead = raw.startsWith('/') ? raw : `/${raw}`
+  return withLead.endsWith('/') ? withLead : `${withLead}/`
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [vue(), copyPdfjsAssetsPlugin()],
+  base: resolveBase(),
+  plugins: [vue(), copyPdfjsAssetsPlugin(), stsDevPlugin()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -50,16 +60,6 @@ export default defineConfig({
   define: {
     // ali-oss 部分依赖会引用 Node 的 global
     global: 'globalThis',
-  },
-  server: {
-    // 本地 sts-server 默认 :7001；前端设 VITE_STS_URL=/api/sts 即可免跨域
-    proxy: {
-      '/api/sts': {
-        target: 'http://127.0.0.1:7001',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/sts/, '/sts'),
-      },
-    },
   },
   optimizeDeps: {
     include: ['ali-oss', 'pdfjs-dist'],

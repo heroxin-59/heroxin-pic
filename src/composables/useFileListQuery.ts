@@ -9,26 +9,6 @@ export type FileCategoryFilter = 'all' | FileCategory
 export const DEFAULT_FILE_PAGE_SIZE = 10
 export const FILE_PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 200]
 
-const IMAGES_ONLY_STORAGE_KEY = 'heroxin-pic:images-only'
-
-function readImagesOnlyPreference(): boolean {
-  try {
-    const raw = localStorage.getItem(IMAGES_ONLY_STORAGE_KEY)
-    if (raw === null) return false
-    return raw === '1' || raw === 'true'
-  } catch {
-    return false
-  }
-}
-
-function writeImagesOnlyPreference(value: boolean) {
-  try {
-    localStorage.setItem(IMAGES_ONLY_STORAGE_KEY, value ? '1' : '0')
-  } catch {
-    // ignore
-  }
-}
-
 export interface FileSortOption {
   value: string
   label: string
@@ -72,12 +52,10 @@ function compareRecords(
   return order === 'asc' ? result : -result
 }
 
-/** 列表页：搜索 / 类型筛选 / 排序 / 分页（基于已加载的 records） */
+/** 文件列表页：搜索 / 类型筛选 / 排序 / 分页（基于已加载的 records） */
 export function useFileListQuery(getRecords: () => FileRecord[]) {
   const keyword = ref('')
-  /** true：仅展示图片 */
-  const imagesOnly = ref(readImagesOnlyPreference())
-  const category = ref<FileCategoryFilter>(imagesOnly.value ? 'image' : 'all')
+  const category = ref<FileCategoryFilter>('all')
   const sortValue = ref('time-desc')
   const page = ref(1)
   const pageSize = ref(DEFAULT_FILE_PAGE_SIZE)
@@ -86,14 +64,10 @@ export function useFileListQuery(getRecords: () => FileRecord[]) {
     return FILE_SORT_OPTIONS.find((item) => item.value === sortValue.value) ?? FILE_SORT_OPTIONS[0]
   })
 
-  const effectiveCategory = computed<FileCategoryFilter>(() =>
-    imagesOnly.value ? 'image' : category.value,
-  )
-
   const filteredRecords = computed(() => {
     const query = keyword.value.trim().toLowerCase()
     const sort = currentSort.value
-    const cat = effectiveCategory.value
+    const cat = category.value
 
     const filtered = getRecords().filter((item) => {
       if (cat !== 'all' && item.category !== cat) {
@@ -132,14 +106,8 @@ export function useFileListQuery(getRecords: () => FileRecord[]) {
     return Math.min(page.value * pageSize.value, filteredTotal.value)
   })
 
-  watch([keyword, category, imagesOnly, sortValue, pageSize], () => {
+  watch([keyword, category, sortValue, pageSize], () => {
     page.value = 1
-  })
-
-  watch(imagesOnly, (value) => {
-    writeImagesOnlyPreference(value)
-    // 开启仅图片 → 类型锁定为「图片」；关闭 → 恢复「全部」
-    category.value = value ? 'image' : 'all'
   })
 
   watch(filteredTotal, (total) => {
@@ -149,24 +117,17 @@ export function useFileListQuery(getRecords: () => FileRecord[]) {
     }
   })
 
-  function setImagesOnly(value: boolean) {
-    imagesOnly.value = value
-  }
-
-  /** 切换列表范围/目录时清搜索与分页；保留「仅图片」偏好 */
+  /** 切换列表范围/目录时清搜索与分页 */
   function resetListFilters() {
     keyword.value = ''
-    category.value = imagesOnly.value ? 'image' : 'all'
+    category.value = 'all'
     sortValue.value = 'time-desc'
     page.value = 1
   }
 
-  /** 重置按钮：清空全部筛选（含仅图片） */
   function resetQuery() {
     keyword.value = ''
     category.value = 'all'
-    imagesOnly.value = false
-    writeImagesOnlyPreference(false)
     sortValue.value = 'time-desc'
     page.value = 1
     pageSize.value = DEFAULT_FILE_PAGE_SIZE
@@ -175,7 +136,6 @@ export function useFileListQuery(getRecords: () => FileRecord[]) {
   return {
     keyword,
     category,
-    imagesOnly,
     sortValue,
     page,
     pageSize,
@@ -186,7 +146,6 @@ export function useFileListQuery(getRecords: () => FileRecord[]) {
     pageCount,
     pageRangeStart,
     pageRangeEnd,
-    setImagesOnly,
     resetListFilters,
     resetQuery,
   }

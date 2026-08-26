@@ -25,12 +25,12 @@ describe('getPreviewKind', () => {
     )
   })
 
-  it('supports docx only for word preview', () => {
+  it('supports doc and docx for word preview', () => {
     expect(getPreviewKind(record({ name: 'a.docx', extension: 'docx', category: 'word' }))).toBe(
       'word',
     )
     expect(getPreviewKind(record({ name: 'a.doc', extension: 'doc', category: 'word' }))).toBe(
-      'unsupported',
+      'word',
     )
   })
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import {
@@ -14,7 +14,6 @@ import {
 } from '@element-plus/icons-vue'
 import FileTypeIcon from '@/components/file-list/FileTypeIcon.vue'
 import FileContextMenu from '@/components/file-list/FileContextMenu.vue'
-import ImageAlbumView from '@/components/file-list/ImageAlbumView.vue'
 import FilePreviewDialog from '@/components/preview/FilePreviewDialog.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import {
@@ -27,10 +26,8 @@ import { getCategoryLabel, getCategoryTagType } from '@/constants/fileTypes'
 import { getAccessUrl, downloadOssFile } from '@/services/fileList'
 import { useFileStore, type FolderBreadcrumb } from '@/stores/files'
 import type { FileRecord, FolderEntry } from '@/types/file'
-import type { AlbumImageMeta } from '@/services/imageMeta'
 import { formatBytes } from '@/utils/format'
-import { groupRecordsByUploadDay } from '@/utils/albumGroup'
-import { confirmApp, confirmAppDelete, showAppError, showAppSuccess, showAppWarning } from '@/utils/message'
+import { confirmAppDelete, showAppError, showAppSuccess, showAppWarning } from '@/utils/message'
 
 const router = useRouter()
 const { isMobile } = useBreakpoint()
@@ -53,17 +50,14 @@ const {
 const {
   keyword,
   category,
-  imagesOnly,
   sortValue,
   page,
   pageSize,
   filteredTotal,
   filteredBytes,
-  filteredRecords,
   paginatedRecords,
   pageRangeStart,
   pageRangeEnd,
-  setImagesOnly,
   resetListFilters,
   resetQuery,
 } = useFileListQuery(() => records.value)
@@ -72,12 +66,10 @@ const hasActiveQuery = computed(
   () =>
     keyword.value.trim().length > 0 ||
     category.value !== 'all' ||
-    imagesOnly.value ||
     sortValue.value !== 'time-desc',
 )
 
 const filteredFolders = computed(() => {
-  if (imagesOnly.value) return []
   const query = keyword.value.trim().toLowerCase()
   if (!query) return folders.value
   return folders.value.filter(
@@ -99,20 +91,7 @@ const canGoParent = computed(() => !showAllFiles.value && breadcrumbs.value.leng
 
 const previewVisible = ref(false)
 const previewRecord = ref<FileRecord | null>(null)
-const albumMetaMap = shallowRef(new Map<string, AlbumImageMeta>())
 const contextMenuRef = ref<InstanceType<typeof FileContextMenu> | null>(null)
-
-/** 相册预览切换顺序：与按日分组展示一致（优先 OSS 归档目录日） */
-const albumPreviewGallery = computed(() => {
-  if (!imagesOnly.value) return undefined
-  return groupRecordsByUploadDay(filteredRecords.value, albumMetaMap.value).flatMap(
-    (group) => group.records,
-  )
-})
-
-function onAlbumMetaMapChange(metaMap: Map<string, AlbumImageMeta>) {
-  albumMetaMap.value = metaMap
-}
 
 function openFileContextMenu(row: FileRecord, event: MouseEvent) {
   contextMenuRef.value?.open(event, row)
@@ -122,29 +101,9 @@ function onTableRowContextMenu(row: FileRecord, _column: unknown, event: Event) 
   openFileContextMenu(row, event as MouseEvent)
 }
 
-function onAlbumContextMenu(payload: { record: FileRecord; event: MouseEvent }) {
-  openFileContextMenu(payload.record, payload.event)
-}
-
-watch(imagesOnly, (enabled) => {
-  if (!enabled) {
-    albumMetaMap.value = new Map()
-  }
-})
-
-const imageCountInScope = computed(
-  () => records.value.filter((item) => item.category === 'image').length,
-)
-
 /** 列表统计文案 */
 const statsLabel = computed(() => {
   if (!loaded.value || errorMessage.value) return ''
-  if (imagesOnly.value) {
-    if (filteredTotal.value !== imageCountInScope.value) {
-      return `图片 ${filteredTotal.value}/${imageCountInScope.value} · ${formatBytes(filteredBytes.value)}`
-    }
-    return `图片 ${filteredTotal.value} 张 · ${formatBytes(filteredBytes.value)}`
-  }
   if (showAllFiles.value) {
     if (filteredTotal.value !== total.value) {
       return `匹配 ${filteredTotal.value}/${total.value} · ${formatBytes(filteredBytes.value)}`
@@ -153,10 +112,6 @@ const statsLabel = computed(() => {
   }
   return `${filteredFolders.value.length}/${folderCount.value} 文件夹 · ${filteredTotal.value}/${total.value} 文件`
 })
-
-function onImagesOnlyChange(value: string | number | boolean) {
-  setImagesOnly(Boolean(value))
-}
 
 function formatTime(value: string) {
   return new Date(value).toLocaleString()
@@ -257,62 +212,6 @@ async function deleteFile(row: FileRecord) {
   }
 }
 
-const albumBatchBusy = ref(false)
-
-function delay(ms: number) {
-  return new Promise<void>((resolve) => {
-    window.setTimeout(resolve, ms)
-  })
-}
-
-async function onAlbumBatchDownload(items: FileRecord[]) {
-  if (items.length === 0 || albumBatchBusy.value) return
-  albumBatchBusy.value = true
-  let ok = 0
-  try {
-    for (const row of items) {
-      const success = await downloadFile(row)
-      if (success) ok += 1
-      // 浏览器常拦截连点下载，稍作间隔
-      await delay(350)
-    }
-    if (ok > 0) showAppSuccess(`已触发 ${ok} 个下载`)
-    if (ok < items.length) showAppWarning(`${items.length - ok} 个下载失败`)
-  } finally {
-    albumBatchBusy.value = false
-  }
-}
-
-async function onAlbumBatchDelete(items: FileRecord[]) {
-  if (items.length === 0 || albumBatchBusy.value) return
-  const confirmed = await confirmApp(
-    `确定从 OSS 删除选中的 ${items.length} 张图片吗？此操作不可恢复。`,
-    {
-      title: '批量删除确认',
-      confirmButtonText: '删除',
-      danger: true,
-    },
-  )
-  if (!confirmed) return
-
-  albumBatchBusy.value = true
-  let ok = 0
-  try {
-    for (const row of items) {
-      try {
-        await fileStore.deleteRecord(row)
-        ok += 1
-      } catch (error) {
-        showAppError(error)
-      }
-    }
-    if (ok > 0) showAppSuccess(`已删除 ${ok} 张`)
-    if (ok < items.length) showAppWarning(`${items.length - ok} 张删除失败`)
-  } finally {
-    albumBatchBusy.value = false
-  }
-}
-
 onMounted(() => {
   void fileStore.loadFromOss().catch((error) => {
     showAppError(error)
@@ -326,7 +225,7 @@ onMounted(() => {
       <div class="file-list__header">
         <div class="file-list__title-wrap">
           <span class="file-list__title">文件列表</span>
-          <el-tag size="small" type="info">OSS</el-tag>
+          <el-tag size="small" type="success">OSS</el-tag>
         </div>
         <div class="file-list__meta">
           <div class="file-list__mode">
@@ -338,17 +237,6 @@ onMounted(() => {
               inactive-text="否"
               :disabled="loading"
               @change="onShowAllFilesChange"
-            />
-          </div>
-          <div class="file-list__mode">
-            <span class="file-list__mode-label">仅图片</span>
-            <el-switch
-              :model-value="imagesOnly"
-              inline-prompt
-              active-text="是"
-              inactive-text="否"
-              :disabled="loading"
-              @change="onImagesOnlyChange"
             />
           </div>
           <el-button
@@ -426,7 +314,6 @@ onMounted(() => {
           v-model="category"
           class="file-list__filter"
           placeholder="类型"
-          :disabled="imagesOnly"
         >
           <el-option
             v-for="item in FILE_CATEGORY_FILTERS"
@@ -449,24 +336,14 @@ onMounted(() => {
       <el-empty v-if="showEmptyFilter" class="file-list__empty">
         <template #description>
           <p>没有符合条件的文件</p>
-          <p class="file-list__empty-hint">
-            {{
-              imagesOnly
-                ? '当前范围没有图片，可关闭「仅图片」或换目录'
-                : '试试调整搜索关键词或类型筛选'
-            }}
-          </p>
+          <p class="file-list__empty-hint">试试调整搜索关键词或类型筛选</p>
         </template>
         <el-button type="primary" plain @click="resetQuery">清除筛选</el-button>
       </el-empty>
 
       <template v-else>
         <p v-if="filteredTotal > 0 || filteredFolders.length > 0" class="file-list__range">
-          <template v-if="imagesOnly">
-            <span class="file-list__range-prefix">仅图片</span>
-            <el-tag size="small" type="success">{{ statsLabel }}</el-tag>
-          </template>
-          <template v-else-if="showAllFiles">
+          <template v-if="showAllFiles">
             <span class="file-list__range-prefix">全部</span>
             <el-tag size="small" type="success">{{ statsLabel }}</el-tag>
             <span v-if="filteredTotal > 0" class="file-list__range-extra">
@@ -479,20 +356,7 @@ onMounted(() => {
           </template>
         </p>
 
-        <ImageAlbumView
-          v-if="imagesOnly"
-          :records="filteredRecords"
-          :loading="loading"
-          :batch-busy="albumBatchBusy"
-          @select="previewFile"
-          @meta-map-change="onAlbumMetaMapChange"
-          @batch-download="onAlbumBatchDownload"
-          @batch-delete="onAlbumBatchDelete"
-          @context-menu="onAlbumContextMenu"
-        />
-
-        <template v-else>
-          <el-table
+        <el-table
             v-if="!showAllFiles && filteredFolders.length > 0"
             v-loading="loading"
             :data="filteredFolders"
@@ -675,13 +539,9 @@ onMounted(() => {
             :layout="paginationLayout"
             background
           />
-        </template>
 
         <p class="file-list__hint">
-          <template v-if="imagesOnly">
-            仅图片相册：优先按拍摄日期分组；有 GPS 时显示地点（缩略图进入视口后解析 EXIF）。
-          </template>
-          <template v-else-if="showAllFiles">
+          <template v-if="showAllFiles">
             已从 OSS 加载全部历史文件；列表分页在本地完成（默认每页 10 条）。
           </template>
           <template v-else>
@@ -696,7 +556,6 @@ onMounted(() => {
   <FilePreviewDialog
     v-model="previewVisible"
     v-model:record="previewRecord"
-    :gallery="albumPreviewGallery"
   />
 
   <FileContextMenu
@@ -1019,13 +878,20 @@ onMounted(() => {
 
 @media (max-width: 767px) {
   .file-list__header {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .file-list__title-wrap {
+    flex-shrink: 0;
   }
 
   .file-list__meta {
-    width: 100%;
-    justify-content: flex-start;
+    margin-left: auto;
+    flex-shrink: 1;
+    min-width: 0;
+    justify-content: flex-end;
+    flex-wrap: wrap;
   }
 
   .file-list__refresh-btn {

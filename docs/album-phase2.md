@@ -1,7 +1,7 @@
 # 相册二期能力说明（阶段 4.12）
 
-> 对应 README **4.12.7**。说明「仅图片」相册二期已落地能力、依赖、配置与常见问题。  
-> 一期基础（开关、按日网格、懒加载、预览）见 README **4.11**。
+> 对应 README **4.12.7**。说明图片相册二期已落地能力、依赖、配置与常见问题。  
+> 一期基础（按日网格、懒加载、预览）见 README **4.11**。入口为顶栏 **图片**（`/images`）。
 
 ---
 
@@ -16,7 +16,7 @@
 | 4.12.5 缩略图优化 | 已完成 | 并发限流、内存 URL 缓存；可选 OSS 图片处理 |
 | 4.12.6 交互增强 | 已完成 | 多选 / 长按、批量下载删除、定位到某日 |
 
-入口：文件列表打开 **仅图片 = 是**。
+入口：顶栏 / 底栏 **图片**（路由 `/images`）。文件列表不再提供「仅图片」开关。
 
 ---
 
@@ -135,7 +135,7 @@ VITE_OSS_THUMB_PROCESS=image/resize,m_lfit,w_480/quality,q_80
 | `src/utils/albumGroup.ts` | 按日分组与地点聚合 |
 | `src/utils/albumVirtual.ts` | 瀑布流虚拟项布局 |
 | `src/composables/useWindowVirtualRows.ts` | 窗口虚拟区间 |
-| `src/views/FileListView.vue` | 仅图片开关、批量下载/删除接线 |
+| `src/views/ImagesView.vue` | 图片页入口、批量下载/删除接线 |
 
 ---
 

@@ -110,12 +110,28 @@ ALIBABA_CLOUD_ROLE_ARN=acs:ram::账号ID:role/heroxin-pic-oss
 
 ---
 
-## 二、启动本仓库的 STS 服务
+## 二、本地 STS（开发内嵌，推荐）
+
+**只需一个命令**：在项目根目录配置 `sts-server/.env` 后执行 `pnpm dev`。  
+Vite 开发服务器已内嵌 `GET /api/sts`，**无需**再单独启动 `sts-server`。
+
+```bash
+# 项目根目录
+cp sts-server/.env.example sts-server/.env
+# 编辑 sts-server/.env 填入 AK/SK/RoleArn
+
+pnpm install
+pnpm dev
+```
+
+浏览器访问开发地址后，前端通过 `VITE_STS_URL=/api/sts` 获取临时凭证。
+
+### 独立 STS 进程（可选）
+
+生产部署、或调试 STS 服务本身时使用：
 
 ```bash
 cd sts-server
-cp .env.example .env
-# 编辑 .env 填入上面三步的 AK/SK/RoleArn
 pnpm install
 pnpm start
 ```
@@ -144,9 +160,9 @@ VITE_OSS_REGION=oss-cn-beijing
 VITE_OSS_BUCKET=your-bucket
 VITE_OSS_DIR=uploads/
 
-# 推荐：走 STS 接口（开发可用本地 sts-server，或 Vite 代理）
+# 推荐：走 STS 接口（开发内嵌在 pnpm dev，路径 /api/sts）
 VITE_STS_URL=/api/sts
-# 若不走代理，也可：
+# 若使用独立 sts-server 且不走内嵌：
 # VITE_STS_URL=http://127.0.0.1:7001/sts
 
 # 有 VITE_STS_URL 时，请注释掉下面长期 Key，避免误用
@@ -155,7 +171,7 @@ VITE_STS_URL=/api/sts
 # VITE_OSS_STS_TOKEN=
 ```
 
-开发时 Vite 已代理 `/api/sts` → `http://127.0.0.1:7001/sts`，避免浏览器跨域。
+开发时 `pnpm dev` 已在同域提供 `/api/sts`，无需跨域、也无需单独起 `sts-server`。
 
 然后：
 

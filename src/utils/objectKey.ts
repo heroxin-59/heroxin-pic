@@ -48,44 +48,37 @@ export function splitFilename(filename: string): { stem: string; ext: string } {
 const UUID_PATTERN = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
 
 /**
- * 从存储文件名还原展示用源文件名（不影响 Object Key）。
- * 支持：
- * - `报告-{uuid}.docx`（当前默认）
- * - `{uuid}-报告.docx`（旧前缀）
- * - `报告-{timestamp}.docx` / `{timestamp}-报告.docx`
+ * 从存储文件名还原展示/下载用源文件名（不影响 Object Key）。
+ * - uuid 策略：`{uuid}-{原文件名}` → 去掉 UUID 前缀
+ * - timestamp 策略：`{stem}-{timestamp}{ext}` → 去掉时间戳后缀
  */
 export function displayNameFromStoredFilename(storedName: string): string {
   const base = storedName.split(/[/\\]/).pop() || storedName
   if (!base) return storedName
-
-  const dot = base.lastIndexOf('.')
-  const stem = dot > 0 ? base.slice(0, dot) : base
-  const ext = dot > 0 ? base.slice(dot) : ''
-
-  const uuidSuffix = new RegExp(`^(.+)-(${UUID_PATTERN})$`, 'i').exec(stem)
-  if (uuidSuffix?.[1]) {
-    return `${uuidSuffix[1]}${ext}`
-  }
 
   const uuidPrefix = new RegExp(`^(${UUID_PATTERN})-(.+)$`, 'i').exec(base)
   if (uuidPrefix?.[2]) {
     return uuidPrefix[2]
   }
 
+  const dot = base.lastIndexOf('.')
+  const stem = dot > 0 ? base.slice(0, dot) : base
+  const ext = dot > 0 ? base.slice(dot) : ''
+
   const tsSuffix = /^(.+)-(\d{13})$/.exec(stem)
   if (tsSuffix?.[1]) {
     return `${tsSuffix[1]}${ext}`
   }
 
-  const tsPrefix = /^(\d{13})-(.+)$/.exec(base)
-  if (tsPrefix?.[2]) {
-    return tsPrefix[2]
-  }
-
   return base
 }
 
-/** `{stem}-{token}{ext}`，例如 `报告-uuid.docx` */
+/** `{uuid}-{原文件名}`，例如 `a1b2c3d4-...-报告.docx` */
+function withUuidPrefixFilename(filename: string, uuid: string): string {
+  return `${uuid}-${sanitizeFilename(filename)}`
+}
+
+/** `{stem}-{token}{ext}`，例如 `报告-1710000000000.docx`（timestamp 策略） */
 function withTokenFilename(filename: string, token: string): string {
   const { stem, ext } = splitFilename(filename)
   return `${stem}-${token}${ext}`
@@ -122,12 +115,13 @@ function resolveArchiveFolderSegment(archiveDatePath?: string, now = new Date())
 
 /**
  * Object Key 规则（按策略）：
- * - uuid（默认）: `{dir}{yyyy}/{MM}/{dd}/{stem}-{uuid}{ext}`
+ * - uuid（默认）: `{dir}{yyyy}/{MM}/{dd}/{uuid}-{filename}`
  * - timestamp:     `{dir}{yyyy}/{MM}/{dd}/{stem}-{timestamp}{ext}`
  * - overwrite:     `{dir}{yyyy}/{MM}/{dd}/{filename}`
  * - suffix:        `{dir}{yyyy}/{MM}/{dd}/{filename}`，重名则 `{stem}-1.ext`
  *
  * `yyyy/MM/dd` 默认上传当天；图片可传入 `archiveDatePath`（文件名/EXIF 解析结果）。
+ * 列表 / 下载展示名通过 `displayNameFromStoredFilename` 去掉 UUID 前缀。
  */
 export function buildObjectKey(options: BuildObjectKeyOptions): string {
   const {
@@ -144,7 +138,7 @@ export function buildObjectKey(options: BuildObjectKeyOptions): string {
   const folder = `${normalizedDir}${resolveArchiveFolderSegment(archiveDatePath)}/`
 
   if (strategy === 'uuid') {
-    return `${folder}${withTokenFilename(safeName, createId())}`
+    return `${folder}${withUuidPrefixFilename(safeName, createId())}`
   }
 
   if (strategy === 'timestamp') {

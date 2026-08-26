@@ -16,6 +16,12 @@ const router = createRouter({
       meta: { title: '文件列表' },
     },
     {
+      path: '/images',
+      name: 'images',
+      component: () => import('@/views/ImagesView.vue'),
+      meta: { title: '图片' },
+    },
+    {
       path: '/preview',
       name: 'preview',
       component: () => import('@/views/PreviewView.vue'),

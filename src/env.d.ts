@@ -2,6 +2,8 @@
 
 /** 仅 `VITE_` 前缀变量会暴露到客户端，见 .env.example */
 interface ImportMetaEnv {
+  /** 部署子路径，如 /pic/；根路径为 /。由 Vite `base` 注入为 import.meta.env.BASE_URL */
+  readonly VITE_BASE?: string
   /** OSS 地域，如 oss-cn-hangzhou */
   readonly VITE_OSS_REGION: string
   /** Bucket 名称 */

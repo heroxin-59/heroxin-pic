@@ -104,6 +104,7 @@ watch(
 
   <el-dialog
     v-else-if="visible"
+    v-model="visible"
     class="file-preview-dialog"
     :title="dialogTitle"
     width="94%"

@@ -127,6 +127,26 @@ export const useFileStore = defineStore('files', () => {
     }
   }
 
+  /** 图片页：扁平列举前缀下全部文件，不改变列表页的目录/全部模式偏好 */
+  async function loadAllFilesForGallery() {
+    loading.value = true
+    errorMessage.value = ''
+
+    try {
+      folders.value = []
+      const result = await listAllOssFiles()
+      setRecords(result.records)
+      loaded.value = true
+    } catch (error) {
+      const appError = toAppError(error)
+      errorMessage.value = getErrorMessage(appError)
+      loaded.value = true
+      throw appError
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function setShowAllFiles(value: boolean) {
     if (showAllFiles.value === value) return
     showAllFiles.value = value
@@ -230,6 +250,7 @@ export const useFileStore = defineStore('files', () => {
     totalBytes,
     hasListContent,
     loadFromOss,
+    loadAllFilesForGallery,
     setShowAllFiles,
     enterFolder,
     navigateToPrefix,

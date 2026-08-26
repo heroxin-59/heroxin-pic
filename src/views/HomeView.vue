@@ -151,7 +151,7 @@ function onClearQueue() {
     <el-card shadow="never" class="home-view__card">
       <template #header>
         <div class="card-header">
-          <span>上传文件</span>
+          <span class="card-header__title">上传文件</span>
           <div class="card-header__tags">
             <el-tag v-if="hasTasks" size="small" type="info">
               队列 {{ summary.success }}/{{ summary.total }} · {{ formatBytes(queueBytes) }} /
@@ -220,6 +220,10 @@ function onClearQueue() {
   gap: 12px;
 }
 
+.card-header__title {
+  font-weight: 600;
+}
+
 .card-header__tags {
   display: flex;
   align-items: center;
@@ -236,8 +240,19 @@ function onClearQueue() {
 
 @media (max-width: 767px) {
   .card-header {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .card-header__title {
+    flex-shrink: 0;
+  }
+
+  .card-header__tags {
+    margin-left: auto;
+    flex-shrink: 0;
+    justify-content: flex-end;
+    flex-wrap: wrap;
   }
 
   .queue-actions {

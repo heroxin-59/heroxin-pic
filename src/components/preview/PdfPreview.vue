@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onUnmounted, ref, watch } from 'vue'
-import { ArrowLeft, ArrowRight, Download, Refresh, ZoomIn, ZoomOut } from '@element-plus/icons-vue'
+import { Download, Refresh, ZoomIn, ZoomOut } from '@element-plus/icons-vue'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import type { FileRecord } from '@/types/file'
 import { loadPdfDocument, renderPdfPage } from '@/services/pdf'
@@ -15,18 +15,18 @@ const emit = defineEmits<{
   download: []
 }>()
 
-const canvasRef = ref<HTMLCanvasElement | null>(null)
+const pagesWrapRef = ref<HTMLElement | null>(null)
 const loading = ref(false)
 const refreshing = ref(false)
 const rendering = ref(false)
 const loadProgress = ref(0)
 const loadError = ref('')
 const pageCount = ref(0)
-const pageNumber = ref(1)
-const pageInput = ref(1)
 const scale = ref(1.1)
 /** 是否已有可展示内容（软刷新时保留画布） */
 const hasDocument = ref(false)
+/** 用于 v-for 生成与页数一致的 canvas */
+const pageIndexes = ref<number[]>([])
 
 let pdfDoc: PDFDocumentProxy | null = null
 let destroyDoc: (() => Promise<void>) | null = null
@@ -36,10 +36,14 @@ const MIN_SCALE = 0.5
 const MAX_SCALE = 2.5
 const SCALE_STEP = 0.15
 
-async function waitForCanvas(timeoutMs = 4000): Promise<HTMLCanvasElement> {
+async function waitForCanvases(count: number, timeoutMs = 4000): Promise<HTMLCanvasElement[]> {
   const start = Date.now()
   while (Date.now() - start < timeoutMs) {
-    if (canvasRef.value) return canvasRef.value
+    const wrap = pagesWrapRef.value
+    const list = wrap ? Array.from(wrap.querySelectorAll('canvas.pdf-preview__canvas')) : []
+    if (list.length >= count) {
+      return list as HTMLCanvasElement[]
+    }
     await nextTick()
     await new Promise<void>((resolve) => {
       requestAnimationFrame(() => resolve())
@@ -60,20 +64,54 @@ async function destroyCurrent() {
   pdfDoc = null
   destroyDoc = null
   pageCount.value = 0
+  pageIndexes.value = []
   hasDocument.value = false
+}
+
+async function drawAllPages() {
+  if (!pdfDoc || pageCount.value < 1) return
+
+  const token = ++renderToken
+  rendering.value = true
+
+  try {
+    const canvases = await waitForCanvases(pageCount.value)
+    if (token !== renderToken) return
+
+    for (let i = 0; i < pageCount.value; i += 1) {
+      if (token !== renderToken) return
+      const canvas = canvases[i]
+      if (!canvas) continue
+      await renderPdfPage({
+        pdf: pdfDoc,
+        pageNumber: i + 1,
+        canvas,
+        scale: scale.value,
+      })
+      // 多页时更新进度条感观（软刷新无总 loading）
+      if (loading.value) {
+        loadProgress.value = Math.min(99, 70 + Math.round(((i + 1) / pageCount.value) * 25))
+      }
+    }
+  } catch (error) {
+    if (token !== renderToken) return
+    loadError.value = getErrorMessage(toAppError(error)) || '页面渲染失败'
+    showAppError(error)
+  } finally {
+    if (token === renderToken) {
+      rendering.value = false
+    }
+  }
 }
 
 async function loadDocument(options: { soft?: boolean } = {}) {
   const soft = Boolean(options.soft && hasDocument.value && pdfDoc)
-  const keepPage = soft ? pageNumber.value : 1
   const previousDestroy = destroyDoc
 
   loading.value = true
   loadError.value = ''
   if (!soft) {
     loadProgress.value = 10
-    pageNumber.value = 1
-    pageInput.value = 1
     await destroyCurrent()
   } else {
     loadProgress.value = 0
@@ -85,15 +123,15 @@ async function loadDocument(options: { soft?: boolean } = {}) {
     pdfDoc = handle.pdf
     destroyDoc = handle.destroy
     pageCount.value = handle.pageCount
+    pageIndexes.value = Array.from({ length: handle.pageCount }, (_, i) => i + 1)
     hasDocument.value = true
     if (!soft) loadProgress.value = 70
 
-    // 先结束 loading，确保画布区域可见且 ref 已挂载，再绘制
+    // 先结束主 loading，确保 canvas 挂载后再绘制
     loading.value = false
     await nextTick()
-    const target = Math.min(Math.max(1, keepPage), handle.pageCount)
     try {
-      await drawPage(target)
+      await drawAllPages()
       if (!soft) loadProgress.value = 100
     } finally {
       if (soft && previousDestroy && previousDestroy !== destroyDoc) {
@@ -110,6 +148,7 @@ async function loadDocument(options: { soft?: boolean } = {}) {
     loading.value = false
     if (!soft) {
       hasDocument.value = false
+      pageIndexes.value = []
     }
   }
 }
@@ -124,72 +163,19 @@ async function onReload() {
   }
 }
 
-async function drawPage(targetPage: number) {
-  if (!pdfDoc) return
-  if (targetPage < 1 || targetPage > pageCount.value) return
-
-  const token = ++renderToken
-  rendering.value = true
-
-  try {
-    const canvas = await waitForCanvas()
-    if (token !== renderToken) return
-
-    await renderPdfPage({
-      pdf: pdfDoc,
-      pageNumber: targetPage,
-      canvas,
-      scale: scale.value,
-    })
-    if (token !== renderToken) return
-    pageNumber.value = targetPage
-    pageInput.value = targetPage
-  } catch (error) {
-    if (token !== renderToken) return
-    loadError.value = getErrorMessage(toAppError(error)) || '页面渲染失败'
-    showAppError(error)
-  } finally {
-    if (token === renderToken) {
-      rendering.value = false
-    }
-  }
-}
-
-async function goPrev() {
-  if (pageNumber.value <= 1) return
-  await drawPage(pageNumber.value - 1)
-}
-
-async function goNext() {
-  if (pageNumber.value >= pageCount.value) return
-  await drawPage(pageNumber.value + 1)
-}
-
-async function jumpToPage() {
-  const raw = Number(pageInput.value)
-  if (!Number.isFinite(raw)) {
-    pageInput.value = pageNumber.value
-    return
-  }
-  const next = Math.min(pageCount.value, Math.max(1, Math.round(raw)))
-  pageInput.value = next
-  if (next === pageNumber.value) return
-  await drawPage(next)
-}
-
 async function zoomIn() {
   scale.value = Math.min(MAX_SCALE, Number((scale.value + SCALE_STEP).toFixed(2)))
-  await drawPage(pageNumber.value)
+  await drawAllPages()
 }
 
 async function zoomOut() {
   scale.value = Math.max(MIN_SCALE, Number((scale.value - SCALE_STEP).toFixed(2)))
-  await drawPage(pageNumber.value)
+  await drawAllPages()
 }
 
 async function resetZoom() {
   scale.value = 1.1
-  await drawPage(pageNumber.value)
+  await drawAllPages()
 }
 
 watch(
@@ -208,27 +194,9 @@ onUnmounted(() => {
 <template>
   <div class="pdf-preview">
     <div class="pdf-preview__toolbar">
-      <div class="pdf-preview__nav">
-        <el-button :disabled="loading || pageNumber <= 1" :icon="ArrowLeft" @click="goPrev">
-          上一页
-        </el-button>
-        <div class="pdf-preview__page">
-          <el-input-number
-            v-model="pageInput"
-            :min="1"
-            :max="Math.max(1, pageCount)"
-            :disabled="loading || pageCount === 0"
-            size="small"
-            controls-position="right"
-            @keyup.enter="jumpToPage"
-            @change="jumpToPage"
-          />
-          <span class="pdf-preview__page-total">/ {{ pageCount || '—' }}</span>
-        </div>
-        <el-button :disabled="loading || pageNumber >= pageCount" @click="goNext">
-          下一页
-          <el-icon class="el-icon--right"><ArrowRight /></el-icon>
-        </el-button>
+      <div class="pdf-preview__meta">
+        <el-tag size="small" type="info">共 {{ pageCount || '—' }} 页</el-tag>
+        <span class="pdf-preview__meta-hint">连续预览，滚轮下滑查看</span>
       </div>
 
       <div class="pdf-preview__actions">
@@ -277,13 +245,17 @@ onUnmounted(() => {
         </template>
       </el-result>
 
-      <div v-show="hasDocument || !loadError" class="pdf-preview__canvas-wrap">
-        <canvas ref="canvasRef" class="pdf-preview__canvas" />
+      <div v-show="hasDocument || !loadError" ref="pagesWrapRef" class="pdf-preview__pages">
+        <canvas
+          v-for="page in pageIndexes"
+          :key="`${record.key}-${page}`"
+          class="pdf-preview__canvas"
+        />
       </div>
     </div>
 
     <p class="pdf-preview__hint">
-      使用 pdf.js 按页渲染（含中文字体 CMap）。若仍空白请点「重新加载」，或下载原文件查看。
+      使用 pdf.js 连续渲染全部页面（含中文字体 CMap）。若仍空白请点「重新加载」，或下载原文件查看。
     </p>
   </div>
 </template>
@@ -303,28 +275,24 @@ onUnmounted(() => {
   gap: 12px;
 }
 
-.pdf-preview__nav,
+.pdf-preview__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pdf-preview__meta-hint {
+  font-size: 12px;
+  color: #909399;
+}
+
 .pdf-preview__actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-}
-
-.pdf-preview__page {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.pdf-preview__page :deep(.el-input-number) {
-  width: 96px;
-}
-
-.pdf-preview__page-total {
-  font-size: 13px;
-  color: #606266;
-  min-width: 40px;
 }
 
 .pdf-preview__progress {
@@ -334,6 +302,7 @@ onUnmounted(() => {
 .pdf-preview__stage {
   position: relative;
   min-height: 360px;
+  max-height: min(72vh, 900px);
   border: 1px solid #ebeef5;
   border-radius: 12px;
   background: #e8ebf0;
@@ -341,9 +310,11 @@ onUnmounted(() => {
   -webkit-overflow-scrolling: touch;
 }
 
-.pdf-preview__canvas-wrap {
+.pdf-preview__pages {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
   padding: 16px;
   min-height: 320px;
 }
@@ -351,6 +322,7 @@ onUnmounted(() => {
 .pdf-preview__canvas {
   display: block;
   max-width: 100%;
+  height: auto;
   background: #fff;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12);
 }
@@ -367,7 +339,6 @@ onUnmounted(() => {
     align-items: stretch;
   }
 
-  .pdf-preview__nav,
   .pdf-preview__actions {
     justify-content: center;
   }
@@ -380,6 +351,11 @@ onUnmounted(() => {
   .pdf-preview__stage {
     min-height: 280px;
     max-height: 60vh;
+  }
+
+  .pdf-preview__pages {
+    gap: 12px;
+    padding: 10px;
   }
 }
 </style>

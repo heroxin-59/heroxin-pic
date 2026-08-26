@@ -8,7 +8,7 @@
 ## 1. 目录形态
 
 ```text
-{VITE_OSS_DIR}{yyyy}/{MM}/{dd}/{stem}-{uuid}{ext}
+{VITE_OSS_DIR}{yyyy}/{MM}/{dd}/{uuid}-{原文件名}
 ```
 
 示例：
@@ -77,7 +77,7 @@ Key 生成：`buildObjectKey({ archiveDatePath })` / `ObjectKeyPlanner.plan(name
 
 ## 5. 相册日期标题
 
-「仅图片」模式的日期分组标题与 **OSS 归档目录**对齐：
+「图片」相册的日期分组标题与 **OSS 归档目录**对齐：
 
 1. Object Key 中的 `yyyy/MM/dd`（与上传归档一致）  
 2. 无目录日结构时：EXIF 拍摄日  
@@ -101,7 +101,7 @@ Key 生成：`buildObjectKey({ archiveDatePath })` / `ObjectKeyPlanner.plan(name
 pnpm test          # vitest：文件名解析 + 优先级 + Object Key 归档路径
 ```
 
-手工：选一张「文件名含历史日期」的图上传，在 OSS / 文件列表层级目录中确认进入对应 `yyyy/MM/dd`，而不是今天；「仅图片」相册标题也应为该目录日。
+手工：选一张「文件名含历史日期」的图上传，在 OSS / 文件列表层级目录中确认进入对应 `yyyy/MM/dd`，而不是今天；「图片」相册标题也应为该目录日。
 
 ---
 

@@ -34,7 +34,7 @@
 | 包管理  | pnpm                                        | 锁定版本，统一安装命令     |
 | 构建    | Vite                                        | 推荐默认脚手架             |
 | OSS SDK | `ali-oss`                                   | 浏览器直传                 |
-| 路由    | Vue Router                                  | 上传页 / 预览页 / 列表页等 |
+| 路由    | Vue Router                                  | 上传 / 文件列表 / 图片 / 预览深链  |
 | 状态    | Pinia（按需）                               | 上传队列、配置、文件列表   |
 
 ---
@@ -44,11 +44,12 @@
 ```
 浏览器 (Vue3 SPA)
   ├─ 上传模块 ──► 获取临时凭证(STS) ──► ali-oss 直传 OSS
-  ├─ 文件列表 ──► 列举 / 刷新 OSS 对象（或本地会话缓存）
-  └─ 预览模块 ──► 按 MIME / 扩展名分流
+  ├─ 文件列表 ──► 列举 / 刷新 OSS 对象（扁平或层级目录）
+  ├─ 图片相册 ──► 前缀下全部图片（按日分组 / EXIF / 虚拟滚动）
+  └─ 预览模块 ──► 按 MIME / 扩展名分流（列表/相册弹窗或 /preview 深链）
         ├─ 图片：原生 / Element Plus Image 预览
-        ├─ PDF：pdf.js 或 iframe + OSS 签名 URL
-        ├─ Word：docx-preview（仅 .docx）
+        ├─ PDF：pdf.js（Blob 按页渲染）
+        ├─ Word：docx-preview（.docx）；.doc 降级提示 + 下载
         └─ 其他：文本只读预览 / 文件信息 + 下载
 ```
 
@@ -182,18 +183,18 @@
 - [x] **4.7** 分页：默认每页 10，可选 10 / 20 / 50 / 100 / 200（OSS 全量列举 + 本地分页）
 - [x] **4.8** 桌面端表格 / 移动端卡片列表双布局
 - [x] **4.9** 「显示全部文件」开关：是=扁平全量列表；否=OSS 层级目录（delimiter + 面包屑导航）
-- [x] **4.10** 「仅图片」开关：是=列表只显示图片（隐藏文件夹与其它类型）
-- [x] **4.11** 「仅图片」相册样式（一期已完成）
-  - [x] **4.11.1** 相册视图开关：`仅图片=是` 时用相册布局，关闭后恢复表格/卡片
+- [x] **4.10** 「仅图片」能力：已迁至独立 **图片** 页（`/images`）；文件列表不再提供「仅图片」开关
+- [x] **4.11** 图片相册样式（一期已完成；入口为「图片」菜单）
+  - [x] **4.11.1** 相册布局：图片页固定相册视图（文件列表保持表格/卡片）
   - [x] **4.11.2** 按日分组：优先 Object Key 归档目录日 `yyyy/MM/dd`，再 EXIF / `uploadedAt`；组内按时间新→旧
   - [x] **4.11.3** 缩略图加载：签发访问 URL（或 Blob Object URL），失败占位；注意签名过期刷新
   - [x] **4.11.4** 网格布局：日期标题 + 缩略图网格（桌面约 4–6 列，手机约 3 列），`object-fit: cover`
-  - [x] **4.11.5** 点击预览：打开现有预览弹窗；左右切换限定当前「仅图片」列表
+  - [x] **4.11.5** 点击预览：打开现有预览弹窗；左右切换限定当前相册列表
   - [x] **4.11.6** 空态 / 加载：无图片空态；列表加载中骨架或 `v-loading`
-  - [x] **4.11.7** 与现有控件共存：搜索、排序（至少时间）可用；类型筛选锁定图片；层级目录仅展示当前范围图片
+  - [x] **4.11.7** 与现有控件共存：搜索、排序可用；图片页扁平列举前缀下全部图片
   - [x] **4.11.8** 性能（一期）：缩略图视口懒加载
   - [x] **4.11.9** 文档：README 勾选说明完成项
-- [x] **4.12** 「仅图片」相册样式二期（已完成）
+- [x] **4.12** 图片相册样式二期（已完成）
   - [x] **4.12.1** EXIF 解析：前端读取拍摄时间 / GPS（分组标题优先用 OSS 目录日；EXIF 用于地点与组内排序，无目录日时回退 EXIF / `uploadedAt`）
   - [x] **4.12.2** 地点展示：有 GPS 时显示地点文案（逆地理编码需第三方服务；无地点则隐藏）
   - [x] **4.12.3** 瀑布流 / 不等高布局（按图片宽高比最短列排布；与虚拟滚动 / 懒加载兼容）
@@ -201,7 +202,7 @@
   - [x] **4.12.5** 缩略图优化：并发限流、内存级 URL 缓存；可选 OSS 图片处理出更小预览图
   - [x] **4.12.6** 交互增强（可选）：长按 / 多选、批量下载或删除；相册内快速定位到某日
   - [x] **4.12.7** 文档：二期能力说明与依赖 → [`docs/album-phase2.md`](./docs/album-phase2.md)
-  - **进度**：4.12 全部完成；说明见 `docs/album-phase2.md`
+  - **进度**：4.12 全部完成；入口为顶栏「图片」；说明见 `docs/album-phase2.md`
 
 ---
 
@@ -227,7 +228,7 @@
 - [x] **5.3.2** 选型定稿：`docx-preview`
 - [x] **5.3.3** 实现预览页：基础排版 / 图片 / 表格展示
 - [x] **5.3.4** 不支持或解析失败时：明确提示 + 下载按钮
-- [ ] **5.3.5** （可选二期）对接「Office 在线预览 / 转 PDF 再预览」等云端方案
+- [~] **5.3.5** （可选二期）Office 在线预览 / 转 PDF — **不做**（保持本地 `docx-preview` + 下载降级）
 
 #### 5.4 其他文件
 
@@ -265,19 +266,17 @@
 
 ### 阶段 8：配置、部署与验收
 
-- [ ] **8.1** 提供 `.env.example`（无密钥）：列出全部 `VITE_` 变量及含义
-- [ ] **8.2** 生产构建优化与 `base` 路径配置（若部署到子路径）
-- [ ] **8.3** 静态托管方案备忘：OSS 静态网站 / Nginx / Vercel / Cloudflare Pages 等任选并写步骤
-- [ ] **8.4** HTTPS 要求：生产环境必须 HTTPS（涉及相机、部分浏览器策略、混合内容）
-- [ ] **8.5** 验收清单（人工）：
-  - [ ] 桌面 Chrome / Edge：上传图片、PDF、docx，均可预览
-  - [ ] 手机 Safari / Chrome：同上
-  - [ ] 超大文件拦截提示正确
-  - [ ] 非法类型拦截提示正确
-  - [ ] 私有读签名 URL 可打开且过期后可刷新
-  - [ ] 删除（若启用）后列表更新
-  - [ ] 断网 / CORS 错误有可读提示
-- [ ] **8.6** 性能抽查：首屏、预览首开时间、移动端内存无明显炸裂
+- [x] **8.1** 提供 `.env.example`（无密钥）：列出全部 `VITE_` 变量及含义 → [`.env.example`](./.env.example) · README **§五** · [`docs/faq.md`](./docs/faq.md)
+- [x] **8.2** 生产构建优化与 `base` 路径配置（子路径：`VITE_BASE=/pic/`）→ `vite.config.ts` · [`docs/deploy.md`](./docs/deploy.md)
+- [x] **8.3** 静态托管方案备忘：OSS 静态网站 / Nginx / Vercel / Cloudflare Pages → [`docs/deploy.md`](./docs/deploy.md)
+- [x] **8.4** HTTPS 要求：生产环境必须 HTTPS → [`docs/deploy.md`](./docs/deploy.md) §2
+- [x] **8.5** 验收清单（人工）→ [`docs/acceptance.md`](./docs/acceptance.md)
+  - 桌面 Chrome / Edge：上传图片、PDF、docx，均可预览
+  - 手机 Safari / Chrome：同上
+  - 超大文件 / 非法类型拦截提示正确
+  - 私有读签名 URL 可打开且过期后可刷新
+  - 删除后列表更新；断网 / CORS 有可读提示
+- [x] **8.6** 性能抽查备忘：首屏、预览首开、相册/移动端内存 → [`docs/deploy.md`](./docs/deploy.md) §5 · [`docs/acceptance.md`](./docs/acceptance.md)
 
 ---
 
@@ -321,6 +320,7 @@ heroxin-pic/
 
 | 变量名（草案）            | 含义                      | 备注                                                                     |
 | ------------------------- | ------------------------- | ------------------------------------------------------------------------ |
+| `VITE_BASE`               | 静态资源 / 路由 base      | 子路径如 `/pic/`；根路径 `/`；见 [`docs/deploy.md`](./docs/deploy.md)   |
 | `VITE_OSS_REGION`         | OSS 地域                  | 如 `oss-cn-hangzhou`                                                     |
 | `VITE_OSS_BUCKET`         | Bucket 名                 |                                                                          |
 | `VITE_OSS_ENDPOINT`       | Endpoint（可选）          | 自定义域名时使用                                                         |
@@ -329,7 +329,7 @@ heroxin-pic/
 | `VITE_MAX_SIZE_MB`        | 单文件上限（MB）          | 默认 50                                                                  |
 | `VITE_MAX_TOTAL_SIZE_MB`  | 本批/队列总体积上限（MB） | 默认 200                                                                 |
 | `VITE_ALLOWED_EXT`        | 允许扩展名列表            | 逗号分隔                                                                 |
-| `VITE_DUPLICATE_STRATEGY` | 重名策略                  | `uuid`（默认，文件名-UUID.扩展名）/ `timestamp` / `overwrite` / `suffix` |
+| `VITE_DUPLICATE_STRATEGY` | 重名策略                  | `uuid`（默认，OSS 为 `UUID-文件名`，界面显示原名）/ `timestamp` / `overwrite` / `suffix` |
 | `VITE_ALBUM_THUMB_CONCURRENCY` | 相册缩略图并发数     | 默认 4                                                                   |
 | `VITE_OSS_THUMB_PROCESS`  | 相册缩略图图片处理        | 可选；如 `image/resize,m_lfit,w_480`；需开通 OSS 图片处理；留空拉原图   |
 
@@ -350,12 +350,12 @@ heroxin-pic/
 ## 七、风险与决策待办（开发前尽量拍板）
 
 - [x] **D1** STS：本仓库 [`sts-server`](./sts-server/) + [`docs/sts-setup.md`](./docs/sts-setup.md)；亦可换成自有后端 / 云函数
-- [ ] **D2** Bucket 公共读还是私有读 + 签名 URL？
+- [x] **D2** Bucket：**私有读 + 签名 URL**（推荐）；公共读不作为默认方案
 - [x] **D3** 文件列表采用 **OSS `list` 实时列举**（非仅会话列表）
 - [x] **D4** Word 预览：仅 `.docx` + `docx-preview`（基础排版保真；`.doc` 下载降级）
-- [x] **D5** 支持删除（单项确认）；重命名 / 批量操作暂不做
-- [ ] **D6** 部署目标平台与域名？是否子路径部署？
-- [ ] **D7** 是否允许用户上传后生成「可分享的短期链接」？
+- [x] **D5** 支持删除（单项确认）；重命名 / 批量操作暂不做（相册页支持图片多选批量删除）
+- [x] **D6** 部署：静态托管任选（OSS / Nginx / Vercel / Cloudflare Pages）；子路径用 `VITE_BASE` → [`docs/deploy.md`](./docs/deploy.md)
+- [x] **D7** 可分享短期链接：列表「复制」签发签名 URL（有过期时间）；不做独立短链产品
 
 ---
 
@@ -369,7 +369,7 @@ heroxin-pic/
 6. 阶段 6 移动端打磨
 7. 阶段 7–8 体验、文档、验收与部署
 
-> 当前建议：阶段 3.12（图片按内容日期归档）已完成，见 [`docs/archive-date.md`](./docs/archive-date.md)。
+> 当前建议：功能阶段已完成。发版前按 [`docs/acceptance.md`](./docs/acceptance.md) 人工验收；部署见 [`docs/deploy.md`](./docs/deploy.md)。
 
 ---
 
@@ -425,6 +425,9 @@ heroxin-pic/
 | 2026-08-26 | 阶段 7.1–7.2 完成      | 反馈规范 + 主题色；7.3 不做    |
 | 2026-08-26 | 阶段 7.4–7.5 完成      | 类型出口 + useOss/Uploader/Preview |
 | 2026-08-26 | 阶段 7.6–7.9 完成      | 404/错误边界、单测、异步预览、FAQ  |
+| 2026-08-26 | 导航调整               | 去掉顶栏「预览」；新增「图片」页承接相册 |
+| 2026-08-26 | 阶段 8.1–8.6 完成      | `.env.example`、VITE_BASE、deploy/acceptance 文档 |
+| 2026-08-26 | 决策 D2/D6/D7 定稿     | 私有读+签名；静态托管任选；复制签名链接 |
 
 ---
 
@@ -457,9 +460,11 @@ pnpm preview
 
 断点与安全区已按阶段 6 落地。自测清单见 [`docs/mobile-qa.md`](./docs/mobile-qa.md)。支持「添加到主屏幕」（`manifest.webmanifest`，无离线 Service Worker）。
 
-「仅图片」相册二期（EXIF / 地点 / 虚拟滚动 / 缩略图缓存 / 多选）说明见 [`docs/album-phase2.md`](./docs/album-phase2.md)。
+「图片」相册（EXIF / 地点 / 虚拟滚动 / 缩略图缓存 / 多选）说明见 [`docs/album-phase2.md`](./docs/album-phase2.md)。
 
 图片上传按文件名 / EXIF 日期归档说明见 [`docs/archive-date.md`](./docs/archive-date.md)。
+
+部署与子路径、HTTPS、托管备忘见 [`docs/deploy.md`](./docs/deploy.md)。发版验收清单见 [`docs/acceptance.md`](./docs/acceptance.md)。
 
 ### 代码质量检查
 
@@ -478,11 +483,17 @@ cp .env.example .env.local
 
 编辑 `.env.local` 填入 OSS / STS 相关变量后 **重启** `pnpm dev`。STS 控制台配置见 [`docs/sts-setup.md`](./docs/sts-setup.md)；变量说明见 `.env.example`、**§五** 与 [`docs/faq.md`](./docs/faq.md)。
 
-本地 STS 签发（另开终端）：
+本地 STS 签发（**开发默认已内嵌**，一般无需单独启动）：
+
+```bash
+# 首次：复制 sts-server/.env.example → sts-server/.env 并填写 RAM 配置
+pnpm dev   # 内嵌 GET /api/sts
+```
+
+独立进程（生产或调试 STS 服务本身时）：
 
 ```bash
 pnpm sts:install
-# 编辑 sts-server/.env 后
 pnpm sts:start
 ```
 
