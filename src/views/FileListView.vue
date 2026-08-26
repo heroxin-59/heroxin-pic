@@ -229,9 +229,10 @@ onMounted(() => {
         </div>
         <div class="file-list__meta">
           <div class="file-list__mode">
-            <span class="file-list__mode-label">显示全部文件</span>
+            <span class="file-list__mode-label">显示全部</span>
             <el-switch
               :model-value="showAllFiles"
+              size="small"
               inline-prompt
               active-text="是"
               inactive-text="否"
@@ -574,6 +575,12 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 32px;
+}
+
+.file-list :deep(.el-card__header) {
+  padding-top: 14px;
+  padding-bottom: 14px;
 }
 
 .file-list__title-wrap {
@@ -591,7 +598,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
 }
 
@@ -599,6 +606,12 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.file-list__mode :deep(.el-switch) {
+  flex-shrink: 0;
 }
 
 .file-list__mode-label {
@@ -891,11 +904,12 @@ onMounted(() => {
     flex-shrink: 1;
     min-width: 0;
     justify-content: flex-end;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .file-list__refresh-btn {
-    min-height: 44px;
+    min-height: 32px;
+    flex-shrink: 0;
   }
 
   .file-list__filter,

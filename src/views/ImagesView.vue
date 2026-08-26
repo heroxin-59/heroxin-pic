@@ -297,6 +297,12 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 32px;
+}
+
+.images-view :deep(.el-card__header) {
+  padding-top: 14px;
+  padding-bottom: 14px;
 }
 
 .images-view__title-wrap {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
-import { Check, Download, Location, Delete } from '@element-plus/icons-vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { ArrowDown, Check, Download, Location, Delete } from '@element-plus/icons-vue'
 import ImageAlbumThumb from '@/components/file-list/ImageAlbumThumb.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useWindowVirtualRows } from '@/composables/useWindowVirtualRows'
@@ -32,13 +32,20 @@ const aspectRev = ref(0)
 const selectionMode = ref(false)
 const selectedKeys = shallowRef(new Set<string>())
 const jumpDateKey = ref('')
+const collapsedDateKeys = shallowRef(new Set<string>())
 const { width: viewportWidth, isMobile } = useBreakpoint()
 
 const groups = computed(() => groupRecordsByUploadDay(props.records, metaByKey.value))
 
 const layout = computed(() => {
   void aspectRev.value
-  return buildAlbumWaterfallLayout(groups.value, containerWidth.value, viewportWidth.value)
+  return buildAlbumWaterfallLayout(
+    groups.value,
+    containerWidth.value,
+    viewportWidth.value,
+    undefined,
+    collapsedDateKeys.value,
+  )
 })
 
 const items = computed(() => layout.value.items)
@@ -181,8 +188,33 @@ function onTilePointerCancel() {
   clearLongPress()
 }
 
-function jumpToDate(dateKey: string) {
+function isDateCollapsed(dateKey: string) {
+  return collapsedDateKeys.value.has(dateKey)
+}
+
+function toggleDateCollapse(dateKey: string) {
+  const next = new Set(collapsedDateKeys.value)
+  if (next.has(dateKey)) next.delete(dateKey)
+  else next.add(dateKey)
+  collapsedDateKeys.value = next
+  scheduleUpdate()
+}
+
+function expandDate(dateKey: string) {
+  if (!collapsedDateKeys.value.has(dateKey)) return
+  const next = new Set(collapsedDateKeys.value)
+  next.delete(dateKey)
+  collapsedDateKeys.value = next
+}
+
+async function jumpToDate(dateKey: string) {
   if (!dateKey || !rootRef.value) return
+  if (isDateCollapsed(dateKey)) {
+    expandDate(dateKey)
+    await nextTick()
+    scheduleUpdate()
+    await nextTick()
+  }
   const offset = findAlbumDateOffset(items.value, dateKey)
   if (offset == null) return
   const scrollTop = window.scrollY || document.documentElement.scrollTop || 0
@@ -205,6 +237,18 @@ function onBatchDelete() {
   if (selectedRecords.value.length === 0) return
   emit('batch-delete', selectedRecords.value)
 }
+
+watch(
+  groups,
+  (next) => {
+    const alive = new Set(next.map((group) => group.dateKey))
+    const pruned = new Set([...collapsedDateKeys.value].filter((key) => alive.has(key)))
+    if (pruned.size !== collapsedDateKeys.value.size) {
+      collapsedDateKeys.value = pruned
+    }
+  },
+  { deep: true },
+)
 
 watch(
   () => props.records.map((item) => item.key).join('|'),
@@ -258,7 +302,6 @@ onUnmounted(() => {
         :model-value="jumpDateKey || undefined"
         class="image-album__jump"
         placeholder="定位到某日"
-        filterable
         clearable
         :disabled="dateOptions.length === 0 || batchBusy"
         @change="onJumpChange"
@@ -315,14 +358,26 @@ onUnmounted(() => {
           height: `${item.height}px`,
         }"
       >
-        <header v-if="item.type === 'header'" class="image-album__header">
-          <div class="image-album__heading">
-            <h3 class="image-album__date">{{ item.label }}</h3>
-            <p v-if="item.locationLabel" class="image-album__location">
-              <span>{{ item.locationLabel }}</span>
-              <el-icon class="image-album__location-icon" :size="14"><Location /></el-icon>
-            </p>
-          </div>
+        <header
+          v-if="item.type === 'header'"
+          class="image-album__header"
+          :class="{ 'is-collapsed': isDateCollapsed(item.dateKey) }"
+        >
+          <button
+            type="button"
+            class="image-album__heading-btn"
+            :aria-expanded="!isDateCollapsed(item.dateKey)"
+            @click="toggleDateCollapse(item.dateKey)"
+          >
+            <el-icon class="image-album__collapse-icon" :size="16"><ArrowDown /></el-icon>
+            <div class="image-album__heading">
+              <h3 class="image-album__date">{{ item.label }}</h3>
+              <p v-if="item.locationLabel" class="image-album__location">
+                <span>{{ item.locationLabel }}</span>
+                <el-icon class="image-album__location-icon" :size="14"><Location /></el-icon>
+              </p>
+            </div>
+          </button>
           <div class="image-album__header-aside">
             <span class="image-album__count">{{ item.count }} 张</span>
             <el-button
@@ -331,7 +386,7 @@ onUnmounted(() => {
               text
               type="primary"
               :disabled="batchBusy"
-              @click="selectDay(item.dateKey)"
+              @click.stop="selectDay(item.dateKey)"
             >
               选当日
             </el-button>
@@ -491,6 +546,38 @@ onUnmounted(() => {
   justify-content: space-between;
   gap: 10px;
   height: 100%;
+}
+
+.image-album__heading-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.image-album__heading-btn:focus-visible {
+  outline: 2px solid #409eff;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.image-album__collapse-icon {
+  flex-shrink: 0;
+  margin-top: 5px;
+  color: #909399;
+  transition: transform 0.2s ease;
+}
+
+.image-album__header.is-collapsed .image-album__collapse-icon {
+  transform: rotate(-90deg);
 }
 
 .image-album__heading {

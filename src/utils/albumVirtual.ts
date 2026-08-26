@@ -73,6 +73,7 @@ export function buildAlbumWaterfallLayout(
   containerWidth: number,
   viewportWidth: number,
   aspectByKey?: Map<string, number> | Record<string, number>,
+  collapsedDateKeys?: ReadonlySet<string>,
 ): AlbumVirtualLayout {
   const columns = albumColumnCount(viewportWidth)
   const gap = albumGridGap(viewportWidth)
@@ -95,6 +96,7 @@ export function buildAlbumWaterfallLayout(
 
   groups.forEach((group, groupIndex) => {
     const headerHeight = group.locationLabel ? HEADER_WITH_LOCATION_HEIGHT : HEADER_HEIGHT
+    const collapsed = collapsedDateKeys?.has(group.dateKey) ?? false
     items.push({
       type: 'header',
       key: `h:${group.dateKey}`,
@@ -112,7 +114,7 @@ export function buildAlbumWaterfallLayout(
     const colHeights = Array.from({ length: columns }, () => 0)
     const masonryTop = cursorY
 
-    for (const record of group.records) {
+    for (const record of collapsed ? [] : group.records) {
       const aspect = readAspect(record.key)
       const tileHeight = Math.max(48, columnWidth / aspect)
       const col = shortestColumnIndex(colHeights)

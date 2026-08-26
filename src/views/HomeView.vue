@@ -218,6 +218,12 @@ function onClearQueue() {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 32px;
+}
+
+.home-view__card :deep(.el-card__header) {
+  padding-top: 14px;
+  padding-bottom: 14px;
 }
 
 .card-header__title {
