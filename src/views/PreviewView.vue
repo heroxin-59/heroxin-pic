@@ -100,7 +100,14 @@ function goFiles() {
 
 watch(
   () => [queryKey.value, queryName.value] as const,
-  () => {
+  ([key]) => {
+    if (!key) {
+      current.value = null
+      errorMessage.value = ''
+      return
+    }
+    // 左右切换已在 onChangeImage 同步 current，勿整页 loading 卸载预览（会闪白）
+    if (current.value?.key === key) return
     void loadPreview()
   },
   { immediate: true },

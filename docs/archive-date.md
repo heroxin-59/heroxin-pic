@@ -36,10 +36,27 @@ Key 生成：`buildObjectKey({ archiveDatePath })` / `ObjectKeyPlanner.plan(name
 
 ## 3. 文件名格式（已覆盖）
 
-- `YYYYMMDD`、`YYYY-MM-DD`、`YYYY_MM_DD`、`YYYY.MM.DD`
+**年在前（最常见）**
+
+- `YYYYMMDD`、`YYYY-MM-DD`、`YYYY_MM_DD`、`YYYY.MM.DD`、`YYYY/MM/DD`
+- `YYYY MM DD`（空格分隔）
 - `YYYY年M月D日` / `YYYY年MM月DD日`
-- `YYYYMMDD_HHmmss`、`YYYY-MM-DD_HH-mm-ss`、`YYYYMMDDHHmmss`
+- `YYYYMMDD_HHmmss`、`YYYY-MM-DD_HH-mm-ss`、`YYYYMMDDHHmmss`、`YYYYMMDD HHmmss`
+- `YYYY.MM.DD.HH.mm.ss`（点分隔日期+时间）
+- `YYYY-MM-DDT12:30:00`（ISO 风格）
+
+**日月在前、年在后**
+
+- `DD-MM-YYYY`、`DD/MM/YYYY`、`DD_MM_YYYY`、`DD.MM.YYYY`
+- `DD MM YYYY`（空格）
+- `MM-DD-YYYY`（月在前，如 `03-15-2026`）
+- `DDMMYYYY`、`MMDDYYYY`（8 位紧凑，年在后）
+- 歧义如 `05-06-2026`：优先按 **DD-MM-YYYY**（6 月 5 日）
+
+**其他**
+
 - 带前后缀：`IMG_20260315_120001.jpg`、`photo-2026-03-15.jpg`、`截图2026年3月15日.png`
+- **Unix 时间戳**：13 位毫秒、10 位秒（分数低于日历格式）
 
 多候选时取「更像完整日历日」且校验通过的一个；无法判定则跳过文件名，继续 EXIF / 上传日。
 

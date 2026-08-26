@@ -35,6 +35,18 @@ describe('parseDateFromFilename (3.12.3)', () => {
     ['shot-20260315120001.jpg', '2026/03/15'],
     ['2026-03-15_12-30-00.jpeg', '2026/03/15'],
     ['2026年03月15日-笔记.png', '2026/03/15'],
+    // 扩展格式
+    ['vacation 2026 03 15.jpg', '2026/03/15'],
+    ['DSC_2026-03-15T12:30:00.jpg', '2026/03/15'],
+    ['party_15-03-2026.jpg', '2026/03/15'],
+    ['15/03/2026_scan.png', '2026/03/15'],
+    ['15 03 2026 notes.jpg', '2026/03/15'],
+    ['us_03-15-2026.jpg', '2026/03/15'],
+    ['15032026.jpg', '2026/03/15'],
+    ['03152026.jpg', '2026/03/15'],
+    ['2026.03.15.12.30.00.jpg', '2026/03/15'],
+    ['20260315 120001.jpg', '2026/03/15'],
+    ['15-03-2026_120001.jpg', '2026/03/15'],
     ['no-date.png', null],
     ['report.pdf', null],
     ['IMG_20991231.jpg', null], // future
@@ -46,8 +58,38 @@ describe('parseDateFromFilename (3.12.3)', () => {
     const parts = parseDateFromFilename(name, now)
     expect(parts ? formatArchiveDatePath(parts) : null).toBe(expectPath)
   })
-})
 
+  it('parses unix millisecond timestamps in filename', () => {
+    const local = new Date(2024, 4, 6, 12, 0, 0)
+    const name = `mmexport${local.getTime()}.jpg`
+    const parts = parseDateFromFilename(name, now)
+    expect(parts).toEqual({ year: 2024, month: 5, day: 6 })
+  })
+
+  it('parses unix second timestamps in filename', () => {
+    const local = new Date(2023, 0, 15, 8, 30, 0)
+    const sec = Math.floor(local.getTime() / 1000)
+    const parts = parseDateFromFilename(`photo_${sec}.png`, now)
+    expect(parts).toEqual({ year: 2023, month: 1, day: 15 })
+  })
+
+  it('prefers calendar compact date over unix timestamp patterns', () => {
+    const parts = parseDateFromFilename('微信图片_20260811094736_18_2.jpg', now)
+    expect(parts).toEqual({ year: 2026, month: 8, day: 11 })
+  })
+
+  it('parses slash dates in filename (not OSS path)', () => {
+    expect(parseDateFromFilename('2026/03/15.jpg', now)).toEqual({
+      year: 2026,
+      month: 3,
+      day: 15,
+    })
+  })
+
+  it('ignores date segments in OSS-style path when basename has no date', () => {
+    expect(parseDateFromFilename('uploads/2026/03/15/cover.jpg', now)).toBeNull()
+  })
+})
 describe('isValidArchiveCalendarDate (3.12.7)', () => {
   it('rejects future dates and invalid calendar days', () => {
     expect(isValidArchiveCalendarDate({ year: 2026, month: 8, day: 25 }, now)).toBe(true)

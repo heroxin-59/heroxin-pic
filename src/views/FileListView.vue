@@ -14,6 +14,7 @@ import {
   View,
 } from '@element-plus/icons-vue'
 import FileTypeIcon from '@/components/file-list/FileTypeIcon.vue'
+import FileContextMenu from '@/components/file-list/FileContextMenu.vue'
 import ImageAlbumView from '@/components/file-list/ImageAlbumView.vue'
 import FilePreviewDialog from '@/components/preview/FilePreviewDialog.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
@@ -24,7 +25,7 @@ import {
   useFileListQuery,
 } from '@/composables/useFileListQuery'
 import { getCategoryLabel, getCategoryTagType } from '@/constants/fileTypes'
-import { getAccessUrl, getDownloadUrl } from '@/services/fileList'
+import { getAccessUrl, downloadOssFile } from '@/services/fileList'
 import { useFileStore, type FolderBreadcrumb } from '@/stores/files'
 import type { FileRecord, FolderEntry } from '@/types/file'
 import type { AlbumImageMeta } from '@/services/imageMeta'
@@ -99,6 +100,7 @@ const canGoParent = computed(() => !showAllFiles.value && breadcrumbs.value.leng
 const previewVisible = ref(false)
 const previewRecord = ref<FileRecord | null>(null)
 const albumMetaMap = shallowRef(new Map<string, AlbumImageMeta>())
+const contextMenuRef = ref<InstanceType<typeof FileContextMenu> | null>(null)
 
 /** 相册预览切换顺序：与按日分组展示一致（优先 OSS 归档目录日） */
 const albumPreviewGallery = computed(() => {
@@ -110,6 +112,18 @@ const albumPreviewGallery = computed(() => {
 
 function onAlbumMetaMapChange(metaMap: Map<string, AlbumImageMeta>) {
   albumMetaMap.value = metaMap
+}
+
+function openFileContextMenu(row: FileRecord, event: MouseEvent) {
+  contextMenuRef.value?.open(event, row)
+}
+
+function onTableRowContextMenu(row: FileRecord, _column: unknown, event: Event) {
+  openFileContextMenu(row, event as MouseEvent)
+}
+
+function onAlbumContextMenu(payload: { record: FileRecord; event: MouseEvent }) {
+  openFileContextMenu(payload.record, payload.event)
 }
 
 watch(imagesOnly, (enabled) => {
@@ -218,15 +232,7 @@ async function copyUrl(row: FileRecord) {
 
 async function downloadFile(row: FileRecord): Promise<boolean> {
   try {
-    const url = await getDownloadUrl(row.key, row.name)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = row.name
-    anchor.rel = 'noopener'
-    anchor.target = '_blank'
-    document.body.appendChild(anchor)
-    anchor.click()
-    document.body.removeChild(anchor)
+    await downloadOssFile(row.key, row.name)
     return true
   } catch (error) {
     showAppError(error)
@@ -495,6 +501,7 @@ onMounted(() => {
           @meta-map-change="onAlbumMetaMapChange"
           @batch-download="onAlbumBatchDownload"
           @batch-delete="onAlbumBatchDelete"
+          @context-menu="onAlbumContextMenu"
         />
 
         <template v-else>
@@ -540,6 +547,7 @@ onMounted(() => {
             stripe
             class="file-list__table"
             :show-header="showAllFiles || filteredFolders.length === 0"
+            @row-contextmenu="onTableRowContextMenu"
           >
             <el-table-column label="名称" min-width="200">
               <template #default="{ row }">
@@ -623,7 +631,12 @@ onMounted(() => {
                 <el-tag size="small" type="warning">文件夹</el-tag>
               </button>
             </li>
-            <li v-for="row in paginatedRecords" :key="row.id" class="file-list__card">
+            <li
+              v-for="row in paginatedRecords"
+              :key="row.id"
+              class="file-list__card"
+              @contextmenu="openFileContextMenu(row, $event)"
+            >
               <div class="file-list__card-head">
                 <FileTypeIcon :category="row.category" :size="22" />
                 <span class="file-list__card-name">{{ row.name }}</span>
@@ -688,6 +701,15 @@ onMounted(() => {
     v-model="previewVisible"
     v-model:record="previewRecord"
     :gallery="albumPreviewGallery"
+  />
+
+  <FileContextMenu
+    ref="contextMenuRef"
+    :deleting-key="deletingKey"
+    @preview="previewFile"
+    @download="downloadFile"
+    @copy="copyUrl"
+    @delete="deleteFile"
   />
 </template>
 

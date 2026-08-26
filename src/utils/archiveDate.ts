@@ -29,6 +29,41 @@ export interface ArchiveDateResolveResult {
   path: string
 }
 
+function isLikelyDirectoryPath(segments: string[]): boolean {
+  if (segments.length <= 1) return false
+  const first = segments[0]
+  if (!first) return false
+  if (/^[a-zA-Z_]/.test(first)) return true
+  if (
+    segments.length >= 4 &&
+    /^\d{4}$/.test(segments[0]) &&
+    /^\d{1,2}$/.test(segments[1]) &&
+    /^\d{1,2}$/.test(segments[2])
+  ) {
+    return true
+  }
+  return false
+}
+
+/** 去掉扩展名；含 `/` 时区分 OSS 路径与文件名内斜杠日期 */
+function filenameTextWithoutExtension(filename: string): string {
+  const normalized = filename.replace(/\\/g, '/')
+  const segments = normalized.split('/')
+
+  let stem: string
+  if (isLikelyDirectoryPath(segments)) {
+    const last = segments[segments.length - 1] ?? normalized
+    stem = last
+  } else if (segments.length > 1) {
+    stem = normalized.replace(/\.[^./]+$/, '')
+  } else {
+    stem = normalized
+  }
+
+  const dot = stem.lastIndexOf('.')
+  return dot > 0 ? stem.slice(0, dot) : stem
+}
+
 function pad2(value: number): string {
   return String(value).padStart(2, '0')
 }
@@ -101,6 +136,49 @@ function pushCandidate(
 }
 
 /**
+ * `15-03-2026` / `03-15-2026` / `15032026`：日月在前、年在后。
+ * 歧义（如 05-06-2026）时优先 DD-MM-YYYY。
+ */
+function pushTrailingYearCandidates(
+  list: FilenameDateCandidate[],
+  first: number,
+  second: number,
+  year: number,
+  score: number,
+  index: number,
+  now: Date,
+) {
+  const asDayMonth: ArchiveDateParts = { year, month: second, day: first }
+  const asMonthDay: ArchiveDateParts = { year, month: first, day: second }
+
+  const dayMonthOk =
+    first >= 1 && first <= 31 && second >= 1 && second <= 12 &&
+    isValidArchiveCalendarDate(asDayMonth, now)
+  const monthDayOk =
+    first >= 1 && first <= 12 && second >= 1 && second <= 31 &&
+    isValidArchiveCalendarDate(asMonthDay, now)
+
+  if (dayMonthOk && monthDayOk) {
+    const same =
+      asDayMonth.month === asMonthDay.month && asDayMonth.day === asMonthDay.day
+    if (same) {
+      pushCandidate(list, year, asDayMonth.month, asDayMonth.day, score, index, now)
+      return
+    }
+    // 05-06-2026 等歧义：优先 DD-MM
+    pushCandidate(list, year, asDayMonth.month, asDayMonth.day, score, index, now)
+    return
+  }
+  if (dayMonthOk) {
+    pushCandidate(list, year, asDayMonth.month, asDayMonth.day, score, index, now)
+    return
+  }
+  if (monthDayOk) {
+    pushCandidate(list, year, asMonthDay.month, asMonthDay.day, score, index, now)
+  }
+}
+
+/**
  * 3.12.3：从文件名解析归档日。
  * 支持多种常见格式；多候选时取分数更高、更靠前的合法日历日。
  * 无法判定返回 `null`（由上层回退 EXIF / 上传日）。
@@ -109,9 +187,7 @@ export function parseDateFromFilename(
   filename: string,
   now = new Date(),
 ): ArchiveDateParts | null {
-  const base = filename.split(/[/\\]/).pop() || filename
-  const dot = base.lastIndexOf('.')
-  const text = dot > 0 ? base.slice(0, dot) : base
+  const text = filenameTextWithoutExtension(filename)
   if (!text) return null
 
   const candidates: FilenameDateCandidate[] = []
@@ -129,9 +205,9 @@ export function parseDateFromFilename(
     )
   }
 
-  // 2026-03-15、2026_03_15、2026.03.15；可选 _HH-mm-ss / T HH:mm:ss
+  // 2026-03-15、2026/03/15、2026_03_15、2026.03.15；可选时分秒
   for (const match of text.matchAll(
-    /(\d{4})([-_.])(\d{1,2})\2(\d{1,2})(?:[_\sT]-?(\d{2})[-:.](\d{2})[-:.](\d{2}))?/g,
+    /(\d{4})([-_.\\/])(\d{1,2})\2(\d{1,2})(?:(?:[_\sT])-?(\d{2})[-:.](\d{2})[-:.](\d{2}))?/g,
   )) {
     const hasTime = Boolean(match[5])
     pushCandidate(
@@ -140,6 +216,66 @@ export function parseDateFromFilename(
       Number(match[3]),
       Number(match[4]),
       hasTime ? 95 : 90,
+      match.index ?? 0,
+      now,
+    )
+  }
+
+  // 2026 03 15、2026 03 15 12 30 00
+  for (const match of text.matchAll(
+    /(\d{4})\s+(\d{1,2})\s+(\d{1,2})(?:\s+(\d{2})[-:.](\d{2})[-:.](\d{2}))?/g,
+  )) {
+    const hasTime = Boolean(match[4])
+    pushCandidate(
+      candidates,
+      Number(match[1]),
+      Number(match[2]),
+      Number(match[3]),
+      hasTime ? 93 : 89,
+      match.index ?? 0,
+      now,
+    )
+  }
+
+  // 2026.03.15.12.30.00
+  for (const match of text.matchAll(
+    /(?<!\d)(\d{4})\.(\d{1,2})\.(\d{1,2})\.(\d{2})\.(\d{2})\.(\d{2})(?!\d)/g,
+  )) {
+    pushCandidate(
+      candidates,
+      Number(match[1]),
+      Number(match[2]),
+      Number(match[3]),
+      92,
+      match.index ?? 0,
+      now,
+    )
+  }
+
+  // 15-03-2026、15/03/2026、03-15-2026（日月在前）；可选 _120001 / 时分秒
+  for (const match of text.matchAll(
+    /(?<!\d)(\d{1,2})([-_.\\/])(\d{1,2})\2(\d{4})(?:(?:[_\sT])-?(\d{2})[-:.](\d{2})[-:.](\d{2})|[_-](\d{6}))?/g,
+  )) {
+    const hasTime = Boolean(match[5] || match[8])
+    pushTrailingYearCandidates(
+      candidates,
+      Number(match[1]),
+      Number(match[3]),
+      Number(match[4]),
+      hasTime ? 84 : 82,
+      match.index ?? 0,
+      now,
+    )
+  }
+
+  // 15 03 2026
+  for (const match of text.matchAll(/(?<!\d)(\d{1,2})\s+(\d{1,2})\s+(\d{4})(?!\d)/g)) {
+    pushTrailingYearCandidates(
+      candidates,
+      Number(match[1]),
+      Number(match[2]),
+      Number(match[3]),
+      80,
       match.index ?? 0,
       now,
     )
@@ -171,7 +307,20 @@ export function parseDateFromFilename(
     )
   }
 
-  // 20260315（单独 8 位）；避免吃掉已被更长匹配覆盖的同起点时可靠分数竞争
+  // 20260315 120001（空格分隔时分秒）
+  for (const match of text.matchAll(/(?<!\d)(\d{4})(\d{2})(\d{2})\s+(\d{6})(?!\d)/g)) {
+    pushCandidate(
+      candidates,
+      Number(match[1]),
+      Number(match[2]),
+      Number(match[3]),
+      86,
+      match.index ?? 0,
+      now,
+    )
+  }
+
+  // 20260315（单独 8 位 YYYYMMDD）
   for (const match of text.matchAll(/(?<!\d)(\d{4})(\d{2})(\d{2})(?!\d)/g)) {
     pushCandidate(
       candidates,
@@ -182,6 +331,35 @@ export function parseDateFromFilename(
       match.index ?? 0,
       now,
     )
+  }
+
+  // 15032026 / 03152026（DDMMYYYY 或 MMDDYYYY 紧凑，年在后）
+  for (const match of text.matchAll(/(?<!\d)(\d{2})(\d{2})(\d{4})(?!\d)/g)) {
+    pushTrailingYearCandidates(
+      candidates,
+      Number(match[1]),
+      Number(match[2]),
+      Number(match[3]),
+      68,
+      match.index ?? 0,
+      now,
+    )
+  }
+
+  // Unix 毫秒时间戳（13 位），如 mmexport1724567890123.jpg
+  for (const match of text.matchAll(/(?<!\d)(\d{13})(?!\d)/g)) {
+    const date = new Date(Number(match[1]))
+    if (Number.isNaN(date.getTime())) continue
+    const parts = archiveDatePartsFromDate(date)
+    pushCandidate(candidates, parts.year, parts.month, parts.day, 65, match.index ?? 0, now)
+  }
+
+  // Unix 秒时间戳（10 位）
+  for (const match of text.matchAll(/(?<!\d)(\d{10})(?!\d)/g)) {
+    const date = new Date(Number(match[1]) * 1000)
+    if (Number.isNaN(date.getTime())) continue
+    const parts = archiveDatePartsFromDate(date)
+    pushCandidate(candidates, parts.year, parts.month, parts.day, 60, match.index ?? 0, now)
   }
 
   if (candidates.length === 0) return null

@@ -153,10 +153,12 @@
     3. 回退：上传当天本地日期
     → `ARCHIVE_DATE_PRIORITY` + `resolveArchiveDateParts` / `resolveArchiveDateForFile`
   - [x] **3.12.3** 文件名日期解析：覆盖常见格式（需可扩展、单测友好），至少包括：
-    - `YYYYMMDD` / `YYYY-MM-DD` / `YYYY_MM_DD` / `YYYY.MM.DD`
+    - `YYYYMMDD` / `YYYY-MM-DD` / `YYYY_MM_DD` / `YYYY.MM.DD` / `YYYY/MM/DD` / `YYYY MM DD`
     - `YYYY年M月D日` / `YYYY年MM月DD日`
-    - `YYYYMMDD_HHmmss`、`YYYY-MM-DD_HH-mm-ss`、`YYYYMMDDHHmmss`
+    - `YYYYMMDD_HHmmss`、`YYYY-MM-DD_HH-mm-ss`、`YYYYMMDDHHmmss`、`YYYY.MM.DD.HH.mm.ss`
+    - 日月在前：`DD-MM-YYYY`、`DD/MM/YYYY`、`DDMMYYYY`、`MM-DD-YYYY`、`MMDDYYYY` 等
     - 带前缀/后缀：如 `IMG_20260315_120001.jpg`、`photo-2026-03-15.jpg`、`截图2026年3月15日.png`
+    - Unix 时间戳：13 位毫秒、10 位秒（分数低于日历格式）
     - 歧义处理：多个候选时取**最像完整日历日**且合法的一个；无法判定则跳过文件名解析
     → `parseDateFromFilename`
   - [x] **3.12.4** EXIF 日期：上传前对图片 Blob 轻量读取（可用现有 `exifr`）；无 EXIF / 解析失败不阻断上传 → `readExifArchiveDateParts` / `resolveArchiveDateForFile`
@@ -174,7 +176,7 @@
   - ~~B. 会话内本地维护列表~~（已弃用为列表主数据源；上传页「最近上传」仍可乐观展示）
 - [x] **4.3** 搜索 / 按类型筛选（图片、PDF、Word、文本、其他）
 - [x] **4.4** 排序：时间、名称、大小
-- [x] **4.5** 操作：预览（列表内弹窗，点遮罩关闭）、下载（签名 URL）、复制链接、删除（确认弹窗 + OSS DeleteObject）
+- [x] **4.5** 操作：预览（列表内弹窗，点遮罩关闭）、下载（SDK Blob 本地下载，避开 Referer 防盗链）、复制链接、删除（确认弹窗 + OSS DeleteObject）
 - [x] **4.6** 空状态、加载中、加载失败 UI
 - [x] **4.7** 分页：默认每页 10，可选 10 / 20 / 50 / 100 / 200（OSS 全量列举 + 本地分页）
 - [x] **4.8** 桌面端表格 / 移动端卡片列表双布局

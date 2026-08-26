@@ -105,9 +105,10 @@ function onClosed() {
 watch(
   () => [props.modelValue, props.record?.key] as const,
   ([open, key]) => {
-    if (open && props.record && key) {
-      void loadPreview(props.record)
-    }
+    if (!open || !props.record || !key) return
+    // 左右切换已在 onChangeImage 同步 current，勿整页 loading 卸载预览（会闪白）
+    if (current.value?.key === key) return
+    void loadPreview(props.record)
   },
 )
 </script>

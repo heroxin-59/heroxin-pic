@@ -178,7 +178,7 @@ export async function listOssDirectory(prefix?: string): Promise<ListOssDirector
   })
 }
 
-/** 为下载签发带 Content-Disposition 的签名 URL */
+/** 为下载签发带 Content-Disposition 的签名 URL（外链/复制用；站内点击下载请用 downloadOssFile） */
 export async function getDownloadUrl(key: string, filename: string): Promise<string> {
   return withOssClient(async (client) => {
     const safeName = filename.replace(/["\r\n]/g, '_')
@@ -207,6 +207,27 @@ export async function getAccessUrl(
 /** 通过 SDK 拉取对象 Blob（图片/文本预览更稳妥） */
 export async function getObjectBlob(key: string): Promise<Blob> {
   return withOssClient(async (client) => client.getObjectBlob(key))
+}
+
+/**
+ * 站内下载：SDK 拉 Blob → 本地 Object URL 触发保存。
+ * 避免签名 URL + 跨域 `<a download>` 失效后带 Referer 跳转，触发桶防盗链 AccessDenied。
+ */
+export async function downloadOssFile(key: string, filename: string): Promise<void> {
+  const blob = await getObjectBlob(key)
+  const objectUrl = URL.createObjectURL(blob)
+  const safeName = (filename || key.split('/').pop() || 'download').replace(/[\\/:*?"<>|]/g, '_')
+  try {
+    const anchor = document.createElement('a')
+    anchor.href = objectUrl
+    anchor.download = safeName
+    anchor.rel = 'noopener'
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+  } finally {
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500)
+  }
 }
 
 /** 删除 OSS 对象（需具备 DeleteObject 权限） */

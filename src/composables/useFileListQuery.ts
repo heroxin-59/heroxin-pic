@@ -75,9 +75,9 @@ function compareRecords(
 /** 列表页：搜索 / 类型筛选 / 排序 / 分页（基于已加载的 records） */
 export function useFileListQuery(getRecords: () => FileRecord[]) {
   const keyword = ref('')
-  const category = ref<FileCategoryFilter>('all')
   /** true：仅展示图片 */
   const imagesOnly = ref(readImagesOnlyPreference())
+  const category = ref<FileCategoryFilter>(imagesOnly.value ? 'image' : 'all')
   const sortValue = ref('time-desc')
   const page = ref(1)
   const pageSize = ref(DEFAULT_FILE_PAGE_SIZE)
@@ -138,9 +138,8 @@ export function useFileListQuery(getRecords: () => FileRecord[]) {
 
   watch(imagesOnly, (value) => {
     writeImagesOnlyPreference(value)
-    if (value) {
-      category.value = 'image'
-    }
+    // 开启仅图片 → 类型锁定为「图片」；关闭 → 恢复「全部」
+    category.value = value ? 'image' : 'all'
   })
 
   watch(filteredTotal, (total) => {

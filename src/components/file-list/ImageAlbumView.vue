@@ -21,6 +21,7 @@ const emit = defineEmits<{
   'meta-map-change': [metaMap: Map<string, AlbumImageMeta>]
   'batch-download': [records: FileRecord[]]
   'batch-delete': [records: FileRecord[]]
+  'context-menu': [payload: { record: FileRecord; event: MouseEvent }]
 }>()
 
 const rootRef = ref<HTMLElement | null>(null)
@@ -152,6 +153,12 @@ function onTileClick(item: FileRecord) {
     return
   }
   emit('select', item)
+}
+
+function onTileContextMenu(item: FileRecord, event: MouseEvent) {
+  // 右键菜单优先，取消长按多选计时
+  onTilePointerCancel()
+  emit('context-menu', { record: item, event })
 }
 
 function onTilePointerDown(item: FileRecord) {
@@ -332,6 +339,7 @@ onUnmounted(() => {
           :title="item.record.name"
           :aria-pressed="selectionMode ? isSelected(item.record.key) : undefined"
           @click="onTileClick(item.record)"
+          @contextmenu="onTileContextMenu(item.record, $event)"
           @pointerdown="onTilePointerDown(item.record)"
           @pointerup="onTilePointerUp"
           @pointercancel="onTilePointerCancel"

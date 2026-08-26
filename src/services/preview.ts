@@ -1,4 +1,4 @@
-import { getAccessUrl, getDownloadUrl, getObjectBlob } from '@/services/fileList'
+import { getAccessUrl, downloadOssFile, getObjectBlob } from '@/services/fileList'
 import { useFileStore } from '@/stores/files'
 import { buildFileRecordFromKey, type FileRecord } from '@/types/file'
 import { isDocxFile } from '@/services/word'
@@ -64,14 +64,7 @@ export async function loadImageObjectUrl(key: string): Promise<string> {
   return URL.createObjectURL(blob)
 }
 
+/** 预览内下载：SDK Blob 本地下载，避开桶 Referer 防盗链 */
 export async function openPreviewDownload(record: FileRecord) {
-  const url = await getDownloadUrl(record.key, record.name)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = record.name
-  anchor.rel = 'noopener'
-  anchor.target = '_blank'
-  document.body.appendChild(anchor)
-  anchor.click()
-  document.body.removeChild(anchor)
+  await downloadOssFile(record.key, record.name)
 }
