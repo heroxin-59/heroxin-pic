@@ -1,27 +1,41 @@
 /**
- * STS AssumeRole 逻辑（开发内嵌 / sts-server 独立进程共用）
+ * STS AssumeRole 逻辑
+ * - 本地：Vite 插件 / sts-server 读 sts-server/.env
+ * - Vercel：直接读 Environment Variables（无需 .env 文件）
  */
 
 import { existsSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import OSS from 'ali-oss'
-import dotenv from 'dotenv'
 
+const require = createRequire(import.meta.url)
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const stsEnvPath = resolve(repoRoot, 'sts-server/.env')
 
 let envLoaded = false
 
-/** 从 sts-server/.env 加载 RAM 配置（幂等） */
+/** 从 sts-server/.env 加载 RAM 配置（幂等；Vercel 上可跳过） */
 export function loadStsEnv() {
   if (envLoaded) return
-  if (existsSync(stsEnvPath)) {
-    dotenv.config({ path: stsEnvPath })
-  } else {
-    dotenv.config()
-  }
   envLoaded = true
+
+  // 已有环境变量（Vercel / 系统注入）时不再读文件
+  if (process.env.ALIBABA_CLOUD_ACCESS_KEY_ID?.trim()) {
+    return
+  }
+
+  if (!existsSync(stsEnvPath)) {
+    return
+  }
+
+  try {
+    const dotenv = require('dotenv')
+    dotenv.config({ path: stsEnvPath })
+  } catch {
+    // Vercel 运行时未安装 dotenv 时忽略；应依赖平台环境变量
+  }
 }
 
 function readConfig() {
@@ -46,7 +60,7 @@ function requireConfig(config) {
   if (!config.roleArn) missing.push('ALIBABA_CLOUD_ROLE_ARN')
   if (missing.length) {
     throw new Error(
-      `缺少环境变量：${missing.join(', ')}。请复制 sts-server/.env.example 为 sts-server/.env 并填写。`,
+      `缺少环境变量：${missing.join(', ')}。本地请配置 sts-server/.env；Vercel 请在 Project → Environment Variables 中填写（Secret）。`,
     )
   }
 }

@@ -1,6 +1,7 @@
 # 部署与生产配置（阶段 8）
 
-> 对应 README **8.2–8.4 / 8.6**。本应用为纯静态 SPA；业务文件仍在阿里云 OSS，STS 需单独可达的 HTTPS 接口。
+> 对应 README **8.2–8.4 / 8.6**。前端为 Vite SPA；业务文件在阿里云 OSS。  
+> 本地 STS 由 Vite 内嵌；**Vercel 生产**使用仓库内 `api/sts.js` Serverless（密钥放平台环境变量）。
 
 ---
 
@@ -96,41 +97,52 @@ server {
 }
 ```
 
-### 3.3 Vercel
+### 3.3 Vercel（推荐：GitHub 关联）
 
-1. 框架预设：Vite / Other  
-2. Build：`pnpm build`；Output：`dist`  
-3. 子路径：设置 `VITE_BASE` 环境变量后构建  
-4. SPA：`vercel.json` 示例：
+仓库已包含 `api/sts.js` + `vercel.json`。
 
-```json
-{
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
-}
-```
+1. Import GitHub 仓库，框架选 Vite（或沿用 `vercel.json`）  
+2. **Environment Variables**（改完后需 **Redeploy**）：
+
+| Key | Type | 说明 |
+| --- | ---- | ---- |
+| `VITE_OSS_REGION` | **Config** | 如 `oss-cn-beijing` |
+| `VITE_OSS_BUCKET` | **Config** | Bucket 名 |
+| `VITE_OSS_DIR` | **Config** | 前缀，如 `file/` |
+| `VITE_STS_URL` | **Config** | 填 `/api/sts` |
+| `ALIBABA_CLOUD_ACCESS_KEY_ID` | **Secret** | 签发用 RAM 用户 AK（勿加 `VITE_`） |
+| `ALIBABA_CLOUD_ACCESS_KEY_SECRET` | **Secret** | 对应 SK |
+| `ALIBABA_CLOUD_ROLE_ARN` | **Secret** | 角色 ARN |
+
+3. OSS Bucket CORS 增加你的 Vercel 域名（如 `https://xxx.vercel.app`）  
+4. 部署后自检：打开 `https://你的域名/api/sts`，应返回临时凭证 JSON；再打开站点上传/列表  
+
+若仍报 `STS 请求失败: HTTP 404`：说明旧部署还没有 `api/sts.js`，把本仓库最新代码推到 GitHub 并重新 Deploy。
 
 ### 3.4 Cloudflare Pages
 
 1. Build command：`pnpm build`；Output：`dist`  
 2. 环境变量中配置全部 `VITE_*`（含 `VITE_STS_URL`）  
 3. SPA：`public/_redirects` 或 Pages 控制台配置 `/* /index.html 200`  
+4. STS 需另外部署（本仓库的 Vercel `api/sts` 不会自动出现在 Cloudflare）
 
 ---
 
 ## 4. STS 生产形态
 
-推荐：
+推荐（任选其一）：
 
-- 继续使用仓库 [`sts-server`](../sts-server/)，部署到任意 Node 主机 / 容器，仅内网或加鉴权  
-- 或换成云函数 / 自有后端，接口形态见 [`sts-setup.md`](./sts-setup.md)
+- **Vercel Serverless**：`GET /api/sts`（见上 §3.3）  
+- 仓库 [`sts-server`](../sts-server/) 部署到任意 Node 主机 / 容器  
+- 阿里云函数计算 / 自有后端，接口形态见 [`sts-setup.md`](./sts-setup.md)
 
-前端 `.env.production` 示例：
+前端构建变量示例：
 
 ```env
 VITE_OSS_REGION=oss-cn-beijing
 VITE_OSS_BUCKET=your-bucket
 VITE_OSS_DIR=file/
-VITE_STS_URL=https://sts.example.com/sts
+VITE_STS_URL=/api/sts
 ```
 
 ---
