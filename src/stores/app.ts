@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { appTitle } from '@/config/appMeta'
 
 /** 应用级状态（脚手架占位，后续扩展上传队列 / 文件列表等） */
 export const useAppStore = defineStore('app', () => {
-  const appName = ref('heroxin-pic')
+  const appName = ref(appTitle)
   const ready = ref(true)
 
   const statusText = computed(() => (ready.value ? '就绪' : '初始化中'))

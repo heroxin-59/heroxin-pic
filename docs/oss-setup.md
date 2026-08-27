@@ -195,7 +195,7 @@ XHR error ... PUT https://xxx.oss-cn-beijing.aliyuncs.com/... -1 (connected: fal
 - [ ] Bucket 已创建，地域与 `VITE_OSS_REGION` 一致
 - [ ] CORS 已包含本地 Origin（`5173`）及生产域名
 - [ ] RAM 策略仅覆盖目标 Bucket / 前缀
-- [ ] `.env.local` 已从 `.env.example` 复制并填写（密钥不入库）
+- [ ] `.env.local` 已填写涉密项（说明见根目录 `.env`）
 - [ ] 明确 STS：有接口地址，或接受「仅本地调试密钥」
 - [ ] 控制台能手动上传一个测试对象到 `uploads/`，确认权限无误
 
@@ -216,11 +216,7 @@ XHR error ... PUT https://xxx.oss-cn-beijing.aliyuncs.com/... -1 (connected: fal
 
 ## 8. 本地联调直传（阶段 2.6）
 
-1. 复制环境变量并填写：
-
-```bash
-cp .env.example .env.local
-```
+1. 配置环境变量（说明见根目录 `.env`；涉密项写在 `.env.local`）：
 
 至少配置：
 

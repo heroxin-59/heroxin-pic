@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { appTitle } from '@/config/appMeta'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -41,7 +42,7 @@ const router = createRouter({
 
 router.afterEach((to) => {
   const title = typeof to.meta.title === 'string' ? to.meta.title : ''
-  document.title = title ? `${title} · heroxin-pic` : 'heroxin-pic'
+  document.title = title ? `${title} · ${appTitle}` : appTitle
 })
 
 export default router

@@ -17,7 +17,6 @@ yarn-error.log*
 lerna-debug.log*
 
 # Environment (secrets — never commit)
-.env
 .env.local
 .env.*.local
 sts-server/.env

@@ -9,6 +9,7 @@ import type {
   OssUploadResult,
 } from '@/types/oss'
 import { AppError } from '@/types/error'
+import { appTitle } from '@/config/appMeta'
 
 function normalizeDir(dir?: string): string {
   if (!dir?.trim()) return ''
@@ -36,7 +37,7 @@ function createAliOssClient(options: OSS.Options, hasStsToken: boolean): OSS {
         devLocalKeyHintLogged = true
         originalWarn.call(
           console,
-          '[heroxin-pic] 当前未使用 STS Token。请配置 VITE_STS_URL（推荐）或本地临时凭证 VITE_OSS_STS_TOKEN。详见 docs/sts-setup.md',
+          `[${appTitle}] 当前未使用 STS Token。请配置 VITE_STS_URL（推荐）或本地临时凭证 VITE_OSS_STS_TOKEN。详见 docs/sts-setup.md`,
         )
       }
       return

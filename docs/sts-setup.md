@@ -69,7 +69,7 @@ STS 签发服务 (sts-server 或云函数)
 acs:ram::1234567890123456:role/heroxin-pic-oss
 ```
 
-填入 `sts-server/.env` 的 `ALIBABA_CLOUD_ROLE_ARN`。
+填入根目录 `.env.local` 的 `ALIBABA_CLOUD_ROLE_ARN`（说明见 `.env`）。
 
 ### 3. 创建「签发用」的 RAM 用户（长期 Key，仅服务端）
 
@@ -94,7 +94,7 @@ acs:ram::1234567890123456:role/heroxin-pic-oss
 把上面 `Resource` 换成你刚创建的角色 ARN。
 
 5. 用户 → **认证管理** → 创建 AccessKey  
-   → 填入 `sts-server/.env`：
+   → 填入根目录 `.env.local`：
 
 ```env
 ALIBABA_CLOUD_ACCESS_KEY_ID=你的用户AK
@@ -112,13 +112,11 @@ ALIBABA_CLOUD_ROLE_ARN=acs:ram::账号ID:role/heroxin-pic-oss
 
 ## 二、本地 STS（开发内嵌，推荐）
 
-**只需一个命令**：在项目根目录配置 `sts-server/.env` 后执行 `pnpm dev`。  
+**只需一个命令**：在项目根目录 `.env.local` 填写 `ALIBABA_CLOUD_*` 后执行 `pnpm dev`（变量说明见 `.env`）。  
 Vite 开发服务器已内嵌 `GET /api/sts`，**无需**再单独启动 `sts-server`。
 
 ```bash
-# 项目根目录
-cp sts-server/.env.example sts-server/.env
-# 编辑 sts-server/.env 填入 AK/SK/RoleArn
+# 项目根目录：编辑 .env.local 填入 AK/SK/RoleArn
 
 pnpm install
 pnpm dev
@@ -213,7 +211,7 @@ VITE_OSS_STS_TOKEN=xxxxx
 ## 五、自检清单
 
 - [ ] RAM 角色已绑 OSS 最小权限，ARN 正确
-- [ ] RAM 用户仅有 `sts:AssumeRole`，AccessKey 只在 `sts-server/.env`
+- [ ] RAM 用户仅有 `sts:AssumeRole`，AccessKey 只在根目录 `.env.local`
 - [ ] `GET /sts` 能返回四字段 JSON
 - [ ] 前端 `VITE_STS_URL` 已配置并重启 `pnpm dev`
 - [ ] Bucket CORS 已允许当前 Origin

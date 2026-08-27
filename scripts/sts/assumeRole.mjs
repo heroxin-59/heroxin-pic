@@ -1,6 +1,6 @@
 /**
  * STS AssumeRole 逻辑
- * - 本地：Vite 插件 / sts-server 读 sts-server/.env
+ * - 本地：读项目根目录 .env / .env.local（推荐），兼容 sts-server/.env
  * - Vercel：直接读 Environment Variables（无需 .env 文件）
  */
 
@@ -12,11 +12,26 @@ import OSS from 'ali-oss'
 
 const require = createRequire(import.meta.url)
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
-const stsEnvPath = resolve(repoRoot, 'sts-server/.env')
+
+export const stsEnvPaths = {
+  rootEnv: resolve(repoRoot, '.env'),
+  rootEnvLocal: resolve(repoRoot, '.env.local'),
+  legacyStsEnv: resolve(repoRoot, 'sts-server/.env'),
+}
 
 let envLoaded = false
 
-/** 从 sts-server/.env 加载 RAM 配置（幂等；Vercel 上可跳过） */
+function loadDotenv(path, options = {}) {
+  if (!existsSync(path)) return
+  try {
+    const dotenv = require('dotenv')
+    dotenv.config({ path, ...options })
+  } catch {
+    // Vercel 运行时未安装 dotenv 时忽略；应依赖平台环境变量
+  }
+}
+
+/** 从根目录 .env / .env.local 加载 RAM 配置（幂等；Vercel 上可跳过） */
 export function loadStsEnv() {
   if (envLoaded) return
   envLoaded = true
@@ -26,16 +41,10 @@ export function loadStsEnv() {
     return
   }
 
-  if (!existsSync(stsEnvPath)) {
-    return
-  }
-
-  try {
-    const dotenv = require('dotenv')
-    dotenv.config({ path: stsEnvPath })
-  } catch {
-    // Vercel 运行时未安装 dotenv 时忽略；应依赖平台环境变量
-  }
+  // 优先级：.env → sts-server/.env（旧）→ .env.local（涉密覆盖）
+  loadDotenv(stsEnvPaths.rootEnv)
+  loadDotenv(stsEnvPaths.legacyStsEnv)
+  loadDotenv(stsEnvPaths.rootEnvLocal, { override: true })
 }
 
 function readConfig() {
@@ -60,7 +69,7 @@ function requireConfig(config) {
   if (!config.roleArn) missing.push('ALIBABA_CLOUD_ROLE_ARN')
   if (missing.length) {
     throw new Error(
-      `缺少环境变量：${missing.join(', ')}。本地请配置 sts-server/.env；Vercel 请在 Project → Environment Variables 中填写（Secret）。`,
+      `缺少环境变量：${missing.join(', ')}。请在项目根目录 .env.local 填写（说明见 .env）；旧版 sts-server/.env 仍兼容。`,
     )
   }
 }
@@ -104,6 +113,12 @@ export async function assumeRoleCredentials() {
   }
 }
 
+/** @deprecated 使用 hasStsEnvFile()；保留兼容旧引用 */
 export function getStsEnvPath() {
-  return stsEnvPath
+  return stsEnvPaths.legacyStsEnv
+}
+
+/** 是否存在任一 STS 配置文件（用于开发期提示） */
+export function hasStsEnvFile() {
+  return Object.values(stsEnvPaths).some((path) => existsSync(path))
 }

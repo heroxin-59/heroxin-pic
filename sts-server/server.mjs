@@ -3,7 +3,8 @@
  *
  * 本地开发已内嵌在 Vite：`pnpm dev` 即可，无需单独启动本服务。
  * 启动独立服务：
- *   cd sts-server && cp .env.example .env && pnpm install && pnpm start
+ *   cd sts-server && pnpm install && pnpm start
+ *   （环境变量见项目根目录 .env / .env.local）
  */
 
 import http from 'node:http'

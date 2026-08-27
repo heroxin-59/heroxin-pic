@@ -260,13 +260,13 @@
 - [x] **7.6** 错误边界与路由 404 页 → `AppErrorBoundary` · `NotFoundView` · `app.config.errorHandler`
 - [x] **7.7** 基础单测 / 关键工具函数测试 → `error` / `format` / `preview` / `archiveDate` / `albumGroup`（`pnpm test`）
 - [x] **7.8** 构建产物体积关注：PDF/Word 预览库按需异步加载 → `components/preview/asyncPreview.ts`
-- [x] **7.9** README 补充：环境变量说明、CORS 配置示例、权限说明、常见问题 FAQ → [`.env.example`](./.env.example) · [`docs/oss-setup.md`](./docs/oss-setup.md) · [`docs/faq.md`](./docs/faq.md)
+- [x] **7.9** README 补充：环境变量说明、CORS 配置示例、权限说明、常见问题 FAQ → [`.env`](./.env) · [`docs/oss-setup.md`](./docs/oss-setup.md) · [`docs/faq.md`](./docs/faq.md)
 
 ---
 
 ### 阶段 8：配置、部署与验收
 
-- [x] **8.1** 提供 `.env.example`（无密钥）：列出全部 `VITE_` 变量及含义 → [`.env.example`](./.env.example) · README **§五** · [`docs/faq.md`](./docs/faq.md)
+- [x] **8.1** 提供环境变量说明（无密钥）：列出全部 `VITE_` 变量及含义 → [`.env`](./.env) · README **§五** · [`docs/faq.md`](./docs/faq.md)
 - [x] **8.2** 生产构建优化与 `base` 路径配置（子路径：`VITE_BASE=/pic/`）→ `vite.config.ts` · [`docs/deploy.md`](./docs/deploy.md)
 - [x] **8.3** 静态托管方案备忘：OSS 静态网站 / Nginx / Vercel / Cloudflare Pages → [`docs/deploy.md`](./docs/deploy.md)
 - [x] **8.4** HTTPS 要求：生产环境必须 HTTPS → [`docs/deploy.md`](./docs/deploy.md) §2
@@ -302,7 +302,7 @@ heroxin-pic/
 │   ├── App.vue
 │   ├── main.ts
 │   └── env.d.ts
-├── .env.example
+├── .env                     # 环境变量（提交到 Git，不含真实密钥；说明见文件内注释）
 ├── .gitignore
 ├── index.html
 ├── package.json
@@ -316,7 +316,7 @@ heroxin-pic/
 
 ## 五、环境变量
 
-> 无密钥模板：[`.env.example`](./.env.example)。CORS：[`docs/oss-setup.md`](./docs/oss-setup.md)。**STS 控制台配置 + sts-server**：[docs/sts-setup.md](./docs/sts-setup.md)。FAQ：[`docs/faq.md`](./docs/faq.md)。
+> 环境变量说明见根目录 [`.env`](./.env)。CORS：[`docs/oss-setup.md`](./docs/oss-setup.md)。**STS 控制台配置 + sts-server**：[docs/sts-setup.md](./docs/sts-setup.md)。FAQ：[`docs/faq.md`](./docs/faq.md)。
 
 | 变量名（草案）            | 含义                      | 备注                                                                     |
 | ------------------------- | ------------------------- | ------------------------------------------------------------------------ |
@@ -477,16 +477,12 @@ pnpm check         # lint + format + test + build 一键校验
 
 ### OSS 环境变量（后续上传功能需要）
 
-```bash
-cp .env.example .env.local
-```
-
-编辑 `.env.local` 填入 OSS / STS 相关变量后 **重启** `pnpm dev`。STS 控制台配置见 [`docs/sts-setup.md`](./docs/sts-setup.md)；变量说明见 `.env.example`、**§五** 与 [`docs/faq.md`](./docs/faq.md)。
+编辑根目录 [`.env`](./.env) 填入 OSS 等非涉密项；**AccessKey 等涉密项写在 `.env.local`**（已在 `.gitignore`），然后 **重启** `pnpm dev`。STS 控制台配置见 [`docs/sts-setup.md`](./docs/sts-setup.md)；变量说明见 `.env`、**§五** 与 [`docs/faq.md`](./docs/faq.md)。
 
 本地 STS 签发（**开发默认已内嵌**，一般无需单独启动）：
 
 ```bash
-# 首次：复制 sts-server/.env.example → sts-server/.env 并填写 RAM 配置
+# 在 .env.local 填写 ALIBABA_CLOUD_*（说明见 .env）
 pnpm dev   # 内嵌 GET /api/sts
 ```
 

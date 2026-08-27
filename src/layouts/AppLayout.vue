@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import AppErrorBoundary from '@/components/AppErrorBoundary.vue'
+import { appTitle } from '@/config/appMeta'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { mainNavItems } from '@/constants/navigation'
 
@@ -10,7 +11,7 @@ const { isMobile, isCompactHeight, isLandscape } = useBreakpoint()
 
 const pageTitle = computed(() => {
   const title = route.meta.title
-  return typeof title === 'string' ? title : 'heroxin-pic'
+  return typeof title === 'string' ? title : appTitle
 })
 
 const layoutClass = computed(() => ({
@@ -26,7 +27,7 @@ const boundaryKey = computed(() => route.fullPath)
 <template>
   <div class="app-layout" :class="layoutClass">
     <header class="app-header">
-      <div class="brand">heroxin-pic</div>
+      <div class="brand">{{ appTitle }}</div>
       <div class="mobile-page-title">{{ pageTitle }}</div>
       <nav class="desktop-nav" aria-label="主导航">
         <router-link

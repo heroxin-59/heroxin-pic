@@ -2,12 +2,11 @@
  * 开发 / preview 内嵌 STS：GET /api/sts（与 VITE_STS_URL=/api/sts 对齐）
  */
 
-import { existsSync } from 'node:fs'
 import type { ServerResponse } from 'node:http'
 import type { Connect } from 'vite'
 import type { Plugin } from 'vite'
 // @ts-expect-error 共享 Node 脚本，无类型声明
-import { assumeRoleCredentials, getStsEnvPath } from '../scripts/sts/assumeRole.mjs'
+import { assumeRoleCredentials, hasStsEnvFile } from '../scripts/sts/assumeRole.mjs'
 
 const STS_PATHS = new Set(['/api/sts', '/sts'])
 
@@ -44,10 +43,10 @@ function createStsMiddleware(): Connect.NextHandleFunction {
       return
     }
 
-    if (!existsSync(getStsEnvPath()) && !warnedMissingEnv) {
+    if (!hasStsEnvFile() && !warnedMissingEnv) {
       warnedMissingEnv = true
       console.warn(
-        '[sts-dev] 未找到 sts-server/.env，请复制 sts-server/.env.example 并填写 RAM 配置。',
+        '[sts-dev] 未找到 STS 配置。请在项目根目录创建 .env.local，填写 ALIBABA_CLOUD_*（说明见 .env）。',
       )
     }
 
@@ -64,7 +63,7 @@ function createStsMiddleware(): Connect.NextHandleFunction {
 
 function attachStsMiddleware(server: { middlewares: Connect.Server }) {
   server.middlewares.use(createStsMiddleware())
-  console.log('[sts-dev] 内嵌 STS：GET /api/sts（配置见 sts-server/.env）')
+  console.log('[sts-dev] 内嵌 STS：GET /api/sts（配置见根目录 .env / .env.local）')
 }
 
 export function stsDevPlugin(): Plugin {

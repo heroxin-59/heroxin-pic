@@ -146,7 +146,7 @@ VITE_OSS_THUMB_PROCESS=image/resize,m_lfit,w_480/quality,q_80
 | `VITE_ALBUM_THUMB_CONCURRENCY` | 缩略图并发数 | `4` |
 | `VITE_OSS_THUMB_PROCESS` | OSS 图片处理参数，须以 `image/` 开头 | 空（拉原图） |
 
-完整变量表见 README「环境变量」与 [`.env.example`](../.env.example)。
+完整变量表见 README「环境变量」与根目录 [`.env`](../.env)。
 
 ---
 

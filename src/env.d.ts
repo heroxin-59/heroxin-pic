@@ -1,9 +1,11 @@
 /// <reference types="vite/client" />
 
-/** 仅 `VITE_` 前缀变量会暴露到客户端，见 .env.example */
+/** 仅 `VITE_` 前缀变量会暴露到客户端，见根目录 .env */
 interface ImportMetaEnv {
   /** 部署子路径，如 /pic/；根路径为 /。由 Vite `base` 注入为 import.meta.env.BASE_URL */
   readonly VITE_BASE?: string
+  /** 应用展示标题（顶栏、浏览器标签、PWA） */
+  readonly VITE_APP_TITLE?: string
   /** OSS 地域，如 oss-cn-hangzhou */
   readonly VITE_OSS_REGION: string
   /** Bucket 名称 */

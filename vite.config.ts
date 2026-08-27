@@ -5,6 +5,7 @@ import vue from '@vitejs/plugin-vue'
 import type { Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
 import { stsDevPlugin } from './vite-plugins/stsDevPlugin.ts'
+import { appMetaPlugin } from './vite-plugins/appMetaPlugin.ts'
 
 const rootDir = dirname(fileURLToPath(import.meta.url))
 
@@ -51,7 +52,7 @@ function resolveBase(): string {
 // https://vite.dev/config/
 export default defineConfig({
   base: resolveBase(),
-  plugins: [vue(), copyPdfjsAssetsPlugin(), stsDevPlugin()],
+  plugins: [vue(), copyPdfjsAssetsPlugin(), appMetaPlugin(rootDir), stsDevPlugin()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
