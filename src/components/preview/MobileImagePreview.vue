@@ -38,6 +38,31 @@ type CachedSlide = {
   measured: boolean
 }
 
+type PswpSlide = {
+  width: number
+  height: number
+  isActive: boolean
+  currentResolution: number
+  currZoomLevel: number
+  pan: { x: number; y: number }
+  panAreaSize: { x: number; y: number }
+  zoomLevels: {
+    initial: number
+    min: number
+    max: number
+    update: (w: number, h: number, pan: { x: number; y: number }) => void
+  }
+  bounds: {
+    update: (zoom: number) => void
+    correctPan: (axis: 'x' | 'y', value: number) => number
+  }
+  calculateSize: () => void
+  setZoomLevel: (zoom: number) => void
+  zoomAndPanToInitial: () => void
+  applyCurrentZoomPan: () => void
+  updateContentSize: (force?: boolean) => void
+}
+
 type PswpContent = {
   index: number
   data: Record<string, unknown> & {
@@ -49,18 +74,7 @@ type PswpContent = {
   width: number
   height: number
   element?: HTMLElement
-  slide?: {
-    width: number
-    height: number
-    isActive: boolean
-    currentResolution: number
-    panAreaSize: { x: number; y: number }
-    zoomLevels: { update: (w: number, h: number, pan: { x: number; y: number }) => void }
-    calculateSize: () => void
-    zoomAndPanToInitial: () => void
-    applyCurrentZoomPan: () => void
-    updateContentSize: (force?: boolean) => void
-  }
+  slide?: PswpSlide
   load: (isLazy?: boolean, reload?: boolean) => void
   setDisplayedSize: (width: number, height: number) => void
   displayError: () => void
@@ -363,7 +377,7 @@ function isContentLoaded(content: PswpContent): boolean {
 }
 
 function updateSlideDimensions(
-  slide: NonNullable<PswpContent['slide']>,
+  slide: PswpSlide,
   width: number,
   height: number,
   options: { preserveZoom?: boolean } = {},
