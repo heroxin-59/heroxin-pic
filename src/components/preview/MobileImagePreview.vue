@@ -3,9 +3,16 @@ import { onUnmounted, ref, watch } from 'vue'
 import { Loading } from '@element-plus/icons-vue'
 import PhotoSwipe, { type PhotoSwipeOptions } from 'photoswipe'
 import 'photoswipe/style.css'
-import { getAccessUrl } from '@/services/fileList'
-import { getAlbumAspectOrDefault, getCachedAlbumAspect, setAlbumAspect } from '@/services/imageAspect'
-import { loadImageObjectUrl } from '@/services/preview'
+import { getAlbumAspectOrDefault, setAlbumAspect } from '@/services/imageAspect'
+import {
+  type CachedPreviewSlide,
+  invalidatePreviewSlide,
+  isPreviewSlideReady,
+  peekPreviewSlideCache,
+  resolvePreviewSlide,
+  syncPreviewDataSourceFromCache,
+  updatePreviewSlideDimensions,
+} from '@/services/imagePreviewCache'
 import type { FileRecord } from '@/types/file'
 import { getErrorMessage, toAppError } from '@/utils/error'
 import { showAppError } from '@/utils/message'
@@ -28,15 +35,6 @@ const emit = defineEmits<{
 
 const bootError = ref('')
 const bootLoading = ref(false)
-
-type CachedSlide = {
-  src?: string
-  width: number
-  height: number
-  alt: string
-  key: string
-  measured: boolean
-}
 
 type PswpSlide = {
   width: number
@@ -80,9 +78,6 @@ type PswpContent = {
   displayError: () => void
 }
 
-const slideCache = new Map<string, CachedSlide>()
-const blobUrls = new Set<string>()
-
 let pswp: PhotoSwipe | null = null
 let opening = false
 let openSeq = 0
@@ -99,9 +94,7 @@ let savedScrollY = 0
 let previousScrollRestoration: ScrollRestoration | undefined
 const prefetchingKeys = new Set<string>()
 
-const SIGNED_TTL_SEC = 3600
 const PRELOAD_RADIUS = 2
-const ESTIMATED_WIDTH = 1600
 const PREVIEW_BG_OPACITY = 0.55
 const PREVIEW_HISTORY_STATE = 'heroxin-mobile-preview'
 
@@ -192,14 +185,6 @@ function registerMobilePreviewUi(instance: PhotoSwipe) {
   })
 }
 
-function clearSlideCache() {
-  for (const url of blobUrls) {
-    URL.revokeObjectURL(url)
-  }
-  blobUrls.clear()
-  slideCache.clear()
-}
-
 function nearbyIndices(center: number, total: number, radius = PRELOAD_RADIUS): number[] {
   const indices: number[] = []
   for (let offset = -radius; offset <= radius; offset += 1) {
@@ -211,88 +196,9 @@ function nearbyIndices(center: number, total: number, radius = PRELOAD_RADIUS): 
 
 function estimateSlideSize(key: string): { width: number; height: number } {
   const aspect = getAlbumAspectOrDefault(key)
-  const width = ESTIMATED_WIDTH
+  const width = 1600
   const height = Math.max(1, Math.round(width / aspect))
   return { width, height }
-}
-
-function measureImage(url: string): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.decoding = 'async'
-    img.onload = () => {
-      resolve({
-        width: Math.max(1, img.naturalWidth),
-        height: Math.max(1, img.naturalHeight),
-      })
-    }
-    img.onerror = () => reject(new Error('图片解码失败'))
-    img.src = url
-  })
-}
-
-async function resolveSlideSrc(record: FileRecord): Promise<string> {
-  const cached = slideCache.get(record.key)
-  if (cached?.src?.startsWith('blob:')) return cached.src
-
-  try {
-    return await getAccessUrl(record.key, { expires: SIGNED_TTL_SEC })
-  } catch {
-    if (record.url) return record.url
-    const src = await loadImageObjectUrl(record.key)
-    blobUrls.add(src)
-    return src
-  }
-}
-
-async function resolveSlide(record: FileRecord, measure = false): Promise<CachedSlide> {
-  const cached = slideCache.get(record.key)
-  if (cached?.src && cached.measured) return cached
-  if (cached?.src && !measure) return cached
-
-  const src = cached?.src ?? (await resolveSlideSrc(record))
-
-  if (measure) {
-    // 相册缩略图已缓存宽高比时，跳过整图解码以加快打开
-    if (getCachedAlbumAspect(record.key) != null) {
-      const { width, height } = estimateSlideSize(record.key)
-      const slide: CachedSlide = {
-        src,
-        width,
-        height,
-        alt: record.name,
-        key: record.key,
-        // 宽高比来自相册缓存，尺寸为估算值；loadComplete 仍会校正真实像素
-        measured: true,
-      }
-      slideCache.set(record.key, slide)
-      return slide
-    }
-
-    const size = await measureImage(src)
-    const slide: CachedSlide = {
-      src,
-      width: size.width,
-      height: size.height,
-      alt: record.name,
-      key: record.key,
-      measured: true,
-    }
-    slideCache.set(record.key, slide)
-    return slide
-  }
-
-  const { width, height } = estimateSlideSize(record.key)
-  const slide: CachedSlide = {
-    src,
-    width,
-    height,
-    alt: record.name,
-    key: record.key,
-    measured: false,
-  }
-  slideCache.set(record.key, slide)
-  return slide
 }
 
 type PswpSlideItem = {
@@ -304,7 +210,7 @@ type PswpSlideItem = {
   key: string
 }
 
-function toPswpSlideItem(slide: CachedSlide | undefined, record: FileRecord): PswpSlideItem {
+function toPswpSlideItem(slide: CachedPreviewSlide | undefined, record: FileRecord): PswpSlideItem {
   const size = slide
     ? { width: slide.width, height: slide.height }
     : estimateSlideSize(record.key)
@@ -327,17 +233,6 @@ function toPswpSlideItem(slide: CachedSlide | undefined, record: FileRecord): Ps
     alt: record.name,
     key: record.key,
   }
-}
-
-function syncDataSourceFromCache(dataSource: PswpSlideItem[], list: FileRecord[]) {
-  list.forEach((record, index) => {
-    const cached = slideCache.get(record.key)
-    const item = dataSource[index]
-    if (!cached?.src || !item) return
-    item.src = cached.src
-    item.width = cached.width
-    item.height = cached.height
-  })
 }
 
 function finishOpenAttempt(seq: number) {
@@ -366,8 +261,8 @@ function goToGalleryKey(key: string) {
   return true
 }
 
-function displayedSizeForSlide(slide: CachedSlide) {
-  const displayW = Math.max(1, Math.min(slide.width, window.innerWidth || ESTIMATED_WIDTH))
+function displayedSizeForSlide(slide: CachedPreviewSlide) {
+  const displayW = Math.max(1, Math.min(slide.width, window.innerWidth || 1600))
   const displayH = Math.max(1, Math.round((displayW * slide.height) / slide.width))
   return { displayW, displayH }
 }
@@ -408,7 +303,7 @@ function updateSlideDimensions(
   slide.updateContentSize(true)
 }
 
-function ensureContentImageLoads(content: PswpContent, slide: CachedSlide, isLazy: boolean) {
+function ensureContentImageLoads(content: PswpContent, slide: CachedPreviewSlide, isLazy: boolean) {
   const pswpSlide = content.slide
   const alreadyLoaded = isContentLoaded(content)
 
@@ -433,7 +328,7 @@ function ensureContentImageLoads(content: PswpContent, slide: CachedSlide, isLaz
   content.setDisplayedSize(displayW, displayH)
 }
 
-function applySlideToContent(content: PswpContent, slide: CachedSlide) {
+function applySlideToContent(content: PswpContent, slide: CachedPreviewSlide) {
   content.data.src = slide.src
   content.data.width = slide.width
   content.data.height = slide.height
@@ -453,16 +348,7 @@ function syncMeasuredSize(content: PswpContent) {
   const key = content.data.key as string | undefined
   if (key) {
     setAlbumAspect(key, width / height)
-    const cached = slideCache.get(key)
-    if (cached) {
-      slideCache.set(key, {
-        ...cached,
-        src: cached.src ?? (img.currentSrc || img.src),
-        width,
-        height,
-        measured: true,
-      })
-    }
+    updatePreviewSlideDimensions(key, width, height, img.currentSrc || img.src)
   }
 
   if (content.width === width && content.height === height) return
@@ -489,7 +375,7 @@ async function loadSlideOnDemand(content: PswpContent, isLazy: boolean) {
   }
 
   try {
-    const slide = await resolveSlide(record, true)
+    const slide = await resolvePreviewSlide(record, true)
     applySlideToContent(content, slide)
     ensureContentImageLoads(content, slide, isLazy)
   } catch (error) {
@@ -508,7 +394,7 @@ function ensureActiveSlideLoaded(instance: PhotoSwipe) {
   const record = activeGallery[content.index]
   if (!record) return
 
-  const cached = slideCache.get(record.key)
+  const cached = peekPreviewSlideCache(record.key)
   if (content.data.src && state !== 'loaded') {
     const slide =
       cached ??
@@ -519,7 +405,7 @@ function ensureActiveSlideLoaded(instance: PhotoSwipe) {
         alt: record.name,
         key: record.key,
         measured: true,
-      } as CachedSlide)
+      } as CachedPreviewSlide)
     ensureContentImageLoads(content, slide, false)
     return
   }
@@ -564,16 +450,16 @@ function prefetchNearby(centerIndex: number, instance: PhotoSwipe | null = pswp)
 
   for (const index of nearbyIndices(centerIndex, list.length, PRELOAD_RADIUS)) {
     const record = list[index]!
-    const cached = slideCache.get(record.key)
+    const cached = peekPreviewSlideCache(record.key)
     if (cached?.src && cached.measured) continue
     if (prefetchingKeys.has(record.key)) continue
 
     prefetchingKeys.add(record.key)
-    void resolveSlide(record, true)
+    void resolvePreviewSlide(record, true)
       .then((slide) => {
         if (pswp !== instance || activeDataSource.length === 0) return
         const hadSrc = Boolean(cached?.src)
-        syncDataSourceFromCache(activeDataSource, list)
+        syncPreviewDataSourceFromCache(activeDataSource, list)
         // 已有 src 时只更新 dataSource，避免 refreshSlideContent 触发循环
         if (!hadSrc || !slide.measured) {
           instance.refreshSlideContent(index)
@@ -608,7 +494,6 @@ function destroyViewer(options: { emitClosed?: boolean } = {}) {
       // ignore
     }
   }
-  clearSlideCache()
   if (options.emitClosed) {
     emit('closed')
   }
@@ -625,6 +510,9 @@ function closeFromUi() {
 
 function handleRetry() {
   resetBootOverlay()
+  if (props.current?.key) {
+    invalidatePreviewSlide(props.current.key)
+  }
   if (pswp) {
     destroyViewer()
   }
@@ -647,8 +535,10 @@ async function openViewer() {
   if (startIndex < 0) startIndex = 0
 
   opening = true
-  bootHidden = false
-  bootLoading.value = true
+  const currentKey = list[startIndex]!.key
+  const cacheReady = isPreviewSlideReady(currentKey)
+  bootHidden = cacheReady
+  bootLoading.value = !cacheReady
   bootError.value = ''
   const seq = ++openSeq
 
@@ -658,13 +548,13 @@ async function openViewer() {
     // 当前 + 相邻图先准备好 URL 和尺寸，避免切换黑屏
     await Promise.all(
       nearbyIndices(startIndex, list.length, PRELOAD_RADIUS).map((index) =>
-        resolveSlide(list[index]!, true),
+        resolvePreviewSlide(list[index]!, true),
       ),
     )
     if (abortOpenAttempt(seq)) return
 
     const dataSource: PswpSlideItem[] = list.map((record) =>
-      toPswpSlideItem(slideCache.get(record.key), record),
+      toPswpSlideItem(peekPreviewSlideCache(record.key), record),
     )
     activeDataSource = dataSource
 
@@ -778,7 +668,6 @@ async function openViewer() {
       if (pswp === instance) pswp = null
       activeGallery = []
       activeDataSource = []
-      clearSlideCache()
       resetBootOverlay()
       finishOpenAttempt(seq)
       emit('closed')

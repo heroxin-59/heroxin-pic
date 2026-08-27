@@ -13,6 +13,7 @@ import {
   View,
 } from '@element-plus/icons-vue'
 import FileTypeIcon from '@/components/file-list/FileTypeIcon.vue'
+import BackToTop from '@/components/common/BackToTop.vue'
 import FileContextMenu from '@/components/file-list/FileContextMenu.vue'
 import FilePreviewDialog from '@/components/preview/FilePreviewDialog.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
@@ -567,6 +568,8 @@ onMounted(() => {
     @copy="copyUrl"
     @delete="deleteFile"
   />
+
+  <BackToTop v-if="loaded && hasListContent" />
 </template>
 
 <style scoped>

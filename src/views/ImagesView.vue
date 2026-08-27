@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { Refresh } from '@element-plus/icons-vue'
 import FileContextMenu from '@/components/file-list/FileContextMenu.vue'
+import BackToTop from '@/components/common/BackToTop.vue'
 import ImageAlbumView from '@/components/file-list/ImageAlbumView.vue'
 import FilePreviewDialog from '@/components/preview/FilePreviewDialog.vue'
 import { useImageAlbumQuery } from '@/composables/useImageAlbumQuery'
@@ -253,6 +254,8 @@ onMounted(() => {
     @copy="copyUrl"
     @delete="deleteFile"
   />
+
+  <BackToTop v-if="loaded && imageRecords.length > 0" />
 </template>
 
 <style scoped>
