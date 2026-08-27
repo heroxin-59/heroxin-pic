@@ -21,6 +21,7 @@ const kindHint: Record<PreviewType, string> = {
   pdf: 'PDF 预览失败或未启用时，请下载后查看',
   word: 'Word 预览失败时，请下载后查看',
   text: '文本预览失败时，请下载后查看',
+  video: '视频无法播放时，请下载后查看',
   unsupported: '该类型暂不支持在线预览',
 }
 

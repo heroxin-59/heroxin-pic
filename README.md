@@ -320,6 +320,7 @@ heroxin-pic/
 
 | 变量名（草案）            | 含义                      | 备注                                                                     |
 | ------------------------- | ------------------------- | ------------------------------------------------------------------------ |
+| `VITE_APP_TITLE`          | 应用展示标题              | 顶栏、浏览器标签、PWA；默认 `heroxin-pic`；见 `.env`                     |
 | `VITE_BASE`               | 静态资源 / 路由 base      | 子路径如 `/pic/`；根路径 `/`；见 [`docs/deploy.md`](./docs/deploy.md)   |
 | `VITE_OSS_REGION`         | OSS 地域                  | 如 `oss-cn-hangzhou`                                                     |
 | `VITE_OSS_BUCKET`         | Bucket 名                 |                                                                          |
@@ -332,6 +333,8 @@ heroxin-pic/
 | `VITE_DUPLICATE_STRATEGY` | 重名策略                  | `uuid`（默认，OSS 为 `UUID-文件名`，界面显示原名）/ `timestamp` / `overwrite` / `suffix` |
 | `VITE_ALBUM_THUMB_CONCURRENCY` | 相册缩略图并发数     | 默认 4                                                                   |
 | `VITE_OSS_THUMB_PROCESS`  | 相册缩略图图片处理        | 可选；如 `image/resize,m_lfit,w_480`；需开通 OSS 图片处理；留空拉原图   |
+| `APP_ACCESS_PASSWORD`     | 网站访问口令（仅 `.env.local`） | 构建时注入 SHA-256 摘要；留空不启用门禁；见 `AccessGate.vue`      |
+| `ALIBABA_CLOUD_*`         | STS 签发（仅 `.env.local`） | 长期 Key 与 RoleArn；勿写进 `VITE_*`                                  |
 
 ---
 
@@ -425,9 +428,19 @@ heroxin-pic/
 | 2026-08-26 | 阶段 7.1–7.2 完成      | 反馈规范 + 主题色；7.3 不做    |
 | 2026-08-26 | 阶段 7.4–7.5 完成      | 类型出口 + useOss/Uploader/Preview |
 | 2026-08-26 | 阶段 7.6–7.9 完成      | 404/错误边界、单测、异步预览、FAQ  |
-| 2026-08-26 | 导航调整               | 去掉顶栏「预览」；新增「图片」页承接相册 |
+| 2026-08-26 | 导航调整               | 去掉顶栏「预览」；新增「相册」页（路由 `/images`）承接相册 |
 | 2026-08-26 | 阶段 8.1–8.6 完成      | `.env.example`、VITE_BASE、deploy/acceptance 文档 |
 | 2026-08-26 | 决策 D2/D6/D7 定稿     | 私有读+签名；静态托管任选；复制签名链接 |
+| 2026-08-27 | 手机相册预览重构       | PhotoSwipe 沉浸预览；懒加载相邻图；底部计数；55% 遮罩；修复点击无响应与 history 竞态 |
+| 2026-08-27 | 预览会话缓存           | `imagePreviewCache.ts`：关闭预览后保留 URL/尺寸，同图再次打开更快 |
+| 2026-08-27 | 应用标题可配置         | `VITE_APP_TITLE`（`.env`）；顶栏/标签/PWA 名称同步 |
+| 2026-08-27 | 环境变量整理           | 移除 `.env.example`；非涉密写 `.env`、涉密写 `.env.local`；STS 配置合并至根目录 |
+| 2026-08-27 | 访问口令门禁           | `.env.local` 中 `APP_ACCESS_PASSWORD`；SHA-256 校验；未配置则不启用 |
+| 2026-08-27 | 相册页 UI 精简         | 移除搜索/排序工具栏；导航与页标题「图片」改为「相册」 |
+| 2026-08-27 | 上传页精简             | 移除「本次会话已上传」列表；保留上传进度队列 |
+| 2026-08-27 | 回到顶部               | 相册页、文件列表页增加 `BackToTop` 浮动按钮 |
+| 2026-08-27 | 相册交互与样式         | 日期分组折叠；文件列表「显示全部」；各页卡片标题行高度对齐 |
+| 2026-08-27 | 视频上传与预览         | 支持 mp4/webm/mov 等常见格式；文件列表筛选「视频」；HTML5 在线播放 |
 
 ---
 
@@ -460,7 +473,7 @@ pnpm preview
 
 断点与安全区已按阶段 6 落地。自测清单见 [`docs/mobile-qa.md`](./docs/mobile-qa.md)。支持「添加到主屏幕」（`manifest.webmanifest`，无离线 Service Worker）。
 
-「图片」相册（EXIF / 地点 / 虚拟滚动 / 缩略图缓存 / 多选）说明见 [`docs/album-phase2.md`](./docs/album-phase2.md)。
+「相册」页（EXIF / 地点 / 虚拟滚动 / 缩略图缓存 / 多选）说明见 [`docs/album-phase2.md`](./docs/album-phase2.md)。
 
 图片上传按文件名 / EXIF 日期归档说明见 [`docs/archive-date.md`](./docs/archive-date.md)。
 

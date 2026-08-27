@@ -1,4 +1,4 @@
-export type FileCategory = 'image' | 'pdf' | 'word' | 'text' | 'other'
+export type FileCategory = 'image' | 'pdf' | 'word' | 'text' | 'video' | 'other'
 
 export interface FileTypeDefinition {
   ext: string
@@ -33,6 +33,13 @@ export const FILE_TYPE_CATALOG: FileTypeDefinition[] = [
     mimeTypes: ['text/csv', 'application/vnd.ms-excel'],
     label: 'CSV',
   },
+  { ext: 'mp4', category: 'video', mimeTypes: ['video/mp4'], label: 'MP4' },
+  { ext: 'webm', category: 'video', mimeTypes: ['video/webm'], label: 'WebM' },
+  { ext: 'mov', category: 'video', mimeTypes: ['video/quicktime'], label: 'MOV' },
+  { ext: 'm4v', category: 'video', mimeTypes: ['video/x-m4v', 'video/mp4'], label: 'M4V' },
+  { ext: 'mkv', category: 'video', mimeTypes: ['video/x-matroska'], label: 'MKV' },
+  { ext: 'avi', category: 'video', mimeTypes: ['video/x-msvideo', 'video/avi'], label: 'AVI' },
+  { ext: '3gp', category: 'video', mimeTypes: ['video/3gpp'], label: '3GP' },
 ]
 
 const CATEGORY_LABEL: Record<FileCategory, string> = {
@@ -40,6 +47,7 @@ const CATEGORY_LABEL: Record<FileCategory, string> = {
   pdf: 'PDF',
   word: 'Word',
   text: '文本',
+  video: '视频',
   other: '其他',
 }
 
@@ -59,6 +67,7 @@ const CATEGORY_TAG_TYPE: Record<FileCategory, CategoryTagType> = {
   pdf: 'danger',
   word: 'primary',
   text: 'warning',
+  video: 'info',
   other: 'info',
 }
 
@@ -100,7 +109,7 @@ export function groupAllowedExtensions(allowedExt: string[]): AllowedTypeGroup[]
     groups.set(def.category, list)
   }
 
-  const ordered: FileCategory[] = ['image', 'pdf', 'word', 'text', 'other']
+  const ordered: FileCategory[] = ['image', 'video', 'pdf', 'word', 'text', 'other']
   const result: AllowedTypeGroup[] = []
 
   for (const category of ordered) {

@@ -44,7 +44,7 @@ const albumPreviewGallery = computed(() =>
 
 const statsLabel = computed(() => {
   if (!loaded.value || errorMessage.value) return ''
-  return `图片 ${filteredTotal.value} 张 · ${formatBytes(filteredBytes.value)}`
+  return `相册 ${filteredTotal.value} 张 · ${formatBytes(filteredBytes.value)}`
 })
 
 function onAlbumMetaMapChange(metaMap: Map<string, AlbumImageMeta>) {
@@ -68,9 +68,9 @@ async function refresh() {
     await fileStore.loadAllFilesForGallery()
     const count = imageRecords.value.length
     if (count === 0) {
-      showAppWarning('当前 OSS 前缀下暂无图片')
+      showAppWarning('当前 OSS 前缀下暂无相册内容')
     } else {
-      showAppSuccess(`已加载 ${count} 张图片`)
+      showAppSuccess(`已加载 ${count} 张`)
     }
   } catch (error) {
     showAppError(error)
@@ -179,7 +179,7 @@ onMounted(() => {
     <template #header>
       <div class="images-view__header">
         <div class="images-view__title-wrap">
-          <span class="images-view__title">图片</span>
+          <span class="images-view__title">相册</span>
           <el-tag size="small" type="success">OSS</el-tag>
         </div>
         <div class="images-view__meta">
@@ -200,7 +200,7 @@ onMounted(() => {
 
     <div v-if="loading && !loaded" class="images-view__state">
       <div v-loading="true" class="images-view__loading-box" />
-      <p class="images-view__loading-text">正在从 OSS 加载图片…</p>
+      <p class="images-view__loading-text">正在从 OSS 加载相册…</p>
     </div>
 
     <el-result v-else-if="errorMessage" icon="error" title="加载失败" :sub-title="errorMessage">
@@ -211,8 +211,8 @@ onMounted(() => {
 
     <el-empty v-else-if="loaded && imageRecords.length === 0" class="images-view__empty">
       <template #description>
-        <p>当前 OSS 前缀下暂无图片</p>
-        <p class="images-view__empty-hint">上传图片后会出现在此相册</p>
+        <p>当前 OSS 前缀下暂无照片</p>
+        <p class="images-view__empty-hint">上传照片后会出现在此相册</p>
       </template>
       <el-button type="primary" @click="goUpload">去上传</el-button>
     </el-empty>

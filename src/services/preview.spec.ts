@@ -15,13 +15,16 @@ function record(partial: Partial<FileRecord> & Pick<FileRecord, 'name' | 'extens
 }
 
 describe('getPreviewKind', () => {
-  it('detects image / pdf / text', () => {
+  it('detects image / pdf / text / video', () => {
     expect(getPreviewKind(record({ name: 'a.jpg', extension: 'jpg', category: 'image' }))).toBe(
       'image',
     )
     expect(getPreviewKind(record({ name: 'a.pdf', extension: 'pdf', category: 'pdf' }))).toBe('pdf')
     expect(getPreviewKind(record({ name: 'a.txt', extension: 'txt', category: 'text' }))).toBe(
       'text',
+    )
+    expect(getPreviewKind(record({ name: 'a.mp4', extension: 'mp4', category: 'video' }))).toBe(
+      'video',
     )
   })
 

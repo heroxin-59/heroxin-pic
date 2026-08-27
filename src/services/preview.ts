@@ -13,6 +13,7 @@ export function getPreviewKind(record: FileRecord): PreviewType {
     return isWordPreviewFile(record.extension || record.name) ? 'word' : 'unsupported'
   }
   if (record.category === 'text') return 'text'
+  if (record.category === 'video') return 'video'
   return 'unsupported'
 }
 

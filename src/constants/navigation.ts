@@ -10,5 +10,5 @@ export interface NavItem {
 export const mainNavItems: NavItem[] = [
   { path: '/', title: '上传', icon: Upload },
   { path: '/files', title: '文件列表', icon: Folder },
-  { path: '/images', title: '图片', icon: Picture },
+  { path: '/images', title: '相册', icon: Picture },
 ]

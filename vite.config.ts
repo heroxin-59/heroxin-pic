@@ -6,6 +6,7 @@ import type { Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
 import { stsDevPlugin } from './vite-plugins/stsDevPlugin.ts'
 import { appMetaPlugin } from './vite-plugins/appMetaPlugin.ts'
+import { resolveAccessGateHash } from './vite-plugins/accessGateEnv.ts'
 
 const rootDir = dirname(fileURLToPath(import.meta.url))
 
@@ -50,23 +51,31 @@ function resolveBase(): string {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
-  base: resolveBase(),
-  plugins: [vue(), copyPdfjsAssetsPlugin(), appMetaPlugin(rootDir), stsDevPlugin()],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
+export default defineConfig(({ mode }) => {
+  const accessHash = resolveAccessGateHash(mode, rootDir)
+
+  return {
+    base: resolveBase(),
+    plugins: [vue(), copyPdfjsAssetsPlugin(), appMetaPlugin(rootDir), stsDevPlugin()],
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+      },
     },
-  },
-  define: {
-    // ali-oss 部分依赖会引用 Node 的 global
-    global: 'globalThis',
-  },
-  optimizeDeps: {
-    include: ['ali-oss', 'pdfjs-dist'],
-  },
-  test: {
-    environment: 'node',
-    include: ['src/**/*.{spec,test}.ts'],
-  },
+    define: {
+      // ali-oss 部分依赖会引用 Node 的 global
+      global: 'globalThis',
+      __APP_ACCESS_HASH__: JSON.stringify(accessHash),
+    },
+    optimizeDeps: {
+      include: ['ali-oss', 'pdfjs-dist'],
+    },
+    test: {
+      environment: 'node',
+      include: ['src/**/*.{spec,test}.ts'],
+      define: {
+        __APP_ACCESS_HASH__: JSON.stringify(''),
+      },
+    },
+  }
 })

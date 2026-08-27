@@ -5,6 +5,7 @@ import { ArrowLeft } from '@element-plus/icons-vue'
 import ImagePreview from '@/components/preview/ImagePreview.vue'
 import { AsyncPdfPreview, AsyncWordPreview } from '@/components/preview/asyncPreview'
 import TextPreview from '@/components/preview/TextPreview.vue'
+import VideoPreview from '@/components/preview/VideoPreview.vue'
 import PreviewFallback from '@/components/preview/PreviewFallback.vue'
 import { useFilePreview } from '@/composables/useFilePreview'
 import { getCategoryLabel, getCategoryTagType } from '@/constants/fileTypes'
@@ -130,6 +131,8 @@ watch(
       />
 
       <TextPreview v-else-if="previewKind === 'text'" :record="current" @download="download" />
+
+      <VideoPreview v-else-if="previewKind === 'video'" :record="current" @download="download" />
 
       <PreviewFallback
         v-else

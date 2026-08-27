@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Document, DocumentCopy, Files, Picture, Tickets } from '@element-plus/icons-vue'
+import { Document, DocumentCopy, Files, Picture, Tickets, VideoCamera } from '@element-plus/icons-vue'
 import type { Component } from 'vue'
 import type { FileCategory } from '@/constants/fileTypes'
 
@@ -13,6 +13,7 @@ const iconMap: Record<FileCategory, Component> = {
   pdf: Document,
   word: DocumentCopy,
   text: Tickets,
+  video: VideoCamera,
   other: Files,
 }
 
@@ -21,6 +22,7 @@ const colorMap: Record<FileCategory, string> = {
   pdf: '#f56c6c',
   word: '#409eff',
   text: '#e6a23c',
+  video: '#626aef',
   other: '#909399',
 }
 </script>

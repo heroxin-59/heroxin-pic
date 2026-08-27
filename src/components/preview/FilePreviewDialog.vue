@@ -4,6 +4,7 @@ import ImagePreview from '@/components/preview/ImagePreview.vue'
 import MobileImagePreview from '@/components/preview/MobileImagePreview.vue'
 import { AsyncPdfPreview, AsyncWordPreview } from '@/components/preview/asyncPreview'
 import TextPreview from '@/components/preview/TextPreview.vue'
+import VideoPreview from '@/components/preview/VideoPreview.vue'
 import PreviewFallback from '@/components/preview/PreviewFallback.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useFilePreview } from '@/composables/useFilePreview'
@@ -171,6 +172,8 @@ watch(
     <AsyncWordPreview v-else-if="previewKind === 'word'" :record="current" @download="download" />
 
     <TextPreview v-else-if="previewKind === 'text'" :record="current" @download="download" />
+
+    <VideoPreview v-else-if="previewKind === 'video'" :record="current" @download="download" />
 
     <PreviewFallback
       v-else

@@ -21,8 +21,10 @@ const record: FileRecord = {
   key: 'file/photo.jpg',
   name: 'photo.jpg',
   extension: 'jpg',
+  mimeType: 'image/jpeg',
   category: 'image',
   size: 1024,
+  url: '',
   uploadedAt: '2026-01-01T00:00:00.000Z',
 }
 

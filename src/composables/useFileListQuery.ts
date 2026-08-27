@@ -31,6 +31,7 @@ export const FILE_CATEGORY_FILTERS: Array<{ value: FileCategoryFilter; label: st
   { value: 'pdf', label: 'PDF' },
   { value: 'word', label: 'Word' },
   { value: 'text', label: '文本' },
+  { value: 'video', label: '视频' },
   { value: 'other', label: '其他' },
 ]
 

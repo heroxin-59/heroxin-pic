@@ -45,3 +45,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+/** 构建时注入：APP_ACCESS_PASSWORD 的 SHA-256 摘要；空表示未启用口令门禁 */
+declare const __APP_ACCESS_HASH__: string
