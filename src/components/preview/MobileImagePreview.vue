@@ -4,6 +4,7 @@ import { Loading } from '@element-plus/icons-vue'
 import PhotoSwipe, { type PhotoSwipeOptions } from 'photoswipe'
 import 'photoswipe/style.css'
 import { getAccessUrl } from '@/services/fileList'
+import { getAlbumAspectOrDefault, getCachedAlbumAspect, setAlbumAspect } from '@/services/imageAspect'
 import { loadImageObjectUrl } from '@/services/preview'
 import type { FileRecord } from '@/types/file'
 import { getErrorMessage, toAppError } from '@/utils/error'
@@ -28,23 +29,124 @@ const emit = defineEmits<{
 const bootError = ref('')
 const bootLoading = ref(false)
 
-type SlideData = {
-  src: string
+type CachedSlide = {
+  src?: string
   width: number
   height: number
   alt: string
   key: string
+  measured: boolean
 }
 
-const slideCache = new Map<string, SlideData>()
+type PswpContent = {
+  index: number
+  data: Record<string, unknown> & {
+    src?: string
+    width?: number
+    height?: number
+    key?: string
+  }
+  width: number
+  height: number
+  element?: HTMLElement
+  slide?: {
+    width: number
+    height: number
+    isActive: boolean
+    currentResolution: number
+    panAreaSize: { x: number; y: number }
+    zoomLevels: { update: (w: number, h: number, pan: { x: number; y: number }) => void }
+    calculateSize: () => void
+    zoomAndPanToInitial: () => void
+    applyCurrentZoomPan: () => void
+    updateContentSize: (force?: boolean) => void
+  }
+  load: (isLazy?: boolean, reload?: boolean) => void
+  setDisplayedSize: (width: number, height: number) => void
+  displayError: () => void
+}
+
+const slideCache = new Map<string, CachedSlide>()
 const blobUrls = new Set<string>()
 
 let pswp: PhotoSwipe | null = null
 let opening = false
 let openSeq = 0
 let syncingFromViewer = false
+let activeGallery: FileRecord[] = []
+let previewHistoryActive = false
+let previewHistoryGeneration = 0
+let activePreviewHistoryGeneration = 0
+let closingPreviewFromHistory = false
+let bootHideTimer = 0
+let bootHidden = false
+let activeDataSource: PswpSlideItem[] = []
 
 const SIGNED_TTL_SEC = 3600
+const PRELOAD_RADIUS = 2
+const ESTIMATED_WIDTH = 1600
+const PREVIEW_HISTORY_STATE = 'heroxin-mobile-preview'
+
+function enablePreviewHistory() {
+  if (previewHistoryActive) return
+  activePreviewHistoryGeneration = ++previewHistoryGeneration
+  history.pushState({ [PREVIEW_HISTORY_STATE]: activePreviewHistoryGeneration }, '')
+  previewHistoryActive = true
+  window.addEventListener('popstate', handlePreviewPopState)
+}
+
+function disablePreviewHistory(fromBrowserBack = false) {
+  window.removeEventListener('popstate', handlePreviewPopState)
+  if (!previewHistoryActive) return
+
+  const ourGeneration = activePreviewHistoryGeneration
+  previewHistoryActive = false
+  activePreviewHistoryGeneration = 0
+
+  if (!fromBrowserBack && ourGeneration > 0) {
+    const state = history.state as Record<string, unknown> | null
+    if (state?.[PREVIEW_HISTORY_STATE] === ourGeneration) {
+      history.back()
+    }
+  }
+}
+
+function handlePreviewPopState() {
+  if (!previewHistoryActive) return
+  closingPreviewFromHistory = true
+  disablePreviewHistory(true)
+  pswp?.close()
+}
+
+function updateCounterText(instance: PhotoSwipe, counterEl: HTMLElement) {
+  const total = instance.getNumItems()
+  if (total <= 1) {
+    counterEl.style.display = 'none'
+    return
+  }
+
+  counterEl.style.display = ''
+  counterEl.textContent = `${instance.currIndex + 1} / ${total}`
+}
+
+function registerMobilePreviewUi(instance: PhotoSwipe) {
+  instance.on('uiRegister', () => {
+    instance.ui?.registerElement({
+      name: 'heroxin-counter',
+      className: 'heroxin-pswp-counter',
+      order: 15,
+      isButton: false,
+      tagName: 'div',
+      appendTo: 'wrapper',
+      onInit: (counterEl, pswp) => {
+        const update = () => updateCounterText(pswp, counterEl)
+        pswp.on('change', update)
+        pswp.on('afterInit', update)
+        update()
+      },
+    })
+  })
+}
 
 function clearSlideCache() {
   for (const url of blobUrls) {
@@ -52,6 +154,22 @@ function clearSlideCache() {
   }
   blobUrls.clear()
   slideCache.clear()
+}
+
+function nearbyIndices(center: number, total: number, radius = PRELOAD_RADIUS): number[] {
+  const indices: number[] = []
+  for (let offset = -radius; offset <= radius; offset += 1) {
+    const index = center + offset
+    if (index >= 0 && index < total) indices.push(index)
+  }
+  return indices
+}
+
+function estimateSlideSize(key: string): { width: number; height: number } {
+  const aspect = getAlbumAspectOrDefault(key)
+  const width = ESTIMATED_WIDTH
+  const height = Math.max(1, Math.round(width / aspect))
+  return { width, height }
 }
 
 function measureImage(url: string): Promise<{ width: number; height: number }> {
@@ -69,37 +187,324 @@ function measureImage(url: string): Promise<{ width: number; height: number }> {
   })
 }
 
-async function resolveSlide(record: FileRecord): Promise<SlideData> {
+async function resolveSlideSrc(record: FileRecord): Promise<string> {
   const cached = slideCache.get(record.key)
-  if (cached?.src && cached.width > 1 && cached.height > 1) {
-    return cached
+  if (cached?.src?.startsWith('blob:')) return cached.src
+
+  try {
+    return await getAccessUrl(record.key, { expires: SIGNED_TTL_SEC })
+  } catch {
+    if (record.url) return record.url
+    const src = await loadImageObjectUrl(record.key)
+    blobUrls.add(src)
+    return src
+  }
+}
+
+async function resolveSlide(record: FileRecord, measure = false): Promise<CachedSlide> {
+  const cached = slideCache.get(record.key)
+  if (cached?.src && cached.measured) return cached
+  if (cached?.src && !measure) return cached
+
+  const src = cached?.src ?? (await resolveSlideSrc(record))
+
+  if (measure) {
+    // 相册缩略图已缓存宽高比时，跳过整图解码以加快打开
+    if (getCachedAlbumAspect(record.key) != null) {
+      const { width, height } = estimateSlideSize(record.key)
+      const slide: CachedSlide = {
+        src,
+        width,
+        height,
+        alt: record.name,
+        key: record.key,
+        measured: true,
+      }
+      slideCache.set(record.key, slide)
+      return slide
+    }
+
+    const size = await measureImage(src)
+    const slide: CachedSlide = {
+      src,
+      width: size.width,
+      height: size.height,
+      alt: record.name,
+      key: record.key,
+      measured: true,
+    }
+    slideCache.set(record.key, slide)
+    return slide
+  }
+
+  const { width, height } = estimateSlideSize(record.key)
+  const slide: CachedSlide = {
+    src,
+    width,
+    height,
+    alt: record.name,
+    key: record.key,
+    measured: false,
+  }
+  slideCache.set(record.key, slide)
+  return slide
+}
+
+type PswpSlideItem = {
+  type: 'image'
+  src?: string
+  width: number
+  height: number
+  alt: string
+  key: string
+}
+
+function toPswpSlideItem(slide: CachedSlide | undefined, record: FileRecord): PswpSlideItem {
+  const size = slide
+    ? { width: slide.width, height: slide.height }
+    : estimateSlideSize(record.key)
+
+  if (slide?.src) {
+    return {
+      type: 'image',
+      src: slide.src,
+      width: size.width,
+      height: size.height,
+      alt: slide.alt,
+      key: record.key,
+    }
+  }
+
+  return {
+    type: 'image',
+    width: size.width,
+    height: size.height,
+    alt: record.name,
+    key: record.key,
+  }
+}
+
+function syncDataSourceFromCache(dataSource: PswpSlideItem[], list: FileRecord[]) {
+  list.forEach((record, index) => {
+    const cached = slideCache.get(record.key)
+    const item = dataSource[index]
+    if (!cached?.src || !item) return
+    item.src = cached.src
+    item.width = cached.width
+    item.height = cached.height
+  })
+}
+
+function finishOpenAttempt(seq: number) {
+  if (seq === openSeq) opening = false
+}
+
+function abortOpenAttempt(seq: number) {
+  if (seq !== openSeq || !props.modelValue) {
+    finishOpenAttempt(seq)
+    resetBootOverlay()
+    return true
+  }
+  return false
+}
+
+function isViewerOpen(instance: PhotoSwipe | null = pswp): boolean {
+  return Boolean(instance?.opener?.isOpen)
+}
+
+function goToGalleryKey(key: string) {
+  const instance = pswp
+  if (!instance || !isViewerOpen(instance)) return false
+  const index = activeGallery.findIndex((item) => item.key === key)
+  if (index < 0 || index === instance.currIndex) return index >= 0
+  instance.goTo(index)
+  return true
+}
+
+function displayedSizeForSlide(slide: CachedSlide) {
+  const displayW = Math.max(1, Math.min(slide.width, window.innerWidth || ESTIMATED_WIDTH))
+  const displayH = Math.max(1, Math.round((displayW * slide.height) / slide.width))
+  return { displayW, displayH }
+}
+
+function ensureContentImageLoads(content: PswpContent, slide: CachedSlide, isLazy: boolean) {
+  const pswpSlide = content.slide
+  if (pswpSlide) {
+    pswpSlide.width = slide.width
+    pswpSlide.height = slide.height
+    pswpSlide.calculateSize()
+  }
+
+  const reload = Boolean(content.element)
+  content.load(isLazy, reload)
+
+  const { displayW, displayH } = displayedSizeForSlide(slide)
+  if (pswpSlide) {
+    pswpSlide.currentResolution = 0
+    pswpSlide.zoomAndPanToInitial()
+    pswpSlide.applyCurrentZoomPan()
+    pswpSlide.updateContentSize(true)
+  } else {
+    content.setDisplayedSize(displayW, displayH)
+  }
+}
+
+function applySlideToContent(content: PswpContent, slide: CachedSlide) {
+  content.data.src = slide.src
+  content.data.width = slide.width
+  content.data.height = slide.height
+  content.width = slide.width
+  content.height = slide.height
+}
+
+function applySlideLayout(slide: NonNullable<PswpContent['slide']>, width: number, height: number) {
+  slide.width = width
+  slide.height = height
+  slide.calculateSize()
+  slide.currentResolution = 0
+  slide.zoomAndPanToInitial()
+  slide.applyCurrentZoomPan()
+  slide.updateContentSize(true)
+}
+
+function syncMeasuredSize(content: PswpContent) {
+  const element = content.element
+  if (!element || element.tagName !== 'IMG') return
+
+  const img = element as HTMLImageElement
+  const width = img.naturalWidth
+  const height = img.naturalHeight
+  if (!width || !height) return
+
+  const key = content.data.key as string | undefined
+  if (key) {
+    setAlbumAspect(key, width / height)
+    const cached = slideCache.get(key)
+    if (cached) {
+      slideCache.set(key, {
+        ...cached,
+        src: cached.src ?? (img.currentSrc || img.src),
+        width,
+        height,
+        measured: true,
+      })
+    }
+  }
+
+  if (content.width === width && content.height === height) return
+
+  content.data.width = width
+  content.data.height = height
+  content.width = width
+  content.height = height
+
+  const slide = content.slide
+  if (!slide) return
+  applySlideLayout(slide, width, height)
+}
+
+/**
+ * PhotoSwipe：content.load() 在 displayedImageWidth===0 时只建 img 不设 src。
+ * 必须随后 setDisplayedSize / updateContentSize 才会 loadImage。
+ */
+async function loadSlideOnDemand(content: PswpContent, isLazy: boolean) {
+  const record = activeGallery[content.index]
+  if (!record) {
+    content.displayError()
+    return
   }
 
   try {
-    const src = await getAccessUrl(record.key, { expires: SIGNED_TTL_SEC })
-    const size = await measureImage(src)
-    const slide: SlideData = {
-      src,
-      width: size.width,
-      height: size.height,
-      alt: record.name,
-      key: record.key,
-    }
-    slideCache.set(record.key, slide)
-    return slide
-  } catch {
-    const src = await loadImageObjectUrl(record.key)
-    blobUrls.add(src)
-    const size = await measureImage(src)
-    const slide: SlideData = {
-      src,
-      width: size.width,
-      height: size.height,
-      alt: record.name,
-      key: record.key,
-    }
-    slideCache.set(record.key, slide)
-    return slide
+    const slide = await resolveSlide(record, true)
+    applySlideToContent(content, slide)
+    ensureContentImageLoads(content, slide, isLazy)
+  } catch (error) {
+    showAppError(error)
+    content.displayError()
+  }
+}
+
+function ensureActiveSlideLoaded(instance: PhotoSwipe) {
+  const content = instance.currSlide?.content as PswpContent | undefined
+  if (!content) return
+
+  const state = (content as { state?: string }).state
+  if (content.data.src && state === 'loaded') return
+
+  const record = activeGallery[content.index]
+  if (!record) return
+
+  const cached = slideCache.get(record.key)
+  if (content.data.src && state !== 'loaded') {
+    const slide =
+      cached ??
+      ({
+        src: content.data.src as string,
+        width: content.width,
+        height: content.height,
+        alt: record.name,
+        key: record.key,
+        measured: true,
+      } as CachedSlide)
+    ensureContentImageLoads(content, slide, false)
+    return
+  }
+
+  void loadSlideOnDemand(content, false)
+}
+
+function resetBootOverlay() {
+  bootHidden = false
+  bootLoading.value = false
+  bootError.value = ''
+  if (bootHideTimer) {
+    window.clearTimeout(bootHideTimer)
+    bootHideTimer = 0
+  }
+}
+
+function hideBootOverlay() {
+  if (bootHidden) return
+  bootHidden = true
+  bootLoading.value = false
+  if (bootHideTimer) {
+    window.clearTimeout(bootHideTimer)
+    bootHideTimer = 0
+  }
+}
+
+function scheduleBootOverlayFallback() {
+  if (bootHideTimer) window.clearTimeout(bootHideTimer)
+  bootHideTimer = window.setTimeout(() => hideBootOverlay(), 12000)
+}
+
+function tryHideBootOverlay(content: PswpContent) {
+  const slide = content.slide
+  if (!slide?.isActive) return
+  hideBootOverlay()
+}
+
+function prefetchNearby(centerIndex: number, instance: PhotoSwipe | null = pswp) {
+  const list = activeGallery
+  if (list.length === 0 || !instance) return
+
+  for (const index of nearbyIndices(centerIndex, list.length, PRELOAD_RADIUS)) {
+    const record = list[index]!
+    const cached = slideCache.get(record.key)
+    if (cached?.src && cached.measured) continue
+
+    void resolveSlide(record, true)
+      .then(() => {
+        if (pswp !== instance || activeDataSource.length === 0) return
+        syncDataSourceFromCache(activeDataSource, list)
+        instance.refreshSlideContent(index)
+        if (index === instance.currIndex) {
+          ensureActiveSlideLoaded(instance)
+        }
+      })
+      .catch(() => {
+        // 预取失败不影响当前预览
+      })
   }
 }
 
@@ -107,6 +512,11 @@ function destroyViewer(options: { emitClosed?: boolean } = {}) {
   const instance = pswp
   pswp = null
   opening = false
+  activeGallery = []
+  activeDataSource = []
+  resetBootOverlay()
+  disablePreviewHistory(closingPreviewFromHistory)
+  closingPreviewFromHistory = false
   if (instance) {
     try {
       instance.destroy()
@@ -129,6 +539,14 @@ function closeFromUi() {
   emit('closed')
 }
 
+function handleRetry() {
+  resetBootOverlay()
+  if (pswp) {
+    destroyViewer()
+  }
+  void openViewer()
+}
+
 function galleryList(): FileRecord[] {
   if (props.gallery.length > 0) return props.gallery
   return props.current ? [props.current] : []
@@ -145,38 +563,52 @@ async function openViewer() {
   if (startIndex < 0) startIndex = 0
 
   opening = true
+  bootHidden = false
   bootLoading.value = true
   bootError.value = ''
   const seq = ++openSeq
 
   try {
-    // 打开前解析全部 slide（src + 真实宽高），交给 PhotoSwipe 默认加载，避免自定义 contentLoad 黑屏
-    const slides = await Promise.all(list.map((record) => resolveSlide(record)))
-    if (seq !== openSeq || !props.modelValue) return
+    activeGallery = list
 
-    const dataSource: PhotoSwipeOptions['dataSource'] = slides.map((slide) => ({
-      src: slide.src,
-      width: slide.width,
-      height: slide.height,
-      alt: slide.alt,
-    }))
+    // 当前 + 相邻图先准备好 URL 和尺寸，避免切换黑屏
+    await Promise.all(
+      nearbyIndices(startIndex, list.length, PRELOAD_RADIUS).map((index) =>
+        resolveSlide(list[index]!, true),
+      ),
+    )
+    if (abortOpenAttempt(seq)) return
+
+    const dataSource: PswpSlideItem[] = list.map((record) =>
+      toPswpSlideItem(slideCache.get(record.key), record),
+    )
+    activeDataSource = dataSource
 
     const instance = new PhotoSwipe({
-      dataSource,
+      dataSource: dataSource as PhotoSwipeOptions['dataSource'],
       index: startIndex,
+      mainClass: 'heroxin-mobile-pswp',
       bgOpacity: 0.92,
-      showHideAnimationType: 'fade',
+      showHideAnimationType: 'none',
+      showHideOpacity: true,
       initialZoomLevel: 'fit',
       maxZoomLevel: 4,
       pinchToClose: true,
       closeOnVerticalDrag: true,
-      wheelToZoom: true,
-      tapAction: 'toggle-controls',
+      wheelToZoom: false,
+      close: false,
+      zoom: false,
+      counter: false,
+      arrowPrev: false,
+      arrowNext: false,
+      bgClickAction: 'close',
+      imageClickAction: false,
+      tapAction: false,
       doubleTapAction: 'zoom',
       loop: list.length > 1,
-      preload: [1, 2],
+      preload: [PRELOAD_RADIUS, PRELOAD_RADIUS],
       paddingFn: () => ({
-        top: 48,
+        top: 16,
         bottom: 48,
         left: 0,
         right: 0,
@@ -184,6 +616,33 @@ async function openViewer() {
     })
 
     pswp = instance
+    registerMobilePreviewUi(instance)
+
+    instance.on('contentLoad', (event) => {
+      if (event.content.data.src) return
+      event.preventDefault()
+      void loadSlideOnDemand(event.content as PswpContent, event.isLazy)
+    })
+
+    instance.on('loadComplete', (event) => {
+      if (event.isError) {
+        const content = event.content as PswpContent
+        if (content.slide?.isActive) {
+          void loadSlideOnDemand(content, false)
+        }
+        return
+      }
+      syncMeasuredSize(event.content as PswpContent)
+      tryHideBootOverlay(event.content as PswpContent)
+    })
+
+    instance.on('afterInit', () => {
+      const content = instance.currSlide?.content as { state?: string } | undefined
+      if (content?.state === 'loaded') {
+        tryHideBootOverlay(content as PswpContent)
+      }
+      ensureActiveSlideLoaded(instance)
+    })
 
     instance.on('change', () => {
       const record = list[instance.currIndex]
@@ -194,42 +653,40 @@ async function openViewer() {
           syncingFromViewer = false
         })
       }
-    })
-
-    instance.on('uiRegister', () => {
-      instance.ui?.registerElement({
-        name: 'heroxin-download',
-        order: 8,
-        isButton: true,
-        tagName: 'button',
-        title: '下载',
-        className: 'pswp__button--heroxin-download',
-        html: {
-          isCustomSVG: true,
-          inner:
-            '<path d="M18.32 8.191H15V2.75a.75.75 0 0 0-.75-.75h-4.5a.75.75 0 0 0-.75.75v5.441H5.68a.75.75 0 0 0-.53 1.28l6.32 6.32a.75.75 0 0 0 1.06 0l6.32-6.32a.75.75 0 0 0-.53-1.28ZM19.25 19.5H4.75a.75.75 0 0 0 0 1.5h14.5a.75.75 0 0 0 0-1.5Z" id="pswp__icn-heroxin-download"/>',
-          outlineID: 'pswp__icn-heroxin-download',
-        },
-        onClick: () => emit('download'),
-      })
+      ensureActiveSlideLoaded(instance)
+      prefetchNearby(instance.currIndex, instance)
     })
 
     instance.on('close', () => {
+      if (!closingPreviewFromHistory) {
+        disablePreviewHistory(false)
+      } else {
+        previewHistoryActive = false
+        activePreviewHistoryGeneration = 0
+        window.removeEventListener('popstate', handlePreviewPopState)
+      }
+      closingPreviewFromHistory = false
       emit('update:modelValue', false)
     })
 
     instance.on('destroy', () => {
       if (pswp === instance) pswp = null
+      activeGallery = []
+      activeDataSource = []
       clearSlideCache()
+      resetBootOverlay()
+      finishOpenAttempt(seq)
       emit('closed')
     })
 
-    bootLoading.value = false
-    opening = false
+    scheduleBootOverlayFallback()
+    finishOpenAttempt(seq)
     instance.init()
+    enablePreviewHistory()
   } catch (error) {
-    bootLoading.value = false
-    opening = false
+    finishOpenAttempt(seq)
+    resetBootOverlay()
+    activeGallery = []
     bootError.value = getErrorMessage(toAppError(error)) || '图片加载失败'
     showAppError(error)
     destroyViewer()
@@ -238,30 +695,34 @@ async function openViewer() {
 
 watch(
   () => [props.modelValue, props.loading, props.current?.key] as const,
-  ([open, isLoading]) => {
+  ([open, isLoading, key]) => {
     if (!open) {
       openSeq += 1
-      bootError.value = ''
-      bootLoading.value = false
-      if (pswp) {
-        try {
-          pswp.close()
-        } catch {
-          destroyViewer({ emitClosed: true })
-        }
-      }
+      opening = false
+      resetBootOverlay()
+      destroyViewer()
       return
     }
 
-    if (pswp || opening || syncingFromViewer) return
-    if (isLoading || !props.current) return
+    if (isLoading || !key || !props.current) return
+
+    if (pswp && isViewerOpen(pswp)) {
+      if (syncingFromViewer) return
+      if (goToGalleryKey(key)) return
+    }
+
+    if (opening) return
+    destroyViewer()
     void openViewer()
   },
+  { immediate: true },
 )
 
 onUnmounted(() => {
   openSeq += 1
   destroyViewer()
+  disablePreviewHistory(closingPreviewFromHistory)
+  closingPreviewFromHistory = false
 })
 </script>
 
@@ -274,14 +735,14 @@ onUnmounted(() => {
       aria-modal="true"
       aria-label="图片预览"
     >
-      <div v-if="loading || bootLoading" class="mobile-image-preview-boot__panel">
+      <div v-if="bootLoading || loading" class="mobile-image-preview-boot__panel">
         <el-icon class="mobile-image-preview-boot__spinner" :size="36"><Loading /></el-icon>
         <span>加载中…</span>
       </div>
       <div v-else class="mobile-image-preview-boot__panel">
         <p>{{ bootError || errorMessage || '预览失败' }}</p>
         <div class="mobile-image-preview-boot__actions">
-          <el-button type="primary" size="small" @click="emit('retry')">重试</el-button>
+          <el-button type="primary" size="small" @click="handleRetry">重试</el-button>
           <el-button size="small" @click="closeFromUi">关闭</el-button>
         </div>
       </div>
@@ -293,7 +754,7 @@ onUnmounted(() => {
 .mobile-image-preview-boot {
   position: fixed;
   inset: 0;
-  z-index: 3600;
+  z-index: 3800;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -335,12 +796,22 @@ onUnmounted(() => {
   z-index: 3700 !important;
 }
 
-.pswp .pswp__top-bar {
-  padding-top: var(--safe-top, 0px);
+.heroxin-mobile-pswp .pswp__top-bar {
+  display: none !important;
 }
 
-.pswp .pswp__button--heroxin-download {
-  display: block;
+.heroxin-mobile-pswp .heroxin-pswp-counter {
+  position: fixed;
+  left: 50%;
+  bottom: calc(28px + var(--safe-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 20;
+  pointer-events: none;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
 }
 
 .pswp--touch .pswp__button--arrow--prev,

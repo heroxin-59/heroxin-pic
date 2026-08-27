@@ -50,10 +50,16 @@ const visible = computed({
 
 /** 移动端图片走全屏沉浸预览，非图片仍用对话框 */
 const useMobileImagePreview = computed(
-  () => isMobile.value && props.record?.category === 'image',
+  () =>
+    isMobile.value &&
+    (props.modelValue || props.record?.category === 'image'),
 )
 
-const dialogTitle = computed(() => current.value?.name || props.record?.name || '文件预览')
+const mobilePreviewCurrent = computed(() => current.value ?? props.record)
+
+const dialogTitle = computed(
+  () => mobilePreviewCurrent.value?.name || props.record?.name || '文件预览',
+)
 
 function onChangeImage(next: FileRecord) {
   setCurrent(next)
@@ -78,21 +84,30 @@ function onRetry() {
 }
 
 watch(
-  () => [props.modelValue, props.record?.key] as const,
-  ([open, key]) => {
-    if (!open || !props.record || !key) return
-    // 左右切换已在 onChangeImage 同步 current，勿整页 loading 卸载预览（会闪白）
-    if (current.value?.key === key) return
-    void load(props.record)
+  () => [props.modelValue, props.record?.key, useMobileImagePreview.value] as const,
+  ([open, , mobile]) => {
+    if (!open) {
+      if (!mobile) clear()
+      return
+    }
+    if (!props.record?.key) return
+    if (mobile && props.record.category === 'image') {
+      setCurrent(props.record)
+      return
+    }
+    if (current.value?.key !== props.record.key) {
+      void load(props.record)
+    }
   },
+  { immediate: true },
 )
 </script>
 
 <template>
   <MobileImagePreview
-    v-if="useMobileImagePreview && visible"
+    v-if="useMobileImagePreview"
     v-model="visible"
-    :current="current"
+    :current="mobilePreviewCurrent"
     :gallery="imageGallery"
     :loading="loading"
     :error-message="errorMessage"
