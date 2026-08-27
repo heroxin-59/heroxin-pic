@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import UploadPanel from '@/components/upload/UploadPanel.vue'
 import UploadProgressBar from '@/components/upload/UploadProgressBar.vue'
 import UploadQueueList from '@/components/upload/UploadQueueList.vue'
-import RecentUploads from '@/components/upload/RecentUploads.vue'
 import { useOss } from '@/composables/useOss'
 import { useUploader } from '@/composables/useUploader'
 import { getDuplicateStrategy } from '@/config/upload'
@@ -191,8 +190,6 @@ function onClearQueue() {
         <el-button size="small" @click="onClearQueue">清空队列</el-button>
       </div>
     </el-card>
-
-    <RecentUploads />
   </div>
 </template>
 

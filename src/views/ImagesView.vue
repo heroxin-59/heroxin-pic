@@ -2,11 +2,10 @@
 import { computed, onMounted, ref, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { Refresh, Search } from '@element-plus/icons-vue'
+import { Refresh } from '@element-plus/icons-vue'
 import FileContextMenu from '@/components/file-list/FileContextMenu.vue'
 import ImageAlbumView from '@/components/file-list/ImageAlbumView.vue'
 import FilePreviewDialog from '@/components/preview/FilePreviewDialog.vue'
-import { FILE_SORT_OPTIONS } from '@/composables/useFileListQuery'
 import { useImageAlbumQuery } from '@/composables/useImageAlbumQuery'
 import { getAccessUrl, downloadOssFile } from '@/services/fileList'
 import { useFileStore } from '@/stores/files'
@@ -26,11 +25,8 @@ const {
   deletingKey,
 } = storeToRefs(fileStore)
 
-const { keyword, sortValue, imageRecords, filteredRecords, filteredTotal, filteredBytes, resetQuery } =
-  useImageAlbumQuery(() => records.value)
-
-const hasActiveQuery = computed(
-  () => keyword.value.trim().length > 0 || sortValue.value !== 'time-desc',
+const { imageRecords, filteredRecords, filteredTotal, filteredBytes } = useImageAlbumQuery(
+  () => records.value,
 )
 
 const previewVisible = ref(false)
@@ -47,9 +43,6 @@ const albumPreviewGallery = computed(() =>
 
 const statsLabel = computed(() => {
   if (!loaded.value || errorMessage.value) return ''
-  if (filteredTotal.value !== imageRecords.value.length) {
-    return `图片 ${filteredTotal.value}/${imageRecords.value.length} · ${formatBytes(filteredBytes.value)}`
-  }
   return `图片 ${filteredTotal.value} 张 · ${formatBytes(filteredBytes.value)}`
 })
 
@@ -224,39 +217,11 @@ onMounted(() => {
     </el-empty>
 
     <template v-else>
-      <div class="images-view__toolbar">
-        <el-input
-          v-model="keyword"
-          class="images-view__search"
-          clearable
-          placeholder="搜索图片名称 / Key"
-          :prefix-icon="Search"
-        />
-        <el-select v-model="sortValue" class="images-view__sort" placeholder="排序">
-          <el-option
-            v-for="item in FILE_SORT_OPTIONS"
-            :key="item.value"
-            :label="item.label"
-            :value="item.value"
-          />
-        </el-select>
-        <el-button v-if="hasActiveQuery" text type="primary" @click="resetQuery">重置</el-button>
-      </div>
+      <p class="images-view__range">
+        <el-tag size="small" type="success">{{ statsLabel }}</el-tag>
+      </p>
 
-      <el-empty v-if="filteredTotal === 0" class="images-view__empty">
-        <template #description>
-          <p>没有符合条件的图片</p>
-          <p class="images-view__empty-hint">试试调整搜索关键词</p>
-        </template>
-        <el-button type="primary" plain @click="resetQuery">清除筛选</el-button>
-      </el-empty>
-
-      <template v-else>
-        <p class="images-view__range">
-          <el-tag size="small" type="success">{{ statsLabel }}</el-tag>
-        </p>
-
-        <ImageAlbumView
+      <ImageAlbumView
           :records="filteredRecords"
           :loading="loading"
           :batch-busy="albumBatchBusy"
@@ -271,7 +236,6 @@ onMounted(() => {
           按拍摄日期分组展示；有 GPS 时显示地点（缩略图进入视口后解析 EXIF）。删除会真实移除 OSS
           对象（需 DeleteObject 权限）。
         </p>
-      </template>
     </template>
   </el-card>
 
@@ -344,22 +308,6 @@ onMounted(() => {
   color: #909399;
 }
 
-.images-view__toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.images-view__search {
-  flex: 1 1 200px;
-  min-width: 160px;
-}
-
-.images-view__sort {
-  width: 180px;
-}
-
 .images-view__range {
   margin: 0 0 12px;
 }
@@ -384,10 +332,6 @@ onMounted(() => {
     margin-left: auto;
     flex-shrink: 0;
     justify-content: flex-end;
-  }
-
-  .images-view__sort {
-    width: 100%;
   }
 }
 </style>
