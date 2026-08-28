@@ -1,13 +1,22 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AppErrorBoundary from '@/components/AppErrorBoundary.vue'
 import { appTitle } from '@/config/appMeta'
 import { useBreakpoint } from '@/composables/useBreakpoint'
+import { useMobileNavSwipe } from '@/composables/useMobileNavSwipe'
 import { mainNavItems } from '@/constants/navigation'
 
 const route = useRoute()
 const { isMobile, isCompactHeight, isLandscape } = useBreakpoint()
+const mainRef = ref<HTMLElement | null>(null)
+
+const { rebind } = useMobileNavSwipe({
+  enabled: isMobile,
+  rootRef: mainRef,
+})
+
+watch(mainRef, () => rebind())
 
 const pageTitle = computed(() => {
   const title = route.meta.title
@@ -42,7 +51,7 @@ const boundaryKey = computed(() => route.fullPath)
       </nav>
     </header>
 
-    <main class="app-main">
+    <main ref="mainRef" class="app-main">
       <AppErrorBoundary :reset-key="boundaryKey">
         <router-view />
       </AppErrorBoundary>

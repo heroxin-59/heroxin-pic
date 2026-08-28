@@ -2,7 +2,7 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { Download, Refresh } from '@element-plus/icons-vue'
 import type { FileRecord } from '@/types/file'
-import { refreshSignedUrl } from '@/services/preview'
+import { refreshSignedUrl, releaseSignedPreviewUrl } from '@/services/preview'
 import { getErrorMessage, toAppError } from '@/utils/error'
 import { showAppError } from '@/utils/message'
 
@@ -18,28 +18,64 @@ const loading = ref(true)
 const refreshing = ref(false)
 const loadError = ref('')
 const videoUrl = ref('')
+const videoRef = ref<HTMLVideoElement | null>(null)
 
 const videoType = computed(() => props.record.mimeType || 'video/mp4')
 
-async function loadVideo(options: { soft?: boolean } = {}) {
+let heldSignedKey: string | null = null
+let loadToken = 0
+
+function releaseHeldUrl() {
+  if (heldSignedKey) {
+    releaseSignedPreviewUrl(heldSignedKey)
+    heldSignedKey = null
+  }
+}
+
+async function tryAutoplay() {
+  const el = videoRef.value
+  if (!el || !videoUrl.value) return
+  try {
+    await el.play()
+  } catch {
+    // 部分浏览器仍可能拦截自动播放，用户可手动点播放
+  }
+}
+
+function onVideoCanPlay() {
+  void tryAutoplay()
+}
+
+async function loadVideo(options: { soft?: boolean; force?: boolean } = {}) {
   const soft = Boolean(options.soft && videoUrl.value)
+  const token = ++loadToken
   loading.value = true
   loadError.value = ''
   if (!soft) {
+    releaseHeldUrl()
     videoUrl.value = ''
   }
 
   try {
-    const url = props.record.url?.trim() || (await refreshSignedUrl(props.record.key))
+    const url = await refreshSignedUrl(props.record.key, { force: Boolean(options.force) })
+    if (token !== loadToken) {
+      releaseSignedPreviewUrl(props.record.key)
+      return
+    }
+    releaseHeldUrl()
+    heldSignedKey = props.record.key
     videoUrl.value = url
   } catch (error) {
+    if (token !== loadToken) return
     if (!soft) {
       videoUrl.value = ''
     }
     loadError.value = getErrorMessage(toAppError(error)) || '视频加载失败'
     showAppError(error)
   } finally {
-    loading.value = false
+    if (token === loadToken) {
+      loading.value = false
+    }
   }
 }
 
@@ -47,7 +83,7 @@ async function onReload() {
   if (refreshing.value) return
   refreshing.value = true
   try {
-    await loadVideo({ soft: true })
+    await loadVideo({ soft: true, force: true })
   } finally {
     refreshing.value = false
   }
@@ -68,6 +104,8 @@ watch(
 )
 
 onUnmounted(() => {
+  loadToken += 1
+  releaseHeldUrl()
   videoUrl.value = ''
 })
 </script>
@@ -107,12 +145,15 @@ onUnmounted(() => {
 
       <video
         v-else-if="videoUrl"
+        ref="videoRef"
         class="video-preview__player"
         controls
+        autoplay
         playsinline
-        preload="metadata"
+        preload="auto"
         :src="videoUrl"
         :type="videoType"
+        @canplay="onVideoCanPlay"
         @error="onVideoError"
       />
     </div>

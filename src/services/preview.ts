@@ -1,4 +1,10 @@
-import { getAccessUrl, downloadOssFile, getObjectBlob } from '@/services/fileList'
+import { getAccessUrl, downloadOssFile } from '@/services/fileList'
+import {
+  acquirePreviewObjectUrl,
+  acquirePreviewSignedUrl,
+  releasePreviewObjectUrl,
+  releasePreviewSignedUrl,
+} from '@/services/filePreviewCache'
 import { useFileStore } from '@/stores/files'
 import { buildFileRecordFromKey, type FileRecord } from '@/types/file'
 import type { PreviewType } from '@/types/preview'
@@ -55,14 +61,25 @@ export async function resolvePreviewRecord(params: {
   })
 }
 
-export async function refreshSignedUrl(key: string): Promise<string> {
-  return getAccessUrl(key)
+export async function refreshSignedUrl(key: string, options?: { force?: boolean }): Promise<string> {
+  return acquirePreviewSignedUrl(key, options)
 }
 
-/** 拉取图片对象并转为本地 Object URL（需在不再使用时 revoke） */
-export async function loadImageObjectUrl(key: string): Promise<string> {
-  const blob = await getObjectBlob(key)
-  return URL.createObjectURL(blob)
+/** 释放 `refreshSignedUrl` / 视频预览占用的签名 URL 引用 */
+export function releaseSignedPreviewUrl(key: string) {
+  releasePreviewSignedUrl(key)
+}
+
+/** 拉取图片对象并转为本地 Object URL（会话缓存；须在不用时 `releaseImageObjectUrl`） */
+export async function loadImageObjectUrl(
+  key: string,
+  options?: { force?: boolean },
+): Promise<string> {
+  return acquirePreviewObjectUrl(key, options)
+}
+
+export function releaseImageObjectUrl(key: string) {
+  releasePreviewObjectUrl(key)
 }
 
 /** 预览内下载：SDK Blob 本地下载，避开桶 Referer 防盗链 */

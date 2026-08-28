@@ -12,7 +12,7 @@ import {
   ZoomOut,
 } from '@element-plus/icons-vue'
 import type { FileRecord } from '@/types/file'
-import { loadImageObjectUrl, refreshSignedUrl } from '@/services/preview'
+import { loadImageObjectUrl, refreshSignedUrl, releaseImageObjectUrl } from '@/services/preview'
 import { getErrorMessage, toAppError } from '@/utils/error'
 import { showAppError } from '@/utils/message'
 
@@ -40,7 +40,7 @@ const viewerVisible = ref(false)
 /** 全屏 viewer 用的签名 URL 列表 */
 const viewerUrls = ref<string[]>([])
 
-let objectUrlToRevoke: string | null = null
+let objectUrlHeldKey: string | null = null
 /** 快速左右切换时丢弃过期请求，避免后写覆盖与闪白 */
 let loadSeq = 0
 
@@ -63,10 +63,10 @@ const imageStyle = computed(() => ({
   opacity: switching.value ? 0.72 : 1,
 }))
 
-function revokeCurrentObjectUrl() {
-  if (objectUrlToRevoke) {
-    URL.revokeObjectURL(objectUrlToRevoke)
-    objectUrlToRevoke = null
+function releaseCurrentObjectUrl() {
+  if (objectUrlHeldKey) {
+    releaseImageObjectUrl(objectUrlHeldKey)
+    objectUrlHeldKey = null
   }
 }
 
@@ -88,36 +88,36 @@ async function loadCurrentImage(options: { soft?: boolean } = {}) {
   loadError.value = ''
 
   if (!soft) {
-    revokeCurrentObjectUrl()
+    releaseCurrentObjectUrl()
     imageUrl.value = ''
   }
 
   try {
     const objectUrl = await loadImageObjectUrl(targetKey)
     if (seq !== loadSeq) {
-      URL.revokeObjectURL(objectUrl)
+      releaseImageObjectUrl(targetKey)
       return
     }
 
-    const previous = objectUrlToRevoke
+    const previousKey = objectUrlHeldKey
 
     if (soft) {
       // 先解码再换源，避免清空旧图导致闪白
       await decodeImage(objectUrl)
       if (seq !== loadSeq) {
-        URL.revokeObjectURL(objectUrl)
+        releaseImageObjectUrl(targetKey)
         return
       }
-      objectUrlToRevoke = objectUrl
+      objectUrlHeldKey = targetKey
       imageUrl.value = objectUrl
-      if (previous && previous !== objectUrl) {
-        URL.revokeObjectURL(previous)
+      if (previousKey && previousKey !== targetKey) {
+        releaseImageObjectUrl(previousKey)
       }
       loading.value = false
       return
     }
 
-    objectUrlToRevoke = objectUrl
+    objectUrlHeldKey = targetKey
     imageUrl.value = objectUrl
     imageEpoch.value += 1
   } catch (error) {
@@ -268,7 +268,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
-  revokeCurrentObjectUrl()
+  loadSeq += 1
+  releaseCurrentObjectUrl()
 })
 </script>
 

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { CopyDocument, Download, Refresh } from '@element-plus/icons-vue'
 import type { FileRecord } from '@/types/file'
 import CategoryTag from '@/components/file-list/CategoryTag.vue'
-import { loadTextContent, type TextPreviewResult } from '@/services/text'
+import { loadTextContent, releaseTextContent, type TextPreviewResult } from '@/services/text'
 import { formatBytes } from '@/utils/format'
 import { getErrorMessage, toAppError } from '@/utils/error'
 import { showAppError, showAppSuccess } from '@/utils/message'
@@ -20,6 +20,17 @@ const loading = ref(false)
 const refreshing = ref(false)
 const loadError = ref('')
 const preview = ref<TextPreviewResult | null>(null)
+
+let heldKey: string | null = null
+let heldExtension = ''
+
+function releaseHeldText() {
+  if (heldKey) {
+    releaseTextContent(heldKey, heldExtension)
+    heldKey = null
+    heldExtension = ''
+  }
+}
 
 const modeLabel = computed(() => {
   const mode = preview.value?.mode
@@ -42,13 +53,24 @@ async function loadDocument(options: { soft?: boolean } = {}) {
   loading.value = true
   loadError.value = ''
   if (!soft) {
+    releaseHeldText()
     preview.value = null
   }
 
   try {
-    preview.value = await loadTextContent(props.record.key, {
-      extension: props.record.extension,
-    })
+    const extension = props.record.extension
+    const key = props.record.key
+    const result = await loadTextContent(key, { extension })
+    const prevKey = heldKey
+    const prevExt = heldExtension
+    heldKey = key
+    heldExtension = extension
+    preview.value = result
+    if (prevKey && (prevKey !== key || prevExt !== extension)) {
+      releaseTextContent(prevKey, prevExt)
+    } else if (prevKey === key && prevExt === extension) {
+      releaseTextContent(key, extension)
+    }
   } catch (error) {
     if (!soft) {
       preview.value = null
@@ -87,6 +109,10 @@ watch(
   },
   { immediate: true },
 )
+
+onUnmounted(() => {
+  releaseHeldText()
+})
 </script>
 
 <template>

@@ -4,7 +4,7 @@ import { DocPreview } from '@zhenghy/doc-preview'
 import '@zhenghy/doc-preview/dist/style.css'
 import { Download, Refresh } from '@element-plus/icons-vue'
 import type { FileRecord } from '@/types/file'
-import { isDocFile, loadDocFileFromOss, renderDocxToContainer } from '@/services/word'
+import { isDocFile, loadDocFileFromOss, releaseDocFileFromOss, renderDocxToContainer } from '@/services/word'
 import { getErrorMessage, toAppError } from '@/utils/error'
 import { showAppError } from '@/utils/message'
 
@@ -25,6 +25,14 @@ const loadError = ref('')
 const hasContent = ref(false)
 const docSource = ref<File | null>(null)
 let renderToken = 0
+let heldLegacyKey: string | null = null
+
+function releaseHeldLegacyDoc() {
+  if (heldLegacyKey) {
+    releaseDocFileFromOss(heldLegacyKey)
+    heldLegacyKey = null
+  }
+}
 
 const isLegacyDoc = computed(() => isDocFile(props.record.extension || props.record.name))
 
@@ -43,12 +51,18 @@ async function loadLegacyDoc(options: { soft?: boolean } = {}) {
   loading.value = true
   loadError.value = ''
   if (!options.soft) {
+    releaseHeldLegacyDoc()
     docSource.value = null
   }
 
   try {
     const file = await loadDocFileFromOss(props.record.key, props.record.name)
-    if (token !== renderToken) return
+    if (token !== renderToken) {
+      releaseDocFileFromOss(props.record.key)
+      return
+    }
+    releaseHeldLegacyDoc()
+    heldLegacyKey = props.record.key
     docSource.value = file
     hasContent.value = true
   } catch (error) {
@@ -145,6 +159,7 @@ watch(
   () => props.record.key,
   () => {
     hasContent.value = false
+    releaseHeldLegacyDoc()
     docSource.value = null
     void loadDocument()
   },
@@ -153,6 +168,7 @@ watch(
 
 onUnmounted(() => {
   renderToken += 1
+  releaseHeldLegacyDoc()
   docSource.value = null
   if (bodyRef.value) bodyRef.value.innerHTML = ''
   if (styleRef.value) styleRef.value.innerHTML = ''

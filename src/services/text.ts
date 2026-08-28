@@ -1,4 +1,10 @@
-import { getObjectBlob } from '@/services/fileList'
+import {
+  acquirePreviewBlob,
+  acquireCachedTextPreview,
+  releaseCachedTextPreview,
+  releasePreviewBlob,
+  tryAcquireCachedTextPreview,
+} from '@/services/filePreviewCache'
 
 /** 文本预览最大读取字节（超出则截断并提示） */
 export const MAX_TEXT_PREVIEW_BYTES = 512 * 1024
@@ -127,33 +133,46 @@ export async function loadTextContent(
   key: string,
   options: { maxBytes?: number; extension?: string } = {},
 ): Promise<TextPreviewResult> {
+  const extension = options.extension ?? ''
+  const cached = tryAcquireCachedTextPreview(key, extension)
+  if (cached) return cached
+
   const maxBytes = options.maxBytes ?? MAX_TEXT_PREVIEW_BYTES
-  const blob = await getObjectBlob(key)
-  const totalBytes = blob.size
-  const truncated = totalBytes > maxBytes
+  const blob = await acquirePreviewBlob(key)
+  try {
+    const totalBytes = blob.size
+    const truncated = totalBytes > maxBytes
 
-  const slice = truncated ? blob.slice(0, maxBytes) : blob
-  const buffer = await slice.arrayBuffer()
-  const bytes = new Uint8Array(buffer)
-  const { text: raw, encoding } = decodeTextBytes(bytes)
-  const mode = getTextPreviewMode(options.extension ?? '')
+    const slice = truncated ? blob.slice(0, maxBytes) : blob
+    const buffer = await slice.arrayBuffer()
+    const bytes = new Uint8Array(buffer)
+    const { text: raw, encoding } = decodeTextBytes(bytes)
+    const mode = getTextPreviewMode(extension)
 
-  let content = raw
-  let jsonFormatted = false
+    let content = raw
+    let jsonFormatted = false
 
-  if (mode === 'json' && !truncated) {
-    const result = formatJsonIfPossible(raw)
-    content = result.content
-    jsonFormatted = result.formatted
+    if (mode === 'json' && !truncated) {
+      const result = formatJsonIfPossible(raw)
+      content = result.content
+      jsonFormatted = result.formatted
+    }
+
+    const preview: TextPreviewResult = {
+      content,
+      truncated,
+      totalBytes,
+      decodedBytes: bytes.byteLength,
+      mode,
+      jsonFormatted,
+      encoding,
+    }
+    return acquireCachedTextPreview(key, extension, preview)
+  } finally {
+    releasePreviewBlob(key)
   }
+}
 
-  return {
-    content,
-    truncated,
-    totalBytes,
-    decodedBytes: bytes.byteLength,
-    mode,
-    jsonFormatted,
-    encoding,
-  }
+export function releaseTextContent(key: string, extension = '') {
+  releaseCachedTextPreview(key, extension)
 }

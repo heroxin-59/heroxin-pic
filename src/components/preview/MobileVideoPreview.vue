@@ -130,6 +130,20 @@ function pauseVideo() {
   el.pause()
 }
 
+async function tryAutoplay() {
+  const el = videoRef.value
+  if (!el || !videoUrl.value) return
+  try {
+    await el.play()
+  } catch {
+    // 部分浏览器仍可能拦截自动播放，用户可手动点播放
+  }
+}
+
+function onVideoCanPlay() {
+  void tryAutoplay()
+}
+
 function releaseHeldUrl() {
   if (heldKey) {
     releaseVideoAlbumThumb(heldKey)
@@ -313,9 +327,11 @@ onUnmounted(() => {
         class="mobile-video-preview__player"
         :src="videoUrl"
         controls
+        autoplay
         playsinline
-        preload="metadata"
+        preload="auto"
         @click.stop
+        @canplay="onVideoCanPlay"
         @error="onVideoError"
       />
 
