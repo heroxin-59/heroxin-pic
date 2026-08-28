@@ -34,7 +34,7 @@ type CacheEntry = {
 const SIGNED_URL_TTL_SEC = 3600
 /** 签名 URL 提前刷新余量 */
 const SIGNED_REFRESH_MARGIN_MS = 60_000
-const MAX_IDLE_CACHE = 64
+const MAX_IDLE_CACHE = 192
 
 const limiter = createLimiter(appEnv.albumThumbConcurrency)
 const cache = new Map<string, CacheEntry>()
@@ -207,6 +207,23 @@ export function releaseAlbumThumb(key: string) {
   entry.refs = Math.max(0, entry.refs - 1)
   touch(entry)
   evictIdle()
+}
+
+/** 读取已缓存缩略图（不增加引用；用于切页后即时展示，须再 acquire） */
+export function peekAlbumThumb(key: string): AlbumThumbResult | null {
+  const entry = cache.get(key)
+  if (!entry || !isUsable(entry)) return null
+  touch(entry)
+  return toResult(key, entry)
+}
+
+/** 缩略图解码失败时淘汰缓存，便于强制走 blob 重载 */
+export function invalidateAlbumThumb(key: string) {
+  const entry = cache.get(key)
+  if (!entry) return
+  revokeBlobUrl(entry)
+  cache.delete(key)
+  inflight.delete(key)
 }
 
 export function clearAlbumThumbCache() {

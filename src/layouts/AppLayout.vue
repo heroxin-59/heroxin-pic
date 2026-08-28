@@ -1,33 +1,27 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppErrorBoundary from '@/components/AppErrorBoundary.vue'
 import { appTitle } from '@/config/appMeta'
 import { useBreakpoint } from '@/composables/useBreakpoint'
-import { useMobileNavSwipe } from '@/composables/useMobileNavSwipe'
 import { mainNavItems } from '@/constants/navigation'
+import { useFileStore } from '@/stores/files'
 
 const route = useRoute()
+const fileStore = useFileStore()
 const { isMobile, isCompactHeight, isLandscape } = useBreakpoint()
-const mainRef = ref<HTMLElement | null>(null)
-
-const { rebind } = useMobileNavSwipe({
-  enabled: isMobile,
-  rootRef: mainRef,
-})
-
-watch(mainRef, () => rebind())
-
-const pageTitle = computed(() => {
-  const title = route.meta.title
-  return typeof title === 'string' ? title : appTitle
-})
 
 const layoutClass = computed(() => ({
   'is-mobile': isMobile.value,
   'is-landscape': isLandscape.value,
   'is-compact': isMobile.value && isCompactHeight.value,
 }))
+
+onMounted(() => {
+  void fileStore.ensureFullListLoaded().catch(() => {
+    // 各页面挂载时会再次尝试；此处仅做首屏预加载
+  })
+})
 
 /** 路由变化时重置错误边界，避免卡在错误页 */
 const boundaryKey = computed(() => route.fullPath)
@@ -37,7 +31,6 @@ const boundaryKey = computed(() => route.fullPath)
   <div class="app-layout" :class="layoutClass">
     <header class="app-header">
       <div class="brand">{{ appTitle }}</div>
-      <div class="mobile-page-title">{{ pageTitle }}</div>
       <nav class="desktop-nav" aria-label="主导航">
         <router-link
           v-for="item in mainNavItems"
@@ -51,7 +44,7 @@ const boundaryKey = computed(() => route.fullPath)
       </nav>
     </header>
 
-    <main ref="mainRef" class="app-main">
+    <main class="app-main">
       <AppErrorBoundary :reset-key="boundaryKey">
         <router-view />
       </AppErrorBoundary>
@@ -100,14 +93,6 @@ const boundaryKey = computed(() => route.fullPath)
   font-weight: 700;
   font-size: 1.05rem;
   color: var(--app-text);
-}
-
-.mobile-page-title {
-  display: none;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--app-text-secondary);
-  text-align: center;
 }
 
 .desktop-nav {
@@ -193,14 +178,10 @@ const boundaryKey = computed(() => route.fullPath)
   color: var(--brand-primary);
 }
 
-/* xs：手机 — 顶栏折叠为品牌+页标题，底栏导航 */
+/* xs：手机 — 隐藏顶栏，底栏导航 */
 @media (max-width: 767px) {
   .app-header {
-    grid-template-columns: auto 1fr auto;
-  }
-
-  .mobile-page-title {
-    display: block;
+    display: none;
   }
 
   .mobile-tabbar {
@@ -209,6 +190,7 @@ const boundaryKey = computed(() => route.fullPath)
 
   .app-main {
     width: 100%;
+    padding-top: calc(16px + var(--safe-top, 0px));
     padding-bottom: calc(var(--tabbar-height, 56px) + 16px + var(--safe-bottom, 0px));
   }
 }
@@ -218,10 +200,6 @@ const boundaryKey = computed(() => route.fullPath)
   .app-header {
     grid-template-columns: auto 1fr;
     padding: 12px calc(20px + var(--safe-right, 0px)) 12px calc(20px + var(--safe-left, 0px));
-  }
-
-  .mobile-page-title {
-    display: none;
   }
 
   .desktop-nav {
@@ -247,13 +225,7 @@ const boundaryKey = computed(() => route.fullPath)
   }
 }
 
-/* 横屏短屏：压缩顶栏/底栏，底栏可只显示图标 */
-.app-layout.is-compact .app-header {
-  min-height: 40px;
-  padding-top: calc(4px + var(--safe-top, 0px));
-  padding-bottom: 4px;
-}
-
+/* 横屏短屏：压缩底栏，底栏可只显示图标 */
 .app-layout.is-compact .mobile-tabbar__item {
   min-height: 44px;
   gap: 0;

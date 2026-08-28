@@ -63,13 +63,6 @@ const {
   resetQuery,
 } = useFileListQuery(() => records.value)
 
-const hasActiveQuery = computed(
-  () =>
-    keyword.value.trim().length > 0 ||
-    category.value !== 'all' ||
-    sortValue.value !== 'time-desc',
-)
-
 const filteredFolders = computed(() => {
   const query = keyword.value.trim().toLowerCase()
   if (!query) return folders.value
@@ -124,7 +117,7 @@ function goUpload() {
 
 async function refresh() {
   try {
-    await fileStore.loadFromOss()
+    await fileStore.loadFromOss({ force: true })
     if (!fileStore.hasListContent) {
       showAppWarning(showAllFiles.value ? '当前前缀下暂无文件' : '当前目录为空')
     } else if (showAllFiles.value) {
@@ -332,7 +325,7 @@ onMounted(() => {
             :value="item.value"
           />
         </el-select>
-        <el-button v-if="hasActiveQuery" text type="primary" @click="resetQuery">重置</el-button>
+        <el-button text type="primary" @click="resetQuery">重置</el-button>
       </div>
 
       <el-empty v-if="showEmptyFilter" class="file-list__empty">

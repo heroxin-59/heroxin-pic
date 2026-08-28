@@ -1,10 +1,15 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { getOssConnectionConfig } from '@/config/oss'
-import { deleteOssFile, listAllOssFiles, listOssDirectory } from '@/services/fileList'
+import { deleteOssFile, listAllOssFiles } from '@/services/fileList'
 import type { UploadFileSuccess } from '@/services/upload'
 import { buildFileRecordFromKey, type FileRecord, type FolderEntry } from '@/types/file'
 import { getErrorMessage, toAppError } from '@/utils/error'
+import {
+  listDirectoryFromFullList,
+  removeFullListRecordById,
+  upsertFullListRecord,
+} from '@/utils/fileListCache'
 
 const SHOW_ALL_FILES_STORAGE_KEY = 'heroxin-pic:show-all-files'
 
@@ -51,24 +56,6 @@ function buildBreadcrumbs(rootPrefix: string, currentPrefix: string): FolderBrea
   return crumbs
 }
 
-function isDirectChildKey(key: string, prefix: string): boolean {
-  if (!key.startsWith(prefix)) return false
-  const rest = key.slice(prefix.length)
-  return Boolean(rest) && !rest.includes('/')
-}
-
-function nextFolderUnderPrefix(key: string, prefix: string): FolderEntry | null {
-  if (!key.startsWith(prefix)) return null
-  const rest = key.slice(prefix.length)
-  const slash = rest.indexOf('/')
-  if (slash <= 0) return null
-  const name = `${rest.slice(0, slash + 1)}`
-  return {
-    prefix: `${prefix}${name}`,
-    name,
-  }
-}
-
 export const useFileStore = defineStore('files', () => {
   const records = ref<FileRecord[]>([])
   const folders = ref<FolderEntry[]>([])
@@ -80,6 +67,10 @@ export const useFileStore = defineStore('files', () => {
   const loaded = ref(false)
   const errorMessage = ref('')
   const deletingKey = ref<string | null>(null)
+
+  /** 会话内全量文件列表缓存（OSS list 一次，上传/删除本地增量更新） */
+  const fullListSnapshot = ref<FileRecord[] | null>(null)
+  let fullListLoadPromise: Promise<FileRecord[]> | null = null
 
   const rootPrefix = computed(() => getOssConnectionConfig().dir)
 
@@ -95,27 +86,85 @@ export const useFileStore = defineStore('files', () => {
   const folderCount = computed(() => folders.value.length)
   const totalBytes = computed(() => records.value.reduce((sum, item) => sum + item.size, 0))
   const hasListContent = computed(() => total.value > 0 || folderCount.value > 0)
+  const hasFullListCache = computed(() => fullListSnapshot.value !== null)
 
   function setRecords(next: FileRecord[]) {
     records.value = next
   }
 
-  /** 从 OSS 加载：全部文件 或 当前目录一层 */
-  async function loadFromOss() {
+  function applyCurrentListView() {
+    if (!fullListSnapshot.value) return
+
+    if (showAllFiles.value) {
+      folders.value = []
+      setRecords(fullListSnapshot.value)
+      return
+    }
+
+    const result = listDirectoryFromFullList(
+      fullListSnapshot.value,
+      effectivePrefix.value,
+      rootPrefix.value,
+    )
+    currentPrefix.value = result.prefix
+    folders.value = result.folders
+    setRecords(result.records)
+  }
+
+  function patchFullListSnapshot(next: FileRecord[] | null) {
+    fullListSnapshot.value = next
+  }
+
+  function upsertCachedRecord(record: FileRecord) {
+    const base = fullListSnapshot.value ?? []
+    patchFullListSnapshot(upsertFullListRecord(base, record))
+    applyCurrentListView()
+  }
+
+  function removeCachedRecord(id: string) {
+    if (fullListSnapshot.value) {
+      patchFullListSnapshot(removeFullListRecordById(fullListSnapshot.value, id))
+    }
+    records.value = records.value.filter((item) => item.id !== id)
+  }
+
+  /**
+   * 确保全量列表已加载。默认复用会话缓存；`force: true` 时重新请求 OSS（用于手动刷新）。
+   */
+  async function ensureFullListLoaded(options?: { force?: boolean }): Promise<FileRecord[]> {
+    if (options?.force) {
+      fullListSnapshot.value = null
+      fullListLoadPromise = null
+    }
+
+    if (fullListSnapshot.value) {
+      return fullListSnapshot.value
+    }
+
+    if (fullListLoadPromise) {
+      return fullListLoadPromise
+    }
+
+    fullListLoadPromise = (async () => {
+      const result = await listAllOssFiles()
+      patchFullListSnapshot(result.records)
+      return result.records
+    })()
+
+    try {
+      return await fullListLoadPromise
+    } finally {
+      fullListLoadPromise = null
+    }
+  }
+
+  async function applyListViewFromCache(options?: { force?: boolean }) {
     loading.value = true
     errorMessage.value = ''
 
     try {
-      if (showAllFiles.value) {
-        folders.value = []
-        const result = await listAllOssFiles()
-        setRecords(result.records)
-      } else {
-        const result = await listOssDirectory(effectivePrefix.value)
-        currentPrefix.value = result.prefix
-        folders.value = result.folders
-        setRecords(result.records)
-      }
+      await ensureFullListLoaded(options)
+      applyCurrentListView()
       loaded.value = true
     } catch (error) {
       const appError = toAppError(error)
@@ -127,15 +176,22 @@ export const useFileStore = defineStore('files', () => {
     }
   }
 
-  /** 图片页：扁平列举前缀下全部文件，不改变列表页的目录/全部模式偏好 */
-  async function loadAllFilesForGallery() {
+  /** 从 OSS 加载：全部文件 或 当前目录一层（均基于全量缓存切片，不重复 list） */
+  async function loadFromOss(options?: { force?: boolean }) {
+    await applyListViewFromCache(options)
+  }
+
+  /** 相册页：扁平列举前缀下全部文件，不改变列表页的目录/全部模式偏好 */
+  async function loadAllFilesForGallery(options?: { force?: boolean }) {
     loading.value = true
     errorMessage.value = ''
 
     try {
+      await ensureFullListLoaded(options)
       folders.value = []
-      const result = await listAllOssFiles()
-      setRecords(result.records)
+      if (fullListSnapshot.value) {
+        setRecords(fullListSnapshot.value)
+      }
       loaded.value = true
     } catch (error) {
       const appError = toAppError(error)
@@ -154,12 +210,12 @@ export const useFileStore = defineStore('files', () => {
     if (value) {
       currentPrefix.value = ''
     }
-    await loadFromOss()
+    await applyListViewFromCache()
   }
 
   async function enterFolder(prefix: string) {
     currentPrefix.value = prefix.endsWith('/') ? prefix : `${prefix}/`
-    await loadFromOss()
+    await applyListViewFromCache()
   }
 
   async function navigateToPrefix(prefix: string) {
@@ -173,7 +229,7 @@ export const useFileStore = defineStore('files', () => {
     if (parent) await enterFolder(parent.prefix)
   }
 
-  /** 上传成功后乐观写入列表（刷新 OSS 后会被覆盖为权威数据） */
+  /** 上传成功后写入全量缓存并刷新当前视图（不再整表 list） */
   function addFromUploadSuccess(result: UploadFileSuccess) {
     const record = buildFileRecordFromKey({
       key: result.key,
@@ -183,34 +239,15 @@ export const useFileStore = defineStore('files', () => {
       originalName: result.originalName,
     })
 
-    if (showAllFiles.value) {
-      const withoutDup = records.value.filter((item) => item.key !== record.key)
-      records.value = [record, ...withoutDup]
-      return record
-    }
-
-    const prefix = effectivePrefix.value
-    if (isDirectChildKey(record.key, prefix)) {
-      const withoutDup = records.value.filter((item) => item.key !== record.key)
-      records.value = [record, ...withoutDup]
-      return record
-    }
-
-    const folder = nextFolderUnderPrefix(record.key, prefix)
-    if (folder && !folders.value.some((item) => item.prefix === folder.prefix)) {
-      folders.value = [...folders.value, folder].sort((a, b) =>
-        a.name.localeCompare(b.name, 'zh-CN', { sensitivity: 'base', numeric: true }),
-      )
-    }
-
+    upsertCachedRecord(record)
     return record
   }
 
   function removeRecord(id: string) {
-    records.value = records.value.filter((item) => item.id !== id)
+    removeCachedRecord(id)
   }
 
-  /** 删除 OSS 对象并从列表移除 */
+  /** 删除 OSS 对象并从缓存移除 */
   async function deleteRecord(record: FileRecord) {
     deletingKey.value = record.key
     try {
@@ -226,12 +263,16 @@ export const useFileStore = defineStore('files', () => {
   function clearRecords() {
     records.value = []
     folders.value = []
+    fullListSnapshot.value = null
+    fullListLoadPromise = null
     loaded.value = false
     errorMessage.value = ''
   }
 
   function getByKey(key: string) {
-    return records.value.find((item) => item.key === key)
+    const fromView = records.value.find((item) => item.key === key)
+    if (fromView) return fromView
+    return fullListSnapshot.value?.find((item) => item.key === key)
   }
 
   return {
@@ -249,6 +290,8 @@ export const useFileStore = defineStore('files', () => {
     folderCount,
     totalBytes,
     hasListContent,
+    hasFullListCache,
+    ensureFullListLoaded,
     loadFromOss,
     loadAllFilesForGallery,
     setShowAllFiles,

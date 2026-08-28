@@ -3,6 +3,8 @@ import type { FileRecord } from '@/types/file'
 import { isAlbumMediaCategory } from '@/constants/fileTypes'
 import { FILE_SORT_OPTIONS, type FileSortKey, type FileSortOrder } from '@/composables/useFileListQuery'
 
+export type AlbumMediaFilter = 'all' | 'image' | 'video'
+
 function compareRecords(
   a: FileRecord,
   b: FileRecord,
@@ -24,6 +26,7 @@ function compareRecords(
 export function useImageAlbumQuery(getRecords: () => FileRecord[]) {
   const keyword = ref('')
   const sortValue = ref('time-desc')
+  const mediaFilter = ref<AlbumMediaFilter>('all')
 
   const currentSort = computed(() => {
     return FILE_SORT_OPTIONS.find((item) => item.value === sortValue.value) ?? FILE_SORT_OPTIONS[0]
@@ -38,6 +41,9 @@ export function useImageAlbumQuery(getRecords: () => FileRecord[]) {
     const sort = currentSort.value
 
     const filtered = albumRecords.value.filter((item) => {
+      if (mediaFilter.value === 'image' && item.category !== 'image') return false
+      if (mediaFilter.value === 'video' && item.category !== 'video') return false
+
       if (!query) return true
       return (
         item.name.toLowerCase().includes(query) ||
@@ -58,11 +64,13 @@ export function useImageAlbumQuery(getRecords: () => FileRecord[]) {
   function resetQuery() {
     keyword.value = ''
     sortValue.value = 'time-desc'
+    mediaFilter.value = 'all'
   }
 
   return {
     keyword,
     sortValue,
+    mediaFilter,
     albumRecords,
     /** @deprecated 使用 albumRecords */
     imageRecords: albumRecords,

@@ -3,10 +3,16 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Picture, VideoCamera } from '@element-plus/icons-vue'
 import type { FileRecord } from '@/types/file'
 import type { AlbumImageMeta } from '@/services/imageMeta'
-import { acquireAlbumThumb, releaseAlbumThumb } from '@/services/albumThumb'
+import {
+  acquireAlbumThumb,
+  invalidateAlbumThumb,
+  releaseAlbumThumb,
+} from '@/services/albumThumb'
 import {
   acquireVideoAlbumThumb,
+  peekVideoAlbumPoster,
   releaseVideoAlbumThumb,
+  setVideoAlbumPoster,
 } from '@/services/videoAlbumThumb'
 import { getCachedAlbumAspect, setAlbumAspect } from '@/services/imageAspect'
 
@@ -22,23 +28,22 @@ const emit = defineEmits<{
 const rootRef = ref<HTMLElement | null>(null)
 const imageUrl = ref('')
 const videoUrl = ref('')
+const posterUrl = ref('')
 const loading = ref(false)
 const failed = ref(false)
-const visible = ref(false)
 const videoReady = ref(false)
 
 const isVideo = computed(() => props.record.category === 'video')
 
 const VIDEO_ASPECT = 16 / 9
 
-let observer: IntersectionObserver | null = null
 let loadToken = 0
-/** 当前已 acquire 的 key；release 时成对释放 */
 let heldKey: string | null = null
 let heldKind: 'image' | 'video' | null = null
 let refreshAttempted = false
+let resizeObserver: ResizeObserver | null = null
 
-function releaseHeld() {
+function releaseHeldRef() {
   if (heldKey && heldKind === 'image') {
     releaseAlbumThumb(heldKey)
   }
@@ -47,17 +52,83 @@ function releaseHeld() {
   }
   heldKey = null
   heldKind = null
+}
+
+function resetDisplay() {
   imageUrl.value = ''
   videoUrl.value = ''
+  posterUrl.value = ''
   videoReady.value = false
 }
 
+function releaseHeld() {
+  releaseHeldRef()
+  resetDisplay()
+}
+
+function captureVideoPoster(video: HTMLVideoElement): Promise<string | null> {
+  return new Promise((resolve) => {
+    try {
+      if (!video.videoWidth || !video.videoHeight) {
+        resolve(null)
+        return
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        resolve(null)
+        return
+      }
+      ctx.drawImage(video, 0, 0)
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(null)
+            return
+          }
+          resolve(URL.createObjectURL(blob))
+        },
+        'image/jpeg',
+        0.82,
+      )
+    } catch {
+      resolve(null)
+    }
+  })
+}
+
+function hydrateVideoFromCache() {
+  const poster = peekVideoAlbumPoster(props.record.key)
+  if (!poster) return false
+  posterUrl.value = poster
+  videoUrl.value = ''
+  videoReady.value = true
+  const cachedAspect = getCachedAlbumAspect(props.record.key)
+  if (cachedAspect != null) {
+    emit('aspect', { key: props.record.key, aspectRatio: cachedAspect })
+  } else {
+    setAlbumAspect(props.record.key, VIDEO_ASPECT)
+    emit('aspect', { key: props.record.key, aspectRatio: VIDEO_ASPECT })
+  }
+  return true
+}
+
+function startThumbLoad() {
+  failed.value = false
+  if (isVideo.value) {
+    hydrateVideoFromCache()
+  }
+  void loadThumb()
+}
+
 async function loadImageThumb(force = false) {
-  if (!visible.value && !force) return
   if (loading.value) return
-  if (imageUrl.value && !force) return
 
   const key = props.record.key
+  if (!force && heldKey === key && imageUrl.value) return
+
   const token = ++loadToken
   loading.value = true
   failed.value = false
@@ -68,7 +139,10 @@ async function loadImageThumb(force = false) {
       releaseAlbumThumb(key)
       return
     }
-    releaseHeld()
+
+    if (heldKey && heldKey !== key) {
+      releaseHeldRef()
+    }
     heldKey = key
     heldKind = 'image'
     imageUrl.value = result.url
@@ -82,22 +156,22 @@ async function loadImageThumb(force = false) {
     failed.value = true
     releaseHeld()
   } finally {
-    if (token === loadToken) {
-      loading.value = false
-    }
+    loading.value = false
   }
 }
 
 async function loadVideoThumb(force = false) {
-  if (!visible.value && !force) return
   if (loading.value) return
-  if (videoUrl.value && !force) return
 
   const key = props.record.key
+  if (!force && heldKey === key && (posterUrl.value || videoUrl.value)) return
+
   const token = ++loadToken
   loading.value = true
   failed.value = false
-  videoReady.value = false
+  if (!posterUrl.value) {
+    videoReady.value = false
+  }
 
   try {
     const result = await acquireVideoAlbumThumb(key, { force })
@@ -105,10 +179,21 @@ async function loadVideoThumb(force = false) {
       releaseVideoAlbumThumb(key)
       return
     }
-    releaseHeld()
+
+    if (heldKey && heldKey !== key) {
+      releaseHeldRef()
+    }
     heldKey = key
     heldKind = 'video'
-    videoUrl.value = result.url
+
+    if (result.posterUrl) {
+      posterUrl.value = result.posterUrl
+      videoUrl.value = ''
+      videoReady.value = true
+    } else if (!posterUrl.value) {
+      videoUrl.value = result.url
+    }
+
     const cachedAspect = getCachedAlbumAspect(key)
     if (cachedAspect != null) {
       emit('aspect', { key, aspectRatio: cachedAspect })
@@ -123,9 +208,7 @@ async function loadVideoThumb(force = false) {
     setAlbumAspect(key, VIDEO_ASPECT)
     emit('aspect', { key, aspectRatio: VIDEO_ASPECT })
   } finally {
-    if (token === loadToken) {
-      loading.value = false
-    }
+    loading.value = false
   }
 }
 
@@ -149,6 +232,9 @@ function onImgLoad(event: Event) {
 function onImgError() {
   if (!refreshAttempted && imageUrl.value && !loading.value) {
     refreshAttempted = true
+    invalidateAlbumThumb(props.record.key)
+    releaseHeldRef()
+    resetDisplay()
     void loadThumb(true)
     return
   }
@@ -164,7 +250,6 @@ function onVideoLoadedMetadata(event: Event) {
       emit('aspect', { key: props.record.key, aspectRatio: ratio })
     }
   }
-  // 跳到约 0.1s，避免部分编码首帧全黑
   const target = Number.isFinite(video.duration) && video.duration > 0.2 ? 0.1 : 0.01
   try {
     video.currentTime = target
@@ -173,8 +258,21 @@ function onVideoLoadedMetadata(event: Event) {
   }
 }
 
-function onVideoSeeked() {
+function onVideoSeeked(event: Event) {
   videoReady.value = true
+  const video = event.target as HTMLVideoElement
+  const key = heldKey
+  if (posterUrl.value || !key) return
+  const token = loadToken
+  void captureVideoPoster(video).then((url) => {
+    if (!url || token !== loadToken) {
+      if (url) URL.revokeObjectURL(url)
+      return
+    }
+    setVideoAlbumPoster(key, url)
+    posterUrl.value = url
+    videoUrl.value = ''
+  })
 }
 
 function onVideoError() {
@@ -188,49 +286,45 @@ function onVideoError() {
   releaseHeld()
 }
 
-function setupObserver() {
-  observer?.disconnect()
-  if (!rootRef.value || typeof IntersectionObserver === 'undefined') {
-    visible.value = true
-    void loadThumb()
-    return
-  }
-
-  observer = new IntersectionObserver(
-    (entries) => {
-      const entry = entries[0]
-      if (!entry?.isIntersecting) return
-      visible.value = true
-      void loadThumb()
-      observer?.disconnect()
-      observer = null
-    },
-    { rootMargin: '120px 0px', threshold: 0.01 },
-  )
-  observer.observe(rootRef.value)
+function shouldRetryLoad(): boolean {
+  if (failed.value || loading.value) return false
+  if (isVideo.value) return !posterUrl.value && !videoUrl.value
+  return !imageUrl.value
 }
 
-watch(
-  () => props.record.key,
-  () => {
-    loadToken += 1
-    refreshAttempted = false
-    releaseHeld()
-    failed.value = false
-    loading.value = false
-    visible.value = false
-    setupObserver()
-  },
-)
+function setupResizeRetry() {
+  resizeObserver?.disconnect()
+  const el = rootRef.value
+  if (!el || typeof ResizeObserver === 'undefined') return
+
+  resizeObserver = new ResizeObserver(() => {
+    if (el.clientWidth > 0 && el.clientHeight > 0 && shouldRetryLoad()) {
+      startThumbLoad()
+    }
+  })
+  resizeObserver.observe(el)
+}
+
+function resetForRecordChange() {
+  loadToken += 1
+  refreshAttempted = false
+  releaseHeld()
+  failed.value = false
+  loading.value = false
+  startThumbLoad()
+}
+
+watch(() => props.record.key, resetForRecordChange)
 
 onMounted(() => {
-  setupObserver()
+  startThumbLoad()
+  setupResizeRetry()
 })
 
 onBeforeUnmount(() => {
   loadToken += 1
-  observer?.disconnect()
-  observer = null
+  resizeObserver?.disconnect()
+  resizeObserver = null
   releaseHeld()
 })
 </script>
@@ -238,8 +332,16 @@ onBeforeUnmount(() => {
 <template>
   <div ref="rootRef" class="album-thumb" :class="{ 'album-thumb--video': isVideo }">
     <template v-if="isVideo">
+      <img
+        v-if="posterUrl"
+        class="album-thumb__img"
+        :src="posterUrl"
+        :alt="record.name"
+        draggable="false"
+      />
+
       <video
-        v-if="videoUrl"
+        v-else-if="videoUrl"
         class="album-thumb__video"
         :class="{ 'is-ready': videoReady }"
         :src="videoUrl"
@@ -263,12 +365,12 @@ onBeforeUnmount(() => {
       <div
         v-else
         class="album-thumb__fallback album-thumb__fallback--video"
-        :class="{ 'is-loading': loading || visible }"
+        :class="{ 'is-loading': loading }"
       >
         <el-icon :size="22" :class="{ 'is-spin': loading }"><VideoCamera /></el-icon>
       </div>
 
-      <span v-if="videoReady" class="album-thumb__play" aria-hidden="true">▶</span>
+      <span v-if="posterUrl || videoReady" class="album-thumb__play" aria-hidden="true">▶</span>
     </template>
 
     <template v-else>
@@ -287,7 +389,7 @@ onBeforeUnmount(() => {
         <span class="album-thumb__hint">加载失败</span>
       </div>
 
-      <div v-else class="album-thumb__fallback" :class="{ 'is-loading': loading || visible }">
+      <div v-else class="album-thumb__fallback" :class="{ 'is-loading': loading }">
         <el-icon :size="22" :class="{ 'is-spin': loading }"><Picture /></el-icon>
       </div>
     </template>

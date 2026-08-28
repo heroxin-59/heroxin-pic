@@ -40,9 +40,8 @@ const router = createRouter({
   },
 })
 
-router.afterEach((to) => {
-  const title = typeof to.meta.title === 'string' ? to.meta.title : ''
-  document.title = title ? `${title} · ${appTitle}` : appTitle
+router.afterEach(() => {
+  document.title = appTitle
 })
 
 export default router

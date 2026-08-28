@@ -2,11 +2,13 @@ import type { FileRecord } from '@/types/file'
 import type { AlbumImageMeta } from '@/services/imageMeta'
 import { parseArchiveDateFromObjectKey } from '@/utils/archiveDate'
 
-/** 相册按日分组 */
+export type AlbumGroupGranularity = 'day' | 'month' | 'year'
+
+/** 相册按日期分组（日 / 月 / 年视图共用） */
 export interface AlbumDayGroup {
-  /** 分组键 YYYY-MM-DD */
+  /** 分组键：日 YYYY-MM-DD；月 YYYY-MM；年 YYYY */
   dateKey: string
-  /** 展示标题，如 2026年8月25日 */
+  /** 展示标题 */
   label: string
   /** 组内代表性地点（有则展示） */
   locationLabel?: string
@@ -27,6 +29,40 @@ function toDateParts(iso: string): { y: number; m: number; d: number; key: strin
 
 export function formatAlbumDateLabel(y: number, m: number, d: number): string {
   return `${y}年${m}月${d}日`
+}
+
+export function formatAlbumMonthLabel(y: number, m: number): string {
+  return `${y}年${m}月`
+}
+
+export function formatAlbumYearLabel(y: number): string {
+  return `${y}年`
+}
+
+export function getAlbumJumpPlaceholder(granularity: AlbumGroupGranularity): string {
+  if (granularity === 'year') return '定位到某年'
+  if (granularity === 'month') return '定位到某月'
+  return '定位到某日'
+}
+
+export function getAlbumSelectGroupLabel(granularity: AlbumGroupGranularity): string {
+  if (granularity === 'year') return '选当年'
+  if (granularity === 'month') return '选当月'
+  return '选当日'
+}
+
+function buildGroupKeyAndLabel(
+  parts: { y: number; m: number; d: number; key: string },
+  granularity: AlbumGroupGranularity,
+): { key: string; label: string } {
+  if (granularity === 'year') {
+    return { key: String(parts.y), label: formatAlbumYearLabel(parts.y) }
+  }
+  if (granularity === 'month') {
+    const key = `${parts.y}-${String(parts.m).padStart(2, '0')}`
+    return { key, label: formatAlbumMonthLabel(parts.y, parts.m) }
+  }
+  return { key: parts.key, label: formatAlbumDateLabel(parts.y, parts.m, parts.d) }
 }
 
 function readMeta(map: AlbumMetaMap | undefined, key: string): AlbumImageMeta | undefined {
@@ -82,20 +118,22 @@ function pickGroupLocation(items: FileRecord[], metaMap?: AlbumMetaMap): string 
 }
 
 /**
- * 将图片记录按日分组。
+ * 将图片记录按日期分组（日 / 月 / 年）。
  * 日期标题：优先 OSS 归档目录日 → EXIF → 上传日；组内仍按拍摄/上传时间新→旧。
  */
-export function groupRecordsByUploadDay(
+export function groupRecordsByDate(
   records: FileRecord[],
   metaMap?: AlbumMetaMap,
+  granularity: AlbumGroupGranularity = 'day',
 ): AlbumDayGroup[] {
   const map = new Map<string, { label: string; items: FileRecord[] }>()
 
   for (const record of records) {
     const meta = readMeta(metaMap, record.key)
     const parts = getAlbumGroupDateParts(record, meta)
-    const key = parts?.key ?? 'unknown'
-    const label = parts ? formatAlbumDateLabel(parts.y, parts.m, parts.d) : '未知日期'
+    const { key, label } = parts
+      ? buildGroupKeyAndLabel(parts, granularity)
+      : { key: 'unknown', label: '未知日期' }
 
     const bucket = map.get(key)
     if (bucket) {
@@ -123,4 +161,15 @@ export function groupRecordsByUploadDay(
   })
 
   return groups
+}
+
+/**
+ * 将图片记录按日分组。
+ * @deprecated 使用 {@link groupRecordsByDate} 并传入 `granularity: 'day'`
+ */
+export function groupRecordsByUploadDay(
+  records: FileRecord[],
+  metaMap?: AlbumMetaMap,
+): AlbumDayGroup[] {
+  return groupRecordsByDate(records, metaMap, 'day')
 }

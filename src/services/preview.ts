@@ -36,9 +36,9 @@ export async function resolvePreviewRecord(params: {
   }
 
   const fileStore = useFileStore()
-  if (!fileStore.loaded && !fileStore.loading) {
+  if (!fileStore.hasFullListCache && !fileStore.loading) {
     try {
-      await fileStore.loadFromOss()
+      await fileStore.ensureFullListLoaded()
     } catch {
       // 列表加载失败时仍可凭 key 签发 URL 预览
     }

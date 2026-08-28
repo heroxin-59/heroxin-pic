@@ -6,7 +6,13 @@ import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useWindowVirtualRows } from '@/composables/useWindowVirtualRows'
 import type { AlbumImageMeta } from '@/services/imageMeta'
 import type { FileRecord } from '@/types/file'
-import { groupRecordsByUploadDay } from '@/utils/albumGroup'
+import {
+  getAlbumJumpPlaceholder,
+  getAlbumSelectGroupLabel,
+  groupRecordsByDate,
+  type AlbumGroupGranularity,
+} from '@/utils/albumGroup'
+import type { AlbumMediaFilter } from '@/composables/useImageAlbumQuery'
 import { buildAlbumWaterfallLayout, findAlbumDateOffset } from '@/utils/albumVirtual'
 
 const props = defineProps<{
@@ -14,6 +20,10 @@ const props = defineProps<{
   loading?: boolean
   /** 批量操作进行中（禁用按钮） */
   batchBusy?: boolean
+  /** 分组粒度：日 / 月 / 年 */
+  granularity?: AlbumGroupGranularity
+  /** 媒体类型：全部 / 图片 / 视频 */
+  mediaFilter?: AlbumMediaFilter
 }>()
 
 const emit = defineEmits<{
@@ -22,7 +32,31 @@ const emit = defineEmits<{
   'batch-download': [records: FileRecord[]]
   'batch-delete': [records: FileRecord[]]
   'context-menu': [payload: { record: FileRecord; event: MouseEvent }]
+  'update:granularity': [value: AlbumGroupGranularity]
+  'update:mediaFilter': [value: AlbumMediaFilter]
 }>()
+
+const granularityOptions: { value: AlbumGroupGranularity; label: string }[] = [
+  { value: 'day', label: '日' },
+  { value: 'month', label: '月' },
+  { value: 'year', label: '年' },
+]
+
+const mediaFilterOptions: { value: AlbumMediaFilter; label: string }[] = [
+  { value: 'all', label: '全部' },
+  { value: 'image', label: '图片' },
+  { value: 'video', label: '视频' },
+]
+
+const activeGranularity = computed({
+  get: () => props.granularity ?? 'day',
+  set: (value: AlbumGroupGranularity) => emit('update:granularity', value),
+})
+
+const activeMediaFilter = computed({
+  get: () => props.mediaFilter ?? 'all',
+  set: (value: AlbumMediaFilter) => emit('update:mediaFilter', value),
+})
 
 const rootRef = ref<HTMLElement | null>(null)
 const containerWidth = ref(0)
@@ -35,7 +69,12 @@ const jumpDateKey = ref('')
 const collapsedDateKeys = shallowRef(new Set<string>())
 const { width: viewportWidth, isMobile } = useBreakpoint()
 
-const groups = computed(() => groupRecordsByUploadDay(props.records, metaByKey.value))
+const groups = computed(() =>
+  groupRecordsByDate(props.records, metaByKey.value, activeGranularity.value),
+)
+
+const jumpPlaceholder = computed(() => getAlbumJumpPlaceholder(activeGranularity.value))
+const selectGroupLabel = computed(() => getAlbumSelectGroupLabel(activeGranularity.value))
 
 const layout = computed(() => {
   void aspectRev.value
@@ -141,13 +180,23 @@ function clearSelection() {
   selectedKeys.value = new Set()
 }
 
-function selectDay(dateKey: string) {
+function isGroupFullySelected(dateKey: string) {
+  const group = groups.value.find((item) => item.dateKey === dateKey)
+  if (!group || group.records.length === 0) return false
+  return group.records.every((item) => selectedKeys.value.has(item.key))
+}
+
+function toggleGroupSelection(dateKey: string) {
   const group = groups.value.find((item) => item.dateKey === dateKey)
   if (!group) return
-  const next = new Set(selectedKeys.value)
-  for (const item of group.records) next.add(item.key)
-  selectedKeys.value = next
   enterSelectionMode()
+  const next = new Set(selectedKeys.value)
+  if (isGroupFullySelected(dateKey)) {
+    for (const item of group.records) next.delete(item.key)
+  } else {
+    for (const item of group.records) next.add(item.key)
+  }
+  selectedKeys.value = next
 }
 
 function onTileClick(item: FileRecord) {
@@ -238,6 +287,14 @@ function onBatchDelete() {
   emit('batch-delete', selectedRecords.value)
 }
 
+watch(activeGranularity, () => {
+  jumpDateKey.value = ''
+})
+
+watch(activeMediaFilter, () => {
+  jumpDateKey.value = ''
+})
+
 watch(
   groups,
   (next) => {
@@ -298,10 +355,26 @@ onUnmounted(() => {
 <template>
   <div class="image-album-wrap">
     <div class="image-album__toolbar">
+      <div class="image-album__filters">
+        <el-segmented
+          v-model="activeGranularity"
+          class="image-album__granularity"
+          :options="granularityOptions"
+          :disabled="batchBusy"
+        />
+
+        <el-segmented
+          v-model="activeMediaFilter"
+          class="image-album__media-filter"
+          :options="mediaFilterOptions"
+          :disabled="batchBusy"
+        />
+      </div>
+
       <el-select
         :model-value="jumpDateKey || undefined"
         class="image-album__jump"
-        placeholder="定位到某日"
+        :placeholder="jumpPlaceholder"
         clearable
         :disabled="dateOptions.length === 0 || batchBusy"
         @change="onJumpChange"
@@ -314,27 +387,6 @@ onUnmounted(() => {
           :value="opt.value"
         />
       </el-select>
-
-      <div class="image-album__toolbar-actions">
-        <el-button
-          v-if="!selectionMode"
-          class="image-album__mode-btn"
-          :size="isMobile ? 'default' : 'small'"
-          :disabled="records.length === 0 || batchBusy"
-          @click="enterSelectionMode"
-        >
-          多选
-        </el-button>
-        <el-button
-          v-else
-          class="image-album__mode-btn"
-          :size="isMobile ? 'default' : 'small'"
-          :disabled="batchBusy"
-          @click="exitSelectionMode"
-        >
-          取消多选
-        </el-button>
-      </div>
     </div>
 
     <p v-if="isMobile && !selectionMode" class="image-album__hint">长按图片或视频可进入多选</p>
@@ -386,9 +438,9 @@ onUnmounted(() => {
               text
               type="primary"
               :disabled="batchBusy"
-              @click.stop="selectDay(item.dateKey)"
+              @click.stop="toggleGroupSelection(item.dateKey)"
             >
-              选当日
+              {{ isGroupFullySelected(item.dateKey) ? '取消' : selectGroupLabel }}
             </el-button>
           </div>
         </header>
@@ -458,6 +510,9 @@ onUnmounted(() => {
           >
             删除
           </el-button>
+          <el-button size="small" :disabled="batchBusy" @click="exitSelectionMode">
+            取消
+          </el-button>
         </div>
       </div>
     </Teleport>
@@ -478,15 +533,30 @@ onUnmounted(() => {
   gap: 8px;
 }
 
-.image-album__jump {
-  width: min(260px, 100%);
+.image-album__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1;
+  min-width: min(320px, 100%);
 }
 
-.image-album__toolbar-actions {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.image-album__granularity,
+.image-album__media-filter {
+  flex: 1;
+  min-width: min(156px, 100%);
+}
+
+.image-album__granularity :deep(.el-segmented),
+.image-album__media-filter :deep(.el-segmented) {
+  --el-border-radius-base: 8px;
+  width: 100%;
+}
+
+.image-album__jump {
+  width: min(260px, 100%);
+  flex: 1;
+  min-width: 0;
 }
 
 .image-album__hint {
@@ -497,30 +567,31 @@ onUnmounted(() => {
 
 @media (max-width: 767px) {
   .image-album__toolbar {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     align-items: stretch;
   }
 
-  .image-album__jump {
+  .image-album__filters {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: nowrap;
+  }
+
+  .image-album__granularity,
+  .image-album__media-filter {
     flex: 1;
+    min-width: 0;
     width: auto;
+  }
+
+  .image-album__jump {
+    flex: 1 1 100%;
+    width: 100%;
     min-width: 0;
   }
 
-  /* 与全局触摸按钮 --touch-min 对齐，避免选框偏矮、多选偏高 */
   .image-album__jump :deep(.el-select__wrapper) {
     min-height: var(--touch-min, 44px);
-  }
-
-  .image-album__toolbar-actions {
-    margin-left: 0;
-    flex-shrink: 0;
-  }
-
-  .image-album__mode-btn {
-    height: var(--touch-min, 44px);
-    min-height: var(--touch-min, 44px);
-    padding: 0 14px;
   }
 }
 

@@ -13,7 +13,7 @@ import { useFileStore } from '@/stores/files'
 import type { FileRecord } from '@/types/file'
 import type { AlbumImageMeta } from '@/services/imageMeta'
 import { formatBytes } from '@/utils/format'
-import { groupRecordsByUploadDay } from '@/utils/albumGroup'
+import { groupRecordsByDate, type AlbumGroupGranularity } from '@/utils/albumGroup'
 import { confirmApp, confirmAppDelete, showAppError, showAppSuccess, showAppWarning } from '@/utils/message'
 
 const router = useRouter()
@@ -26,18 +26,18 @@ const {
   deletingKey,
 } = storeToRefs(fileStore)
 
-const { albumRecords, filteredRecords, filteredTotal, filteredBytes } = useImageAlbumQuery(
-  () => records.value,
-)
+const { albumRecords, filteredRecords, filteredTotal, filteredBytes, mediaFilter } =
+  useImageAlbumQuery(() => records.value)
 
 const previewVisible = ref(false)
 const previewRecord = ref<FileRecord | null>(null)
 const albumMetaMap = shallowRef(new Map<string, AlbumImageMeta>())
 const contextMenuRef = ref<InstanceType<typeof FileContextMenu> | null>(null)
 const albumBatchBusy = ref(false)
+const albumGranularity = ref<AlbumGroupGranularity>('day')
 
 const albumPreviewGallery = computed(() =>
-  groupRecordsByUploadDay(filteredRecords.value, albumMetaMap.value).flatMap(
+  groupRecordsByDate(filteredRecords.value, albumMetaMap.value, albumGranularity.value).flatMap(
     (group) => group.records,
   ),
 )
@@ -65,7 +65,7 @@ function goUpload() {
 
 async function refresh() {
   try {
-    await fileStore.loadAllFilesForGallery()
+    await fileStore.loadAllFilesForGallery({ force: true })
     const count = albumRecords.value.length
     if (count === 0) {
       showAppWarning('当前 OSS 前缀下暂无相册内容')
@@ -223,6 +223,8 @@ onMounted(() => {
       </p>
 
       <ImageAlbumView
+          v-model:granularity="albumGranularity"
+          v-model:media-filter="mediaFilter"
           :records="filteredRecords"
           :loading="loading"
           :batch-busy="albumBatchBusy"
@@ -234,7 +236,7 @@ onMounted(() => {
         />
 
         <p class="images-view__hint">
-          按日期分组展示图片与视频；图片有 GPS 时显示地点（缩略图进入视口后解析 EXIF）。删除会真实移除
+          支持按日 / 月 / 年分组展示；图片有 GPS 时显示地点（缩略图进入视口后解析 EXIF）。删除会真实移除
           OSS 对象（需 DeleteObject 权限）。
         </p>
     </template>
