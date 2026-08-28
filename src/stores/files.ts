@@ -11,26 +11,6 @@ import {
   upsertFullListRecord,
 } from '@/utils/fileListCache'
 
-const SHOW_ALL_FILES_STORAGE_KEY = 'heroxin-pic:show-all-files'
-
-function readShowAllFilesPreference(): boolean {
-  try {
-    const raw = localStorage.getItem(SHOW_ALL_FILES_STORAGE_KEY)
-    if (raw === null) return true
-    return raw === '1' || raw === 'true'
-  } catch {
-    return true
-  }
-}
-
-function writeShowAllFilesPreference(value: boolean) {
-  try {
-    localStorage.setItem(SHOW_ALL_FILES_STORAGE_KEY, value ? '1' : '0')
-  } catch {
-    // ignore quota / private mode
-  }
-}
-
 /** 面包屑：相对配置根目录的可点击路径 */
 export interface FolderBreadcrumb {
   label: string
@@ -59,8 +39,8 @@ function buildBreadcrumbs(rootPrefix: string, currentPrefix: string): FolderBrea
 export const useFileStore = defineStore('files', () => {
   const records = ref<FileRecord[]>([])
   const folders = ref<FolderEntry[]>([])
-  /** true：扁平列举全部；false：按目录层级浏览 */
-  const showAllFiles = ref(readShowAllFilesPreference())
+  /** true：扁平列举全部；false：按目录层级浏览（默认显示全部） */
+  const showAllFiles = ref(true)
   /** 层级模式下的当前前缀；空则使用配置根目录 */
   const currentPrefix = ref('')
   const loading = ref(false)
@@ -206,7 +186,6 @@ export const useFileStore = defineStore('files', () => {
   async function setShowAllFiles(value: boolean) {
     if (showAllFiles.value === value) return
     showAllFiles.value = value
-    writeShowAllFilesPreference(value)
     if (value) {
       currentPrefix.value = ''
     }

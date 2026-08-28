@@ -117,6 +117,7 @@ const { visibleRows: visibleItems, scheduleUpdate } = useWindowVirtualRows({
 let resizeObserver: ResizeObserver | null = null
 let longPressTimer: ReturnType<typeof setTimeout> | null = null
 let suppressClick = false
+let suppressContextMenuUntil = 0
 let aspectRaf = 0
 
 function onThumbMeta(meta: AlbumImageMeta) {
@@ -212,8 +213,14 @@ function onTileClick(item: FileRecord) {
 }
 
 function onTileContextMenu(item: FileRecord, event: MouseEvent) {
-  // 右键菜单优先，取消长按多选计时
   onTilePointerCancel()
+
+  // 移动端长按会合成 contextmenu；多选已触发时不再弹出右键菜单
+  if (isMobile.value || Date.now() < suppressContextMenuUntil) {
+    event.preventDefault()
+    return
+  }
+
   emit('context-menu', { record: item, event })
 }
 
@@ -222,6 +229,7 @@ function onTilePointerDown(item: FileRecord) {
   longPressTimer = setTimeout(() => {
     longPressTimer = null
     suppressClick = true
+    suppressContextMenuUntil = Date.now() + 800
     enterSelectionMode()
     if (!selectedKeys.value.has(item.key)) {
       toggleKey(item.key)
@@ -796,7 +804,42 @@ onUnmounted(() => {
 .album-action-bar.is-compact {
   bottom: calc(var(--tabbar-height, 56px) + 12px + var(--safe-bottom, 0px));
   width: calc(100vw - 24px);
+  gap: 6px;
+  padding: 8px 10px;
   justify-content: space-between;
+}
+
+.album-action-bar.is-compact .album-action-bar__count {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.album-action-bar.is-compact .album-action-bar__actions {
+  flex-wrap: nowrap;
+  gap: 2px;
+  flex-shrink: 1;
+  min-width: 0;
+  justify-content: flex-end;
+}
+
+.album-action-bar.is-compact .album-action-bar__actions .el-button {
+  padding: 4px 6px;
+  height: 28px;
+  min-height: 28px;
+  font-size: 12px;
+  margin: 0;
+}
+
+.album-action-bar.is-compact .album-action-bar__actions .el-button.is-text {
+  padding: 4px 4px;
+}
+
+.album-action-bar.is-compact .album-action-bar__actions .el-button .el-icon {
+  font-size: 12px;
+}
+
+.album-action-bar.is-compact .album-action-bar__actions .el-button .el-icon + span {
+  margin-left: 2px;
 }
 
 .album-action-bar__count {

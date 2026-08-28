@@ -1,21 +1,45 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AppErrorBoundary from '@/components/AppErrorBoundary.vue'
 import { appTitle } from '@/config/appMeta'
 import { useBreakpoint } from '@/composables/useBreakpoint'
+import { useMobileNavSwipe } from '@/composables/useMobileNavSwipe'
 import { mainNavItems } from '@/constants/navigation'
 import { useFileStore } from '@/stores/files'
+import { isMainNavPath } from '@/utils/mobileNavSwipe'
 
 const route = useRoute()
 const fileStore = useFileStore()
 const { isMobile, isCompactHeight, isLandscape } = useBreakpoint()
 
+const { dragOffsetX, isDragging, navTransitionName, resolveNavTransitionName } = useMobileNavSwipe({
+  enabled: isMobile,
+})
+
 const layoutClass = computed(() => ({
   'is-mobile': isMobile.value,
   'is-landscape': isLandscape.value,
   'is-compact': isMobile.value && isCompactHeight.value,
+  'is-nav-dragging': isDragging.value,
 }))
+
+const viewportStyle = computed(() => {
+  if (!isMobile.value || dragOffsetX.value === 0) return undefined
+  return {
+    transform: `translate3d(${dragOffsetX.value}px, 0, 0)`,
+    transition: isDragging.value ? 'none' : 'transform 0.28s cubic-bezier(0.32, 0.72, 0, 1)',
+  }
+})
+
+watch(
+  () => route.path,
+  (to, from) => {
+    if (!isMobile.value || !from || !isMainNavPath(to) || !isMainNavPath(from)) return
+    if (to === from) return
+    navTransitionName.value = resolveNavTransitionName(from, to)
+  },
+)
 
 onMounted(() => {
   void fileStore.ensureFullListLoaded().catch(() => {
@@ -45,9 +69,17 @@ const boundaryKey = computed(() => route.fullPath)
     </header>
 
     <main class="app-main">
-      <AppErrorBoundary :reset-key="boundaryKey">
-        <router-view />
-      </AppErrorBoundary>
+      <div class="app-main__viewport" :style="viewportStyle">
+        <router-view v-slot="{ Component }">
+          <transition :name="isMobile && navTransitionName ? navTransitionName : undefined">
+            <div :key="route.path" class="app-main__page">
+              <AppErrorBoundary :reset-key="boundaryKey">
+                <component :is="Component" />
+              </AppErrorBoundary>
+            </div>
+          </transition>
+        </router-view>
+      </div>
     </main>
 
     <nav class="mobile-tabbar" aria-label="底部导航">
@@ -134,6 +166,54 @@ const boundaryKey = computed(() => route.fullPath)
   padding: 16px;
   padding-left: max(16px, var(--safe-left, 0px));
   padding-right: max(16px, var(--safe-right, 0px));
+  overflow: hidden;
+}
+
+.app-main__viewport {
+  position: relative;
+  min-height: 100%;
+  will-change: transform;
+}
+
+.app-main__page {
+  width: 100%;
+}
+
+.app-layout.is-nav-dragging .app-main__viewport {
+  touch-action: none;
+}
+
+.app-layout.is-mobile .app-main__viewport :deep(.nav-slide-left-enter-active),
+.app-layout.is-mobile .app-main__viewport :deep(.nav-slide-left-leave-active),
+.app-layout.is-mobile .app-main__viewport :deep(.nav-slide-right-enter-active),
+.app-layout.is-mobile .app-main__viewport :deep(.nav-slide-right-leave-active) {
+  transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.app-layout.is-mobile .app-main__viewport :deep(.nav-slide-left-enter-active),
+.app-layout.is-mobile .app-main__viewport :deep(.nav-slide-left-leave-active),
+.app-layout.is-mobile .app-main__viewport :deep(.nav-slide-right-enter-active),
+.app-layout.is-mobile .app-main__viewport :deep(.nav-slide-right-leave-active) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.app-layout.is-mobile .app-main__viewport :deep(.nav-slide-left-enter-from) {
+  transform: translate3d(100%, 0, 0);
+}
+
+.app-layout.is-mobile .app-main__viewport :deep(.nav-slide-left-leave-to) {
+  transform: translate3d(-24%, 0, 0);
+}
+
+.app-layout.is-mobile .app-main__viewport :deep(.nav-slide-right-enter-from) {
+  transform: translate3d(-100%, 0, 0);
+}
+
+.app-layout.is-mobile .app-main__viewport :deep(.nav-slide-right-leave-to) {
+  transform: translate3d(24%, 0, 0);
 }
 
 .mobile-tabbar {
@@ -193,6 +273,12 @@ const boundaryKey = computed(() => route.fullPath)
     padding-top: calc(16px + var(--safe-top, 0px));
     padding-bottom: calc(var(--tabbar-height, 56px) + 16px + var(--safe-bottom, 0px));
   }
+
+  .app-main__viewport {
+    min-height: calc(
+      100dvh - var(--tabbar-height, 56px) - 32px - var(--safe-top, 0px) - var(--safe-bottom, 0px)
+    );
+  }
 }
 
 /* sm+：桌面顶栏导航，隐藏底栏 */
@@ -210,6 +296,7 @@ const boundaryKey = computed(() => route.fullPath)
     padding: 20px;
     padding-left: max(20px, var(--safe-left, 0px));
     padding-right: max(20px, var(--safe-right, 0px));
+    overflow: visible;
   }
 }
 
