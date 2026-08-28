@@ -10,6 +10,8 @@ import {
   shouldBlockNavSwipe,
 } from '@/utils/mobileNavSwipe'
 
+export type MobileNavNavigationKind = 'swipe' | 'tab' | null
+
 export interface UseMobileNavSwipeOptions {
   enabled: Ref<boolean>
 }
@@ -19,6 +21,7 @@ const SWIPE_VELOCITY_PX_MS = 0.28
 const AXIS_LOCK_PX = 8
 const AXIS_RATIO = 1.15
 const EDGE_RESISTANCE = 0.32
+const SLIDE_DURATION_MS = 300
 
 /**
  * 移动端主导航左右滑：左滑 → 右侧 Tab，右滑 → 左侧 Tab（对齐 iOS / Android 桌面）。
@@ -30,7 +33,9 @@ export function useMobileNavSwipe(options: UseMobileNavSwipeOptions) {
 
   const dragOffsetX = ref(0)
   const isDragging = ref(false)
+  const isAnimating = ref(false)
   const navTransitionName = ref('')
+  const navigationKind = ref<MobileNavNavigationKind>(null)
 
   let touchStartX = 0
   let touchStartY = 0
@@ -39,6 +44,8 @@ export function useMobileNavSwipe(options: UseMobileNavSwipeOptions) {
   let tracking = false
   let axisLocked: 'horizontal' | 'vertical' | null = null
   let navigating = false
+  let dragRaf = 0
+  let pendingDx = 0
 
   function applyEdgeResistance(dx: number, path: string): number {
     const index = getMainNavIndex(path)
@@ -54,15 +61,48 @@ export function useMobileNavSwipe(options: UseMobileNavSwipeOptions) {
     touchTarget = null
     isDragging.value = false
     document.removeEventListener('touchmove', onTouchMove)
+    if (dragRaf) {
+      cancelAnimationFrame(dragRaf)
+      dragRaf = 0
+    }
   }
 
-  function snapBack() {
+  function flushDragOffset() {
+    dragRaf = 0
+    dragOffsetX.value = applyEdgeResistance(pendingDx, route.path)
+  }
+
+  function scheduleDragOffset(dx: number) {
+    pendingDx = dx
+    if (dragRaf) return
+    dragRaf = requestAnimationFrame(flushDragOffset)
+  }
+
+  function animateOffset(target: number, duration = SLIDE_DURATION_MS): Promise<void> {
     isDragging.value = false
+    isAnimating.value = true
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        dragOffsetX.value = target
+      })
+      window.setTimeout(() => {
+        isAnimating.value = false
+        resolve()
+      }, duration)
+    })
+  }
+
+  async function snapBack() {
+    if (dragOffsetX.value === 0) {
+      isDragging.value = false
+      return
+    }
+    await animateOffset(0)
     dragOffsetX.value = 0
   }
 
   function onTouchStart(event: TouchEvent) {
-    if (!options.enabled.value || navigating) return
+    if (!options.enabled.value || navigating || isAnimating.value) return
     if (!isMainNavPath(route.path)) return
     if (event.touches.length !== 1) return
 
@@ -80,6 +120,7 @@ export function useMobileNavSwipe(options: UseMobileNavSwipeOptions) {
     axisLocked = null
     isDragging.value = false
     dragOffsetX.value = 0
+    navigationKind.value = null
 
     document.addEventListener('touchmove', onTouchMove, { passive: false })
   }
@@ -124,11 +165,15 @@ export function useMobileNavSwipe(options: UseMobileNavSwipeOptions) {
     if (axisLocked !== 'horizontal') return
 
     event.preventDefault()
-    dragOffsetX.value = applyEdgeResistance(dx, route.path)
+    scheduleDragOffset(dx)
   }
 
   async function onTouchEnd(event: TouchEvent) {
     document.removeEventListener('touchmove', onTouchMove)
+    if (dragRaf) {
+      cancelAnimationFrame(dragRaf)
+      dragRaf = 0
+    }
 
     if (!tracking) return
     const wasHorizontal = axisLocked === 'horizontal'
@@ -136,17 +181,17 @@ export function useMobileNavSwipe(options: UseMobileNavSwipeOptions) {
     resetGesture()
 
     if (!options.enabled.value || !wasHorizontal) {
-      snapBack()
+      await snapBack()
       return
     }
     if (!isMainNavPath(route.path)) {
-      snapBack()
+      await snapBack()
       return
     }
 
     const touch = event.changedTouches[0]
     if (!touch) {
-      snapBack()
+      await snapBack()
       return
     }
 
@@ -156,45 +201,54 @@ export function useMobileNavSwipe(options: UseMobileNavSwipeOptions) {
     const velocity = Math.abs(dx) / elapsed
 
     if (Math.abs(dx) < Math.abs(dy) * AXIS_RATIO) {
-      snapBack()
+      await snapBack()
       return
     }
 
     if (shouldBlockNavSwipe(startTarget, dx)) {
-      snapBack()
+      await snapBack()
       return
     }
 
     const passedDistance = Math.abs(dx) >= SWIPE_DISTANCE_PX
     const passedVelocity = velocity >= SWIPE_VELOCITY_PX_MS && Math.abs(dx) >= 18
     if (!passedDistance && !passedVelocity) {
-      snapBack()
+      await snapBack()
       return
     }
 
     const targetPath = resolveMainNavSwipeTarget(route.path, dx)
     if (!targetPath || targetPath === route.path) {
-      snapBack()
+      await snapBack()
       return
     }
 
-    const fromPath = route.path
-    navTransitionName.value = resolveNavTransitionName(fromPath, targetPath)
+    navigationKind.value = 'swipe'
+    navTransitionName.value = ''
     navigating = true
-    dragOffsetX.value = 0
+
+    const width = window.innerWidth
+    const targetX = dx < 0 ? -width : width
 
     try {
+      await animateOffset(targetX)
       await router.push(targetPath)
     } finally {
       dragOffsetX.value = 0
+      isAnimating.value = false
       navigating = false
+      navigationKind.value = null
     }
   }
 
   function onTouchCancel() {
     document.removeEventListener('touchmove', onTouchMove)
+    if (dragRaf) {
+      cancelAnimationFrame(dragRaf)
+      dragRaf = 0
+    }
     resetGesture()
-    snapBack()
+    void snapBack()
   }
 
   onMounted(() => {
@@ -206,9 +260,9 @@ export function useMobileNavSwipe(options: UseMobileNavSwipeOptions) {
   watch(
     () => route.path,
     () => {
+      if (navigating || isAnimating.value) return
       dragOffsetX.value = 0
-      navigating = false
-      resetGesture()
+      navigationKind.value = null
     },
   )
 
@@ -217,15 +271,24 @@ export function useMobileNavSwipe(options: UseMobileNavSwipeOptions) {
     document.removeEventListener('touchend', onTouchEnd, true)
     document.removeEventListener('touchcancel', onTouchCancel, true)
     document.removeEventListener('touchmove', onTouchMove)
+    if (dragRaf) cancelAnimationFrame(dragRaf)
     resetGesture()
     dragOffsetX.value = 0
   })
 
+  function resetViewport() {
+    isDragging.value = false
+    isAnimating.value = false
+    dragOffsetX.value = 0
+  }
+
   return {
     dragOffsetX,
     isDragging,
+    isAnimating,
     navTransitionName,
+    navigationKind,
     resolveNavTransitionName,
-    resetViewport: snapBack,
+    resetViewport,
   }
 }

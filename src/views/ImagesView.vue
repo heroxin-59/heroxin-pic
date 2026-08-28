@@ -235,10 +235,6 @@ onMounted(() => {
           @context-menu="onAlbumContextMenu"
         />
 
-        <p class="images-view__hint">
-          支持按日 / 月 / 年分组展示；图片有 GPS 时显示地点（缩略图进入视口后解析 EXIF）。删除会真实移除
-          OSS 对象（需 DeleteObject 权限）。
-        </p>
     </template>
   </el-card>
 
@@ -315,12 +311,6 @@ onMounted(() => {
 
 .images-view__range {
   margin: 0 0 12px;
-}
-
-.images-view__hint {
-  margin: 16px 0 0;
-  font-size: 12px;
-  color: #909399;
 }
 
 @media (max-width: 767px) {

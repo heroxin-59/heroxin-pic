@@ -531,15 +531,6 @@ onMounted(() => {
             background
           />
 
-        <p class="file-list__hint">
-          <template v-if="showAllFiles">
-            已从 OSS 加载全部历史文件；列表分页在本地完成（默认每页 10 条）。
-          </template>
-          <template v-else>
-            层级目录模式（与控制台类似）：仅显示当前目录下的文件夹与文件；点击文件夹进入下一级。
-          </template>
-          删除会真实移除 OSS 对象（需 DeleteObject 权限）。
-        </p>
       </template>
     </template>
   </el-card>
@@ -873,12 +864,6 @@ onMounted(() => {
 .file-list__pagination {
   margin-top: 16px;
   justify-content: flex-end;
-}
-
-.file-list__hint {
-  margin: 12px 0 0;
-  font-size: 12px;
-  color: #909399;
 }
 
 @media (max-width: 767px) {

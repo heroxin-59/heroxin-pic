@@ -13,38 +13,59 @@ const route = useRoute()
 const fileStore = useFileStore()
 const { isMobile, isCompactHeight, isLandscape } = useBreakpoint()
 
-const { dragOffsetX, isDragging, navTransitionName, resolveNavTransitionName, resetViewport } =
-  useMobileNavSwipe({
-    enabled: isMobile,
-  })
+const {
+  dragOffsetX,
+  isDragging,
+  isAnimating,
+  navTransitionName,
+  navigationKind,
+  resolveNavTransitionName,
+  resetViewport,
+} = useMobileNavSwipe({
+  enabled: isMobile,
+})
 
 const layoutClass = computed(() => ({
   'is-mobile': isMobile.value,
   'is-landscape': isLandscape.value,
   'is-compact': isMobile.value && isCompactHeight.value,
   'is-nav-dragging': isDragging.value,
+  'is-nav-animating': isAnimating.value,
 }))
 
-/** 仅在手指跟手拖动时平移视口，切页动画交给 Vue transition */
+const mobileTransitionName = computed(() => {
+  if (!isMobile.value || !navTransitionName.value) return undefined
+  if (navigationKind.value === 'swipe') return undefined
+  return navTransitionName.value
+})
+
+/** 跟手拖动与切页滑出：同一层 transform，避免松手后跳帧 */
 const viewportStyle = computed(() => {
-  if (!isMobile.value || !isDragging.value || dragOffsetX.value === 0) return undefined
+  if (!isMobile.value) return undefined
+  if (!isDragging.value && !isAnimating.value && dragOffsetX.value === 0) return undefined
   return {
     transform: `translate3d(${dragOffsetX.value}px, 0, 0)`,
-    transition: 'none',
+    transition: isDragging.value ? 'none' : 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+    willChange: 'transform',
   }
 })
 
 function onNavTransitionDone() {
   navTransitionName.value = ''
+  navigationKind.value = null
   resetViewport()
 }
 
 watch(
   () => route.path,
   (to, from) => {
-    resetViewport()
-    if (!isMobile.value || !from || !isMainNavPath(to) || !isMainNavPath(from)) return
+    if (!isMobile.value || !from || !isMainNavPath(to) || !isMainNavPath(from)) {
+      if (navigationKind.value !== 'swipe') resetViewport()
+      return
+    }
     if (to === from) return
+    if (navigationKind.value === 'swipe') return
+    navigationKind.value = 'tab'
     navTransitionName.value = resolveNavTransitionName(from, to)
   },
 )
@@ -79,10 +100,7 @@ const boundaryKey = computed(() => route.fullPath)
     <main class="app-main">
       <div class="app-main__viewport" :style="viewportStyle">
         <router-view v-slot="{ Component }">
-          <transition
-            :name="isMobile && navTransitionName ? navTransitionName : undefined"
-            @after-enter="onNavTransitionDone"
-          >
+          <transition :name="mobileTransitionName" @after-enter="onNavTransitionDone">
             <div :key="route.path" class="app-main__page">
               <AppErrorBoundary :reset-key="boundaryKey">
                 <component :is="Component" />
@@ -184,14 +202,17 @@ const boundaryKey = computed(() => route.fullPath)
   position: relative;
   min-height: 100%;
   overflow: hidden;
+  backface-visibility: hidden;
 }
 
 .app-main__page {
   width: 100%;
   position: relative;
+  backface-visibility: hidden;
 }
 
-.app-layout.is-nav-dragging .app-main__viewport {
+.app-layout.is-nav-dragging .app-main__viewport,
+.app-layout.is-nav-animating .app-main__viewport {
   touch-action: none;
 }
 
@@ -199,7 +220,9 @@ const boundaryKey = computed(() => route.fullPath)
 .app-layout.is-mobile .app-main__viewport :deep(.nav-slide-left-leave-active),
 .app-layout.is-mobile .app-main__viewport :deep(.nav-slide-right-enter-active),
 .app-layout.is-mobile .app-main__viewport :deep(.nav-slide-right-leave-active) {
-  transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 .app-layout.is-mobile .app-main__viewport :deep(.nav-slide-left-enter-active),
@@ -217,7 +240,7 @@ const boundaryKey = computed(() => route.fullPath)
 }
 
 .app-layout.is-mobile .app-main__viewport :deep(.nav-slide-left-leave-to) {
-  transform: translate3d(-18%, 0, 0);
+  transform: translate3d(-100%, 0, 0);
 }
 
 .app-layout.is-mobile .app-main__viewport :deep(.nav-slide-right-enter-from) {
@@ -225,7 +248,7 @@ const boundaryKey = computed(() => route.fullPath)
 }
 
 .app-layout.is-mobile .app-main__viewport :deep(.nav-slide-right-leave-to) {
-  transform: translate3d(18%, 0, 0);
+  transform: translate3d(100%, 0, 0);
 }
 
 .app-layout.is-mobile .app-main__viewport :deep(.nav-slide-left-enter-to),
