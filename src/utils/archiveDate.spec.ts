@@ -73,6 +73,38 @@ describe('parseDateFromFilename (3.12.3)', () => {
     expect(parts).toEqual({ year: 2023, month: 1, day: 15 })
   })
 
+  it('parses millisecond timestamp with sequence suffix (WeChat-style)', () => {
+    const local = new Date(2026, 6, 28, 15, 2, 39)
+    const ms = local.getTime()
+    expect(parseDateFromFilename(`${ms}_616.jpg`, now)).toEqual({
+      year: 2026,
+      month: 7,
+      day: 28,
+    })
+    expect(parseDateFromFilename(`1785202559418_616.jpg`, now)).toEqual({
+      year: 2026,
+      month: 7,
+      day: 28,
+    })
+    expect(parseDateFromFilename(`IMG_${ms}_616.png`, now)).toEqual({
+      year: 2026,
+      month: 7,
+      day: 28,
+    })
+    expect(parseDateFromFilename('Video_1785202559418_616.mp4', now)).toEqual({
+      year: 2026,
+      month: 7,
+      day: 28,
+    })
+  })
+
+  it('parses unix second timestamp with sequence suffix', () => {
+    const local = new Date(2023, 0, 15, 8, 30, 0)
+    const sec = Math.floor(local.getTime() / 1000)
+    const parts = parseDateFromFilename(`${sec}_616.jpg`, now)
+    expect(parts).toEqual({ year: 2023, month: 1, day: 15 })
+  })
+
   it('prefers calendar compact date over unix timestamp patterns', () => {
     const parts = parseDateFromFilename('微信图片_20260811094736_18_2.jpg', now)
     expect(parts).toEqual({ year: 2026, month: 8, day: 11 })

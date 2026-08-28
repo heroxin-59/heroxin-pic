@@ -532,7 +532,7 @@ async function openViewer() {
   if (list.length === 0) return
 
   let startIndex = list.findIndex((item) => item.key === props.current!.key)
-  if (startIndex < 0) startIndex = 0
+  if (startIndex < 0) return
 
   opening = true
   const currentKey = list[startIndex]!.key

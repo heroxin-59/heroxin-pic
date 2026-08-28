@@ -13,6 +13,7 @@ import {
   View,
 } from '@element-plus/icons-vue'
 import FileTypeIcon from '@/components/file-list/FileTypeIcon.vue'
+import CategoryTag from '@/components/file-list/CategoryTag.vue'
 import BackToTop from '@/components/common/BackToTop.vue'
 import FileContextMenu from '@/components/file-list/FileContextMenu.vue'
 import FilePreviewDialog from '@/components/preview/FilePreviewDialog.vue'
@@ -23,7 +24,6 @@ import {
   FILE_SORT_OPTIONS,
   useFileListQuery,
 } from '@/composables/useFileListQuery'
-import { getCategoryLabel, getCategoryTagType } from '@/constants/fileTypes'
 import { getAccessUrl, downloadOssFile } from '@/services/fileList'
 import { useFileStore, type FolderBreadcrumb } from '@/stores/files'
 import type { FileRecord, FolderEntry } from '@/types/file'
@@ -412,9 +412,7 @@ onMounted(() => {
             </el-table-column>
             <el-table-column label="类型" width="100">
               <template #default="{ row }">
-                <el-tag size="small" :type="getCategoryTagType(row.category)">{{
-                  getCategoryLabel(row.category)
-                }}</el-tag>
+                <CategoryTag :category="row.category" />
               </template>
             </el-table-column>
             <el-table-column label="大小" width="100">
@@ -493,9 +491,7 @@ onMounted(() => {
               <div class="file-list__card-head">
                 <FileTypeIcon :category="row.category" :size="22" />
                 <span class="file-list__card-name">{{ row.name }}</span>
-                <el-tag size="small" :type="getCategoryTagType(row.category)">{{
-                  getCategoryLabel(row.category)
-                }}</el-tag>
+                <CategoryTag :category="row.category" />
               </div>
               <div class="file-list__card-meta">
                 <span>{{ formatBytes(row.size) }}</span>

@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import type { FileRecord } from '@/types/file'
+import { isAlbumMediaCategory } from '@/constants/fileTypes'
 import { FILE_SORT_OPTIONS, type FileSortKey, type FileSortOrder } from '@/composables/useFileListQuery'
 
 function compareRecords(
@@ -19,7 +20,7 @@ function compareRecords(
   return order === 'asc' ? result : -result
 }
 
-/** 图片相册页：在已加载 records 中筛出图片并搜索 / 排序 */
+/** 相册页：在已加载 records 中筛出图片与视频并搜索 / 排序 */
 export function useImageAlbumQuery(getRecords: () => FileRecord[]) {
   const keyword = ref('')
   const sortValue = ref('time-desc')
@@ -28,13 +29,15 @@ export function useImageAlbumQuery(getRecords: () => FileRecord[]) {
     return FILE_SORT_OPTIONS.find((item) => item.value === sortValue.value) ?? FILE_SORT_OPTIONS[0]
   })
 
-  const imageRecords = computed(() => getRecords().filter((item) => item.category === 'image'))
+  const albumRecords = computed(() =>
+    getRecords().filter((item) => isAlbumMediaCategory(item.category)),
+  )
 
   const filteredRecords = computed(() => {
     const query = keyword.value.trim().toLowerCase()
     const sort = currentSort.value
 
-    const filtered = imageRecords.value.filter((item) => {
+    const filtered = albumRecords.value.filter((item) => {
       if (!query) return true
       return (
         item.name.toLowerCase().includes(query) ||
@@ -60,7 +63,9 @@ export function useImageAlbumQuery(getRecords: () => FileRecord[]) {
   return {
     keyword,
     sortValue,
-    imageRecords,
+    albumRecords,
+    /** @deprecated 使用 albumRecords */
+    imageRecords: albumRecords,
     filteredRecords,
     filteredTotal,
     filteredBytes,

@@ -80,6 +80,40 @@ export function archiveDatePartsFromDate(date: Date): ArchiveDateParts {
   }
 }
 
+/** `{可选前缀_}{毫秒13位}_{序号}` 匹配结果 */
+export interface MsSeqTimestampMatch {
+  /** 如 `Video`、`IMG`；纯数字主体时为 null */
+  prefix: string | null
+  date: Date
+}
+
+/**
+ * 从文件名主体解析 `{前缀_}{毫秒}_{序号}`。
+ * 支持 `1785202559418_616`、`Video_1785202559418_616` 等。
+ */
+export function parseMsSeqTimestampFromStem(stem: string): MsSeqTimestampMatch | null {
+  const match = /^(?:(.+?)_)?(\d{13})_(\d+)$/.exec(stem.trim())
+  if (!match) return null
+
+  const date = new Date(Number(match[2]))
+  if (Number.isNaN(date.getTime())) return null
+
+  const prefix = match[1]?.trim() || null
+  return { prefix, date }
+}
+
+/** 将毫秒时间戳格式化为列表展示名（本地时区） */
+export function formatTimestampFilenameDisplay(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`
+}
+
+/** 将 `{前缀_}{毫秒}_{序号}` 格式化为可读展示名 */
+export function formatMsSeqFilenameDisplay(match: MsSeqTimestampMatch): string {
+  const formatted = formatTimestampFilenameDisplay(match.date)
+  return match.prefix ? `${match.prefix} ${formatted}` : formatted
+}
+
 /**
  * 3.12.1：是否按「内容日期」归档。
  * 仅图片类（与 `fileTypes` 目录中 category=image 一致）；PDF/Word/文本等返回 false。
@@ -344,6 +378,22 @@ export function parseDateFromFilename(
       match.index ?? 0,
       now,
     )
+  }
+
+  // 毫秒时间戳_序号，如 1785202559418_616.jpg、Video_1785202559418_616.mp4
+  for (const match of text.matchAll(/(?<!\d)(\d{13})_(\d+)(?!\d)/g)) {
+    const date = new Date(Number(match[1]))
+    if (Number.isNaN(date.getTime())) continue
+    const parts = archiveDatePartsFromDate(date)
+    pushCandidate(candidates, parts.year, parts.month, parts.day, 94, match.index ?? 0, now)
+  }
+
+  // 秒时间戳_序号，如 1710000000_616.jpg
+  for (const match of text.matchAll(/(?<!\d)(\d{10})_(\d+)(?!\d)/g)) {
+    const date = new Date(Number(match[1]) * 1000)
+    if (Number.isNaN(date.getTime())) continue
+    const parts = archiveDatePartsFromDate(date)
+    pushCandidate(candidates, parts.year, parts.month, parts.day, 91, match.index ?? 0, now)
   }
 
   // Unix 毫秒时间戳（13 位），如 mmexport1724567890123.jpg

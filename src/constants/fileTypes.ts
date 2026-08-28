@@ -60,7 +60,7 @@ export type CategoryTagType = 'success' | 'warning' | 'danger' | 'primary' | 'in
 
 /**
  * 图片绿 / PDF红 / Word蓝 / 文本橙 / 其他灰
- * 文本用 warning（橙），比自定义紫更贴合 Element 体系、也更好区分
+ * 视频在 CategoryTag 中用同类 light 紫色样式（Element Plus 无内置紫 type）
  */
 const CATEGORY_TAG_TYPE: Record<FileCategory, CategoryTagType> = {
   image: 'success',
@@ -82,6 +82,11 @@ export function getCatalogByExt(ext: string): FileTypeDefinition | undefined {
 /** 从白名单中筛出图片类扩展名 */
 export function filterImageExtensions(allowedExt: string[]): string[] {
   return allowedExt.filter((ext) => getCatalogByExt(ext)?.category === 'image')
+}
+
+/** 相册页展示的媒体类型（图片 + 视频） */
+export function isAlbumMediaCategory(category: FileCategory): boolean {
+  return category === 'image' || category === 'video'
 }
 
 /** 构建 `<input accept>` 属性（扩展名形式） */

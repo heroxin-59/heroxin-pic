@@ -20,6 +20,21 @@ describe('displayNameFromStoredFilename', () => {
     expect(displayNameFromStoredFilename('报告-1710000000000.docx')).toBe('报告.docx')
   })
 
+  it('formats millisecond timestamp with sequence suffix for display', () => {
+    const local = new Date(2026, 6, 28, 15, 2, 39)
+    const ms = local.getTime()
+    expect(displayNameFromStoredFilename(`${ms}_616.jpg`)).toBe('2026-07-28 15-02-39.jpg')
+    expect(displayNameFromStoredFilename('1785202559418_616.jpg')).toBe(
+      '2026-07-28 09-35-59.jpg',
+    )
+    expect(displayNameFromStoredFilename('Video_1785202559418_616.mp4')).toBe(
+      'Video 2026-07-28 09-35-59.mp4',
+    )
+    expect(displayNameFromStoredFilename('IMG_1785202559418_616.png')).toBe(
+      'IMG 2026-07-28 09-35-59.png',
+    )
+  })
+
   it('returns original when no token', () => {
     expect(displayNameFromStoredFilename('plain.txt')).toBe('plain.txt')
   })

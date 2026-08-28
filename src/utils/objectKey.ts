@@ -1,4 +1,8 @@
 import type { DuplicateStrategy } from '@/config/upload'
+import {
+  formatMsSeqFilenameDisplay,
+  parseMsSeqTimestampFromStem,
+} from '@/utils/archiveDate'
 
 /** 生成 UUID（优先 crypto.randomUUID） */
 function createId(): string {
@@ -64,6 +68,11 @@ export function displayNameFromStoredFilename(storedName: string): string {
   const dot = base.lastIndexOf('.')
   const stem = dot > 0 ? base.slice(0, dot) : base
   const ext = dot > 0 ? base.slice(dot) : ''
+
+  const msSeqMatch = parseMsSeqTimestampFromStem(stem)
+  if (msSeqMatch) {
+    return `${formatMsSeqFilenameDisplay(msSeqMatch)}${ext}`
+  }
 
   const tsSuffix = /^(.+)-(\d{13})$/.exec(stem)
   if (tsSuffix?.[1]) {

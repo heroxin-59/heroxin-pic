@@ -48,6 +48,20 @@ export function useFilePreview(options: UseFilePreviewOptions = {}) {
     return images
   })
 
+  const videoGallery = computed(() => {
+    const fromOption = options.gallery?.()?.filter((item) => item.category === 'video') ?? null
+    const videos =
+      fromOption && fromOption.length > 0
+        ? fromOption
+        : records.value.filter((item) => item.category === 'video')
+
+    if (!current.value || current.value.category !== 'video') return videos
+    if (!videos.some((item) => item.key === current.value!.key)) {
+      return [current.value, ...videos]
+    }
+    return videos
+  })
+
   async function load(source: { key: string; name?: string }) {
     loading.value = true
     errorMessage.value = ''
@@ -91,6 +105,7 @@ export function useFilePreview(options: UseFilePreviewOptions = {}) {
     errorMessage,
     previewKind,
     imageGallery,
+    videoGallery,
     load,
     setCurrent,
     clear,

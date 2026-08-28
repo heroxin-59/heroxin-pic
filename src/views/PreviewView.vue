@@ -8,7 +8,7 @@ import TextPreview from '@/components/preview/TextPreview.vue'
 import VideoPreview from '@/components/preview/VideoPreview.vue'
 import PreviewFallback from '@/components/preview/PreviewFallback.vue'
 import { useFilePreview } from '@/composables/useFilePreview'
-import { getCategoryLabel, getCategoryTagType } from '@/constants/fileTypes'
+import CategoryTag from '@/components/file-list/CategoryTag.vue'
 import type { FileRecord } from '@/types/file'
 import { formatBytes } from '@/utils/format'
 
@@ -85,9 +85,7 @@ watch(
                 {{ current?.name || '文件预览' }}
               </span>
               <div v-if="current && previewKind !== 'text'" class="preview-view__tags">
-                <el-tag size="small" :type="getCategoryTagType(current.category)">{{
-                  getCategoryLabel(current.category)
-                }}</el-tag>
+                <CategoryTag :category="current.category" />
                 <el-tag v-if="current.size" size="small" type="success">
                   {{ formatBytes(current.size) }}
                 </el-tag>

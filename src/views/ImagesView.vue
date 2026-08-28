@@ -26,7 +26,7 @@ const {
   deletingKey,
 } = storeToRefs(fileStore)
 
-const { imageRecords, filteredRecords, filteredTotal, filteredBytes } = useImageAlbumQuery(
+const { albumRecords, filteredRecords, filteredTotal, filteredBytes } = useImageAlbumQuery(
   () => records.value,
 )
 
@@ -44,7 +44,7 @@ const albumPreviewGallery = computed(() =>
 
 const statsLabel = computed(() => {
   if (!loaded.value || errorMessage.value) return ''
-  return `相册 ${filteredTotal.value} 张 · ${formatBytes(filteredBytes.value)}`
+  return `相册 ${filteredTotal.value} 个 · ${formatBytes(filteredBytes.value)}`
 })
 
 function onAlbumMetaMapChange(metaMap: Map<string, AlbumImageMeta>) {
@@ -66,11 +66,11 @@ function goUpload() {
 async function refresh() {
   try {
     await fileStore.loadAllFilesForGallery()
-    const count = imageRecords.value.length
+    const count = albumRecords.value.length
     if (count === 0) {
       showAppWarning('当前 OSS 前缀下暂无相册内容')
     } else {
-      showAppSuccess(`已加载 ${count} 张`)
+      showAppSuccess(`已加载 ${count} 个`)
     }
   } catch (error) {
     showAppError(error)
@@ -140,7 +140,7 @@ async function onAlbumBatchDownload(items: FileRecord[]) {
 async function onAlbumBatchDelete(items: FileRecord[]) {
   if (items.length === 0 || albumBatchBusy.value) return
   const confirmed = await confirmApp(
-    `确定从 OSS 删除选中的 ${items.length} 张图片吗？此操作不可恢复。`,
+    `确定从 OSS 删除选中的 ${items.length} 个文件吗？此操作不可恢复。`,
     {
       title: '批量删除确认',
       confirmButtonText: '删除',
@@ -160,8 +160,8 @@ async function onAlbumBatchDelete(items: FileRecord[]) {
         showAppError(error)
       }
     }
-    if (ok > 0) showAppSuccess(`已删除 ${ok} 张`)
-    if (ok < items.length) showAppWarning(`${items.length - ok} 张删除失败`)
+    if (ok > 0) showAppSuccess(`已删除 ${ok} 个`)
+    if (ok < items.length) showAppWarning(`${items.length - ok} 个删除失败`)
   } finally {
     albumBatchBusy.value = false
   }
@@ -209,10 +209,10 @@ onMounted(() => {
       </template>
     </el-result>
 
-    <el-empty v-else-if="loaded && imageRecords.length === 0" class="images-view__empty">
+    <el-empty v-else-if="loaded && albumRecords.length === 0" class="images-view__empty">
       <template #description>
-        <p>当前 OSS 前缀下暂无照片</p>
-        <p class="images-view__empty-hint">上传照片后会出现在此相册</p>
+        <p>当前 OSS 前缀下暂无照片或视频</p>
+        <p class="images-view__empty-hint">上传图片、视频后会出现在此相册</p>
       </template>
       <el-button type="primary" @click="goUpload">去上传</el-button>
     </el-empty>
@@ -234,8 +234,8 @@ onMounted(() => {
         />
 
         <p class="images-view__hint">
-          按拍摄日期分组展示；有 GPS 时显示地点（缩略图进入视口后解析 EXIF）。删除会真实移除 OSS
-          对象（需 DeleteObject 权限）。
+          按日期分组展示图片与视频；图片有 GPS 时显示地点（缩略图进入视口后解析 EXIF）。删除会真实移除
+          OSS 对象（需 DeleteObject 权限）。
         </p>
     </template>
   </el-card>
@@ -255,7 +255,7 @@ onMounted(() => {
     @delete="deleteFile"
   />
 
-  <BackToTop v-if="loaded && imageRecords.length > 0" />
+  <BackToTop v-if="loaded && albumRecords.length > 0" />
 </template>
 
 <style scoped>

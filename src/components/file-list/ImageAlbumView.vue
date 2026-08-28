@@ -337,7 +337,7 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <p v-if="isMobile && !selectionMode" class="image-album__hint">长按图片可进入多选</p>
+    <p v-if="isMobile && !selectionMode" class="image-album__hint">长按图片或视频可进入多选</p>
 
     <div
       ref="rootRef"
@@ -379,7 +379,7 @@ onUnmounted(() => {
             </div>
           </button>
           <div class="image-album__header-aside">
-            <span class="image-album__count">{{ item.count }} 张</span>
+            <span class="image-album__count">{{ item.count }} 个</span>
             <el-button
               v-if="selectionMode"
               size="small"
@@ -428,7 +428,7 @@ onUnmounted(() => {
         role="toolbar"
         aria-label="相册批量操作"
       >
-        <span class="album-action-bar__count">已选 {{ selectedCount }} 张</span>
+        <span class="album-action-bar__count">已选 {{ selectedCount }} 个</span>
         <div class="album-action-bar__actions">
           <el-button
             size="small"
