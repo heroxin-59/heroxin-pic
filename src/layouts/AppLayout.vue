@@ -13,9 +13,10 @@ const route = useRoute()
 const fileStore = useFileStore()
 const { isMobile, isCompactHeight, isLandscape } = useBreakpoint()
 
-const { dragOffsetX, isDragging, navTransitionName, resolveNavTransitionName } = useMobileNavSwipe({
-  enabled: isMobile,
-})
+const { dragOffsetX, isDragging, navTransitionName, resolveNavTransitionName, resetViewport } =
+  useMobileNavSwipe({
+    enabled: isMobile,
+  })
 
 const layoutClass = computed(() => ({
   'is-mobile': isMobile.value,
@@ -24,17 +25,24 @@ const layoutClass = computed(() => ({
   'is-nav-dragging': isDragging.value,
 }))
 
+/** 仅在手指跟手拖动时平移视口，切页动画交给 Vue transition */
 const viewportStyle = computed(() => {
-  if (!isMobile.value || dragOffsetX.value === 0) return undefined
+  if (!isMobile.value || !isDragging.value || dragOffsetX.value === 0) return undefined
   return {
     transform: `translate3d(${dragOffsetX.value}px, 0, 0)`,
-    transition: isDragging.value ? 'none' : 'transform 0.28s cubic-bezier(0.32, 0.72, 0, 1)',
+    transition: 'none',
   }
 })
+
+function onNavTransitionDone() {
+  navTransitionName.value = ''
+  resetViewport()
+}
 
 watch(
   () => route.path,
   (to, from) => {
+    resetViewport()
     if (!isMobile.value || !from || !isMainNavPath(to) || !isMainNavPath(from)) return
     if (to === from) return
     navTransitionName.value = resolveNavTransitionName(from, to)
@@ -71,7 +79,10 @@ const boundaryKey = computed(() => route.fullPath)
     <main class="app-main">
       <div class="app-main__viewport" :style="viewportStyle">
         <router-view v-slot="{ Component }">
-          <transition :name="isMobile && navTransitionName ? navTransitionName : undefined">
+          <transition
+            :name="isMobile && navTransitionName ? navTransitionName : undefined"
+            @after-enter="onNavTransitionDone"
+          >
             <div :key="route.path" class="app-main__page">
               <AppErrorBoundary :reset-key="boundaryKey">
                 <component :is="Component" />
@@ -172,11 +183,12 @@ const boundaryKey = computed(() => route.fullPath)
 .app-main__viewport {
   position: relative;
   min-height: 100%;
-  will-change: transform;
+  overflow: hidden;
 }
 
 .app-main__page {
   width: 100%;
+  position: relative;
 }
 
 .app-layout.is-nav-dragging .app-main__viewport {
@@ -205,7 +217,7 @@ const boundaryKey = computed(() => route.fullPath)
 }
 
 .app-layout.is-mobile .app-main__viewport :deep(.nav-slide-left-leave-to) {
-  transform: translate3d(-24%, 0, 0);
+  transform: translate3d(-18%, 0, 0);
 }
 
 .app-layout.is-mobile .app-main__viewport :deep(.nav-slide-right-enter-from) {
@@ -213,7 +225,14 @@ const boundaryKey = computed(() => route.fullPath)
 }
 
 .app-layout.is-mobile .app-main__viewport :deep(.nav-slide-right-leave-to) {
-  transform: translate3d(24%, 0, 0);
+  transform: translate3d(18%, 0, 0);
+}
+
+.app-layout.is-mobile .app-main__viewport :deep(.nav-slide-left-enter-to),
+.app-layout.is-mobile .app-main__viewport :deep(.nav-slide-left-leave-from),
+.app-layout.is-mobile .app-main__viewport :deep(.nav-slide-right-enter-to),
+.app-layout.is-mobile .app-main__viewport :deep(.nav-slide-right-leave-from) {
+  transform: translate3d(0, 0, 0);
 }
 
 .mobile-tabbar {

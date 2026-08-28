@@ -816,14 +816,14 @@ onUnmounted(() => {
 
 .album-action-bar.is-compact .album-action-bar__actions {
   flex-wrap: nowrap;
-  gap: 2px;
+  gap: 8px;
   flex-shrink: 1;
   min-width: 0;
   justify-content: flex-end;
 }
 
 .album-action-bar.is-compact .album-action-bar__actions .el-button {
-  padding: 4px 6px;
+  padding: 4px 10px;
   height: 28px;
   min-height: 28px;
   font-size: 12px;
@@ -831,7 +831,7 @@ onUnmounted(() => {
 }
 
 .album-action-bar.is-compact .album-action-bar__actions .el-button.is-text {
-  padding: 4px 4px;
+  padding: 4px 6px;
 }
 
 .album-action-bar.is-compact .album-action-bar__actions .el-button .el-icon {

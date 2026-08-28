@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted, ref, type Ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { mainNavItems } from '@/constants/navigation'
 import {
@@ -132,7 +132,6 @@ export function useMobileNavSwipe(options: UseMobileNavSwipeOptions) {
 
     if (!tracking) return
     const wasHorizontal = axisLocked === 'horizontal'
-    const currentDx = dragOffsetX.value
     const startTarget = touchTarget
     resetGesture()
 
@@ -182,15 +181,7 @@ export function useMobileNavSwipe(options: UseMobileNavSwipeOptions) {
     const fromPath = route.path
     navTransitionName.value = resolveNavTransitionName(fromPath, targetPath)
     navigating = true
-    isDragging.value = false
-
-    const commitDirection = dx < 0 ? -1 : 1
-    const width = window.innerWidth
-    dragOffsetX.value = commitDirection * Math.min(Math.abs(currentDx), width * 0.42)
-
-    requestAnimationFrame(() => {
-      dragOffsetX.value = commitDirection * -width * 0.18
-    })
+    dragOffsetX.value = 0
 
     try {
       await router.push(targetPath)
@@ -212,6 +203,15 @@ export function useMobileNavSwipe(options: UseMobileNavSwipeOptions) {
     document.addEventListener('touchcancel', onTouchCancel, { passive: true, capture: true })
   })
 
+  watch(
+    () => route.path,
+    () => {
+      dragOffsetX.value = 0
+      navigating = false
+      resetGesture()
+    },
+  )
+
   onUnmounted(() => {
     document.removeEventListener('touchstart', onTouchStart, true)
     document.removeEventListener('touchend', onTouchEnd, true)
@@ -226,5 +226,6 @@ export function useMobileNavSwipe(options: UseMobileNavSwipeOptions) {
     isDragging,
     navTransitionName,
     resolveNavTransitionName,
+    resetViewport: snapBack,
   }
 }
