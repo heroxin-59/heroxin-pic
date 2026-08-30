@@ -315,6 +315,25 @@ export function parseDateFromFilename(
     )
   }
 
+  // 20230226201848458（YYYYMMDDHHmmss + 3 位毫秒，常见于部分手机/导出命名）
+  for (const match of text.matchAll(
+    /(?<!\d)(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\d{3})(?!\d)/g,
+  )) {
+    const hour = Number(match[4])
+    const minute = Number(match[5])
+    const second = Number(match[6])
+    if (hour > 23 || minute > 59 || second > 59) continue
+    pushCandidate(
+      candidates,
+      Number(match[1]),
+      Number(match[2]),
+      Number(match[3]),
+      97,
+      match.index ?? 0,
+      now,
+    )
+  }
+
   // 2024050116543345（YYYYMMDDHHmmss + 2 位，常见于部分手机/导出命名）
   for (const match of text.matchAll(
     /(?<!\d)(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(?!\d)/g,
