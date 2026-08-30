@@ -88,18 +88,37 @@ export interface MsSeqTimestampMatch {
 }
 
 /**
- * 从文件名主体解析 `{前缀_}{毫秒}_{序号}`。
- * 支持 `1785202559418_616`、`Video_1785202559418_616` 等。
+ * 从文件名主体解析 `{前缀_}{毫秒}_{序号}`、`{前缀_}{16位微秒}`、`{前缀_}{13位毫秒}`。
+ * 支持 `1785202559418_616`、`Video_1785202559418_616`、`Image_1294485035594420` 等。
  */
 export function parseMsSeqTimestampFromStem(stem: string): MsSeqTimestampMatch | null {
-  const match = /^(?:(.+?)_)?(\d{13})_(\d+)$/.exec(stem.trim())
-  if (!match) return null
+  const trimmed = stem.trim()
 
-  const date = new Date(Number(match[2]))
-  if (Number.isNaN(date.getTime())) return null
+  const msSeq = /^(?:(.+?)_)?(\d{13})_(\d+)$/.exec(trimmed)
+  if (msSeq) {
+    const date = new Date(Number(msSeq[2]))
+    if (!Number.isNaN(date.getTime())) {
+      return { prefix: msSeq[1]?.trim() || null, date }
+    }
+  }
 
-  const prefix = match[1]?.trim() || null
-  return { prefix, date }
+  const prefixedMicro = /^(?:(.+?)_)(\d{16})$/.exec(trimmed)
+  if (prefixedMicro?.[1]) {
+    const date = new Date(Math.floor(Number(prefixedMicro[2]) / 1000))
+    if (!Number.isNaN(date.getTime())) {
+      return { prefix: prefixedMicro[1].trim(), date }
+    }
+  }
+
+  const prefixedMs = /^(?:(.+?)_)(\d{13})$/.exec(trimmed)
+  if (prefixedMs?.[1]) {
+    const date = new Date(Number(prefixedMs[2]))
+    if (!Number.isNaN(date.getTime())) {
+      return { prefix: prefixedMs[1].trim(), date }
+    }
+  }
+
+  return null
 }
 
 /** 将毫秒时间戳格式化为列表展示名（本地时区） */
@@ -416,6 +435,23 @@ export function parseDateFromFilename(
       match.index ?? 0,
       now,
     )
+  }
+
+  // Image_1294485035594420（字母前缀 + 16 位微秒时间戳）
+  for (const match of text.matchAll(/(?<![\d])([A-Za-z][A-Za-z0-9]*_)(\d{16})(?!\d)/g)) {
+    const ms = Math.floor(Number(match[2]) / 1000)
+    const date = new Date(ms)
+    if (Number.isNaN(date.getTime())) continue
+    const parts = archiveDatePartsFromDate(date)
+    pushCandidate(candidates, parts.year, parts.month, parts.day, 95, match.index ?? 0, now)
+  }
+
+  // Image_1785202559418（字母前缀 + 13 位毫秒，无 _序号）
+  for (const match of text.matchAll(/(?<![\d])([A-Za-z][A-Za-z0-9]*_)(\d{13})(?!\d)(?!_\d)/g)) {
+    const date = new Date(Number(match[2]))
+    if (Number.isNaN(date.getTime())) continue
+    const parts = archiveDatePartsFromDate(date)
+    pushCandidate(candidates, parts.year, parts.month, parts.day, 94, match.index ?? 0, now)
   }
 
   // 毫秒时间戳_序号，如 1785202559418_616.jpg、Video_1785202559418_616.mp4

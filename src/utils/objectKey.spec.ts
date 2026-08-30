@@ -33,6 +33,9 @@ describe('displayNameFromStoredFilename', () => {
     expect(displayNameFromStoredFilename('IMG_1785202559418_616.png')).toBe(
       'IMG 2026-07-28 09-35-59.png',
     )
+    expect(displayNameFromStoredFilename('Image_1294485035594420.jpg')).toBe(
+      'Image 2011-01-08 19-10-35.jpg',
+    )
   })
 
   it('returns original when no token', () => {

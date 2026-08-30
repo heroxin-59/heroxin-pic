@@ -61,6 +61,14 @@ describe('parseDateFromFilename (3.12.3)', () => {
     expect(parts ? formatArchiveDatePath(parts) : null).toBe(expectPath)
   })
 
+  it('parses prefixed 16-digit microsecond timestamp', () => {
+    expect(parseDateFromFilename('Image_1294485035594420.jpg', now)).toEqual({
+      year: 2011,
+      month: 1,
+      day: 8,
+    })
+  })
+
   it('parses 17-digit compact datetime (YYYYMMDDHHmmss + milliseconds)', () => {
     expect(parseDateFromFilename('20230226201848458.jpg', now)).toEqual({
       year: 2023,
