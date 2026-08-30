@@ -14,7 +14,7 @@
 | `VITE_STS_URL` | 生产推荐 | STS 临时凭证接口；本地可用 `/api/sts`（见 [`sts-setup.md`](./sts-setup.md)） |
 | `VITE_OSS_ACCESS_KEY_ID` 等 | 仅本地 | 长期 Key 或手工临时凭证；**禁止生产 / 禁止提交** |
 | `VITE_MAX_SIZE_MB` | 否 | 单文件上限 MB，默认 50 |
-| `VITE_MAX_TOTAL_SIZE_MB` | 否 | 单批上限 MB，默认 200 |
+| `VITE_MAX_TOTAL_SIZE_MB` | 否 | 单批上限 MB，默认 500 |
 | `VITE_ALLOWED_EXT` | 否 | 允许扩展名，逗号分隔 |
 | `VITE_DUPLICATE_STRATEGY` | 否 | `uuid` / `timestamp` / `overwrite` / `suffix` |
 | `VITE_OSS_THUMB_PROCESS` | 否 | 相册缩略图图片处理参数 |

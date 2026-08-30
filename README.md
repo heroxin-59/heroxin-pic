@@ -337,7 +337,7 @@ heroxin-pic/
 | `VITE_OSS_DIR`            | 上传目录前缀              | 如 `uploads/`                                                            |
 | `VITE_STS_URL`            | 获取 STS 的接口           | 推荐；本地可用 `/api/sts`（代理到 `sts-server`）                         |
 | `VITE_MAX_SIZE_MB`        | 单文件上限（MB）          | 默认 50                                                                  |
-| `VITE_MAX_TOTAL_SIZE_MB`  | 本批/队列总体积上限（MB） | 默认 200                                                                 |
+| `VITE_MAX_TOTAL_SIZE_MB`  | 本批/队列总体积上限（MB） | 默认 500                                                                 |
 | `VITE_ALLOWED_EXT`        | 允许扩展名列表            | 逗号分隔；含常见图片、视频、文档、文本扩展名 |
 | `VITE_DUPLICATE_STRATEGY` | 重名策略                  | `uuid`（默认，OSS 为 `UUID-文件名`，界面显示原名）/ `timestamp` / `overwrite` / `suffix` |
 | `VITE_ALBUM_THUMB_CONCURRENCY` | 相册缩略图并发数     | 默认 4                                                                   |
@@ -497,6 +497,7 @@ heroxin-pic/
 | 2026-08-30 | 文件名 16 位日期时间   | 支持 `YYYYMMDDHHmmssSS`（如 `2024050116543345.jpg`）归档日解析 |
 | 2026-08-30 | 文件名 17 位日期时间   | 支持 `YYYYMMDDHHmmssSSS`（如 `20230226201848458.jpg`）归档日解析 |
 | 2026-08-30 | 前缀+微秒时间戳文件名  | 支持 `Image_1294485035594420.jpg`（前缀 + 16 位微秒）归档与展示名 |
+| 2026-08-30 | 批量上传体积上限       | `VITE_MAX_TOTAL_SIZE_MB` 默认由 200 调整为 500 MB |
 
 ---
 

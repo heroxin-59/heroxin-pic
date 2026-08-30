@@ -1,5 +1,5 @@
 const DEFAULT_MAX_SIZE_MB = 50
-const DEFAULT_MAX_TOTAL_SIZE_MB = 200
+const DEFAULT_MAX_TOTAL_SIZE_MB = 500
 const DEFAULT_ALLOWED_EXT = [
   'jpg',
   'jpeg',
