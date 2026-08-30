@@ -46,6 +46,7 @@ describe('parseDateFromFilename (3.12.3)', () => {
     ['03152026.jpg', '2026/03/15'],
     ['2026.03.15.12.30.00.jpg', '2026/03/15'],
     ['20260315 120001.jpg', '2026/03/15'],
+    ['2024050116543345.jpg', '2024/05/01'],
     ['15-03-2026_120001.jpg', '2026/03/15'],
     ['no-date.png', null],
     ['report.pdf', null],
@@ -57,6 +58,19 @@ describe('parseDateFromFilename (3.12.3)', () => {
   it.each(cases)('%s → %s', (name, expectPath) => {
     const parts = parseDateFromFilename(name, now)
     expect(parts ? formatArchiveDatePath(parts) : null).toBe(expectPath)
+  })
+
+  it('parses 16-digit compact datetime (YYYYMMDDHHmmss + suffix)', () => {
+    expect(parseDateFromFilename('2024050116543345.jpg', now)).toEqual({
+      year: 2024,
+      month: 5,
+      day: 1,
+    })
+    expect(parseDateFromFilename('IMG_2024050116543345.jpg', now)).toEqual({
+      year: 2024,
+      month: 5,
+      day: 1,
+    })
   })
 
   it('parses unix millisecond timestamps in filename', () => {
