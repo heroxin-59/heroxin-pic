@@ -105,7 +105,7 @@ VITE_OSS_THUMB_PROCESS=image/resize,m_lfit,w_480/quality,q_80
 - 宽高比：`src/services/imageAspect.ts`；Blob 解码或 `<img>` `naturalWidth/Height` 写入缓存；极端比例会夹紧。
 - 未知比例先按 **1:1** 占位，比例到达后重算布局（可能有轻微跳动，属预期）。
 - 滚动：`useWindowVirtualRows` 按 `offset` 排序扫描可视区，`overscanPx` 缓冲邻列。
-- 懒加载：不可见项不挂载 → 缩略图不拉取。
+- 懒加载：不可见项不挂载；已挂载项用 `IntersectionObserver` 仅在接近视口时拉取缩略图（滚出预加载区不释放已显示图）。
 
 ---
 

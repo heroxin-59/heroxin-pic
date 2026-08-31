@@ -42,6 +42,12 @@ let heldKey: string | null = null
 let heldKind: 'image' | 'video' | null = null
 let refreshAttempted = false
 let resizeObserver: ResizeObserver | null = null
+let intersectionObserver: IntersectionObserver | null = null
+/** 是否处于视口（含上下预加载缓冲）内 */
+let inView = false
+
+/** 进入视口前/后各预加载约 1 屏，避免快速滚动白块 */
+const VIEWPORT_ROOT_MARGIN = '100% 0px'
 
 function releaseHeldRef() {
   if (heldKey && heldKind === 'image') {
@@ -116,11 +122,49 @@ function hydrateVideoFromCache() {
 }
 
 function startThumbLoad() {
+  if (!inView) return
   failed.value = false
   if (isVideo.value) {
     hydrateVideoFromCache()
   }
   void loadThumb()
+}
+
+function onViewportChange(isIntersecting: boolean) {
+  inView = isIntersecting
+  if (isIntersecting) {
+    startThumbLoad()
+    return
+  }
+  // 滚出预加载区：放弃进行中的请求以释放并发槽，但保留已显示的缩略图
+  if (loading.value) {
+    loadToken += 1
+    loading.value = false
+  }
+}
+
+function setupViewportObserver() {
+  intersectionObserver?.disconnect()
+  const el = rootRef.value
+  if (!el) return
+
+  if (typeof IntersectionObserver === 'undefined') {
+    inView = true
+    startThumbLoad()
+    return
+  }
+
+  intersectionObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (entry.target === el) {
+          onViewportChange(entry.isIntersecting)
+        }
+      }
+    },
+    { root: null, rootMargin: VIEWPORT_ROOT_MARGIN, threshold: 0 },
+  )
+  intersectionObserver.observe(el)
 }
 
 async function loadImageThumb(force = false) {
@@ -298,7 +342,7 @@ function setupResizeRetry() {
   if (!el || typeof ResizeObserver === 'undefined') return
 
   resizeObserver = new ResizeObserver(() => {
-    if (el.clientWidth > 0 && el.clientHeight > 0 && shouldRetryLoad()) {
+    if (inView && el.clientWidth > 0 && el.clientHeight > 0 && shouldRetryLoad()) {
       startThumbLoad()
     }
   })
@@ -311,18 +355,22 @@ function resetForRecordChange() {
   releaseHeld()
   failed.value = false
   loading.value = false
-  startThumbLoad()
+  if (inView) {
+    startThumbLoad()
+  }
 }
 
 watch(() => props.record.key, resetForRecordChange)
 
 onMounted(() => {
-  startThumbLoad()
+  setupViewportObserver()
   setupResizeRetry()
 })
 
 onBeforeUnmount(() => {
   loadToken += 1
+  intersectionObserver?.disconnect()
+  intersectionObserver = null
   resizeObserver?.disconnect()
   resizeObserver = null
   releaseHeld()
