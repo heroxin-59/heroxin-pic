@@ -10,6 +10,11 @@ import {
   removeFullListRecordById,
   upsertFullListRecord,
 } from '@/utils/fileListCache'
+import {
+  clearPersistedFileList,
+  readPersistedFileList,
+  writePersistedFileList,
+} from '@/utils/fileListPersist'
 
 /** 面包屑：相对配置根目录的可点击路径 */
 export interface FolderBreadcrumb {
@@ -93,12 +98,9 @@ export const useFileStore = defineStore('files', () => {
 
   function patchFullListSnapshot(next: FileRecord[] | null) {
     fullListSnapshot.value = next
-  }
-
-  function upsertCachedRecord(record: FileRecord) {
-    const base = fullListSnapshot.value ?? []
-    patchFullListSnapshot(upsertFullListRecord(base, record))
-    applyCurrentListView()
+    if (next) {
+      void writePersistedFileList(rootPrefix.value, next)
+    }
   }
 
   function removeCachedRecord(id: string) {
@@ -106,6 +108,12 @@ export const useFileStore = defineStore('files', () => {
       patchFullListSnapshot(removeFullListRecordById(fullListSnapshot.value, id))
     }
     records.value = records.value.filter((item) => item.id !== id)
+  }
+
+  function upsertCachedRecord(record: FileRecord) {
+    const base = fullListSnapshot.value ?? []
+    patchFullListSnapshot(upsertFullListRecord(base, record))
+    applyCurrentListView()
   }
 
   /**
@@ -119,6 +127,14 @@ export const useFileStore = defineStore('files', () => {
 
     if (fullListSnapshot.value) {
       return fullListSnapshot.value
+    }
+
+    if (!options?.force) {
+      const persisted = await readPersistedFileList(rootPrefix.value)
+      if (persisted?.length) {
+        patchFullListSnapshot(persisted)
+        return persisted
+      }
     }
 
     if (fullListLoadPromise) {
@@ -246,6 +262,7 @@ export const useFileStore = defineStore('files', () => {
     fullListLoadPromise = null
     loaded.value = false
     errorMessage.value = ''
+    void clearPersistedFileList(rootPrefix.value)
   }
 
   function getByKey(key: string) {

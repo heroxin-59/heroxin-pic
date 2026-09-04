@@ -27,6 +27,8 @@ interface ImportMetaEnv {
   readonly VITE_OSS_STS_TOKEN?: string
   /** 单文件大小上限（MB） */
   readonly VITE_MAX_SIZE_MB: string
+  /** 视频单文件大小上限（MB）；未配置时默认 200 */
+  readonly VITE_MAX_VIDEO_SIZE_MB?: string
   /** 单次选择/队列总体积上限（MB） */
   readonly VITE_MAX_TOTAL_SIZE_MB: string
   /** 允许上传的扩展名，逗号分隔 */
@@ -38,8 +40,12 @@ interface ImportMetaEnv {
    * 需开通图片处理；留空则使用原图 Blob
    */
   readonly VITE_OSS_THUMB_PROCESS?: string
+  /** 相册视频封面 OSS 截帧，如 video/snapshot,t_0,f_jpg,w_480,m_fast */
+  readonly VITE_OSS_VIDEO_SNAPSHOT_PROCESS?: string
   /** 相册缩略图并发数，默认 4 */
   readonly VITE_ALBUM_THUMB_CONCURRENCY?: string
+  /** 上传队列并行数，默认 2 */
+  readonly VITE_UPLOAD_CONCURRENCY?: string
 }
 
 interface ImportMeta {

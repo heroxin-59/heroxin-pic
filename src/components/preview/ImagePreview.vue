@@ -53,6 +53,11 @@ const hasNext = computed(
   () => currentIndex.value >= 0 && currentIndex.value < props.gallery.length - 1,
 )
 
+/** 全屏 viewer 仅支持图片；混合 gallery 时过滤视频 */
+const imageOnlyGallery = computed(() =>
+  props.gallery.filter((item) => item.category === 'image'),
+)
+
 /** 首次/硬刷新才盖住舞台；切换时保留旧图 */
 const showStageLoading = computed(() => loading.value && !loadError.value && !imageUrl.value)
 const switching = computed(() => loading.value && !!imageUrl.value && !loadError.value)
@@ -198,9 +203,10 @@ function goNext() {
 async function openFullscreen() {
   refreshing.value = true
   try {
+    const images = imageOnlyGallery.value
     // 全屏 viewer 使用签名 URL；当前张优先用已加载的 blob URL
     const urls = await Promise.all(
-      props.gallery.map(async (item) => {
+      images.map(async (item) => {
         if (item.key === props.current.key && imageUrl.value) {
           return imageUrl.value
         }
@@ -229,7 +235,7 @@ function closeFullscreen() {
 }
 
 function onViewerSwitch(index: number) {
-  const record = props.gallery[index]
+  const record = imageOnlyGallery.value[index]
   if (record && record.key !== props.current.key) {
     emit('change', record)
   }

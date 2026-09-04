@@ -6,21 +6,25 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: () => import('@/views/HomeView.vue'),
-      meta: { title: '上传' },
+      redirect: '/images',
     },
     {
-      path: '/files',
-      name: 'files',
-      component: () => import('@/views/FileListView.vue'),
-      meta: { title: '文件列表' },
+      path: '/upload',
+      name: 'upload',
+      component: () => import('@/views/HomeView.vue'),
+      meta: { title: '上传' },
     },
     {
       path: '/images',
       name: 'images',
       component: () => import('@/views/ImagesView.vue'),
       meta: { title: '相册' },
+    },
+    {
+      path: '/files',
+      name: 'files',
+      component: () => import('@/views/FileListView.vue'),
+      meta: { title: '文件列表' },
     },
     {
       path: '/preview',

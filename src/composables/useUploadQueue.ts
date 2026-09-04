@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue'
+import { appEnv } from '@/config/env'
 import { getOssConnectionConfig } from '@/config/oss'
 import { getDuplicateStrategy } from '@/config/upload'
 import { uploadFileToOss } from '@/services/upload'
@@ -31,7 +32,7 @@ export function useUploadQueue() {
   const resolvingArchive = ref(false)
   const currentIndex = ref(-1)
   const cancelRequested = ref(false)
-  let activeAbort: AbortController | null = null
+  const activeAborts = new Set<AbortController>()
   const fileStore = useFileStore()
 
   const uploading = computed(() => running.value)
@@ -77,7 +78,11 @@ export function useUploadQueue() {
   })
 
   const currentTaskLabel = computed(() => {
-    const task = currentTask.value
+    const uploadingTasks = tasks.value.filter((item) => item.status === 'uploading')
+    if (uploadingTasks.length > 1) {
+      return `${uploadingTasks.length} 个文件上传中`
+    }
+    const task = currentTask.value ?? uploadingTasks[0]
     if (!task) return ''
     return task.file.name
   })
@@ -142,7 +147,10 @@ export function useUploadQueue() {
     if (!running.value && summary.value.waiting === 0) return
 
     cancelRequested.value = true
-    activeAbort?.abort()
+    for (const controller of activeAborts) {
+      controller.abort()
+    }
+    activeAborts.clear()
 
     for (const task of tasks.value) {
       if (task.status === 'waiting') {
@@ -160,6 +168,46 @@ export function useUploadQueue() {
     task.result = undefined
   }
 
+  async function uploadOneTask(index: number) {
+    if (cancelRequested.value) return
+
+    const task = tasks.value[index]
+    if (!task || task.status !== 'waiting') return
+
+    currentIndex.value = index
+    task.status = 'uploading'
+    task.percent = 0
+    task.error = undefined
+
+    const controller = new AbortController()
+    activeAborts.add(controller)
+
+    try {
+      const result = await uploadFileToOss({
+        file: task.file,
+        objectKey: task.objectKey,
+        signal: controller.signal,
+        onProgress: (percent) => {
+          task.percent = percent
+        },
+      })
+      task.result = result
+      task.status = 'success'
+      task.percent = 100
+      fileStore.addFromUploadSuccess(result)
+    } catch (error) {
+      if (cancelRequested.value || isCancelledError(error)) {
+        task.status = 'cancelled'
+        task.error = '已取消'
+      } else {
+        task.status = 'error'
+        task.error = getErrorMessage(error)
+      }
+    } finally {
+      activeAborts.delete(controller)
+    }
+  }
+
   async function startUpload(): Promise<UploadBatchSummary> {
     if (running.value) {
       return summary.value
@@ -168,57 +216,21 @@ export function useUploadQueue() {
     running.value = true
     cancelRequested.value = false
 
+    const limiter = createLimiter(appEnv.uploadConcurrency)
+
     try {
-      for (let index = 0; index < tasks.value.length; index += 1) {
-        if (cancelRequested.value) {
-          break
-        }
+      const waitingIndices = tasks.value
+        .map((task, index) => ({ task, index }))
+        .filter(({ task }) => task.status === 'waiting')
+        .map(({ index }) => index)
 
-        const task = tasks.value[index]
-        // 仅处理 waiting；失败/取消需显式 retry 后再跑
-        if (!task || task.status !== 'waiting') {
-          continue
-        }
-
-        currentIndex.value = index
-        task.status = 'uploading'
-        task.percent = 0
-        task.error = undefined
-
-        const controller = new AbortController()
-        activeAbort = controller
-
-        try {
-          const result = await uploadFileToOss({
-            file: task.file,
-            objectKey: task.objectKey,
-            signal: controller.signal,
-            onProgress: (percent) => {
-              task.percent = percent
-            },
-          })
-          task.result = result
-          task.status = 'success'
-          task.percent = 100
-          fileStore.addFromUploadSuccess(result)
-        } catch (error) {
-          if (cancelRequested.value || isCancelledError(error)) {
-            task.status = 'cancelled'
-            task.error = '已取消'
-          } else {
-            task.status = 'error'
-            task.error = getErrorMessage(error)
-          }
-        } finally {
-          if (activeAbort === controller) {
-            activeAbort = null
-          }
-        }
-      }
+      await Promise.all(
+        waitingIndices.map((index) => limiter.run(() => uploadOneTask(index))),
+      )
     } finally {
       running.value = false
       currentIndex.value = -1
-      activeAbort = null
+      activeAborts.clear()
     }
 
     return summary.value

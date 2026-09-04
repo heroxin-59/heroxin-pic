@@ -4,7 +4,7 @@ import { computed, ref } from 'vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { getUploadLimits } from '@/config/oss'
 import { getDuplicateStrategyLabel } from '@/config/upload'
-import { buildAcceptAttribute, filterImageExtensions } from '@/constants/fileTypes'
+import { buildAcceptAttribute, filterImageExtensions, getCatalogByExt } from '@/constants/fileTypes'
 
 const props = withDefaults(
   defineProps<{
@@ -37,14 +37,25 @@ const imageExtensions = computed(() => filterImageExtensions(uploadLimits.allowe
 
 const canCaptureImage = computed(() => imageExtensions.value.length > 0)
 
+const allowsVideoUpload = computed(() =>
+  uploadLimits.allowedExt.some((ext) => getCatalogByExt(ext)?.category === 'video'),
+)
+
+const sizeLimitHint = computed(() => {
+  if (allowsVideoUpload.value) {
+    return `图片等 ≤ ${uploadLimits.maxSizeMb} MB · 视频 ≤ ${uploadLimits.maxVideoSizeMb} MB`
+  }
+  return `单文件 ≤ ${uploadLimits.maxSizeMb} MB`
+})
+
 const hintText = computed(() => {
   if (props.tip) return props.tip
-  return `支持多选 · 单文件 ≤ ${uploadLimits.maxSizeMb} MB · 本批 ≤ ${uploadLimits.maxTotalSizeMb} MB · 重名：${getDuplicateStrategyLabel()}`
+  return `支持多选 · ${sizeLimitHint.value} · 本批 ≤ ${uploadLimits.maxTotalSizeMb} MB · 重名：${getDuplicateStrategyLabel()}`
 })
 
 const mobileHintText = computed(() => {
   if (props.tip) return props.tip
-  return `单文件 ≤ ${uploadLimits.maxSizeMb} MB · 本批 ≤ ${uploadLimits.maxTotalSizeMb} MB`
+  return `${sizeLimitHint.value} · 本批 ≤ ${uploadLimits.maxTotalSizeMb} MB`
 })
 
 function openPicker() {

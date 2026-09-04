@@ -112,7 +112,7 @@ function formatTime(value: string) {
 }
 
 function goUpload() {
-  router.push({ name: 'home' })
+  router.push({ name: 'upload' })
 }
 
 async function refresh() {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
-import { Download, Refresh } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, Download, Refresh } from '@element-plus/icons-vue'
 import type { FileRecord } from '@/types/file'
 import { refreshSignedUrl, releaseSignedPreviewUrl } from '@/services/preview'
 import { getErrorMessage, toAppError } from '@/utils/error'
@@ -8,9 +8,12 @@ import { showAppError } from '@/utils/message'
 
 const props = defineProps<{
   record: FileRecord
+  /** 可切换的媒体列表（图片 + 视频） */
+  gallery?: FileRecord[]
 }>()
 
 const emit = defineEmits<{
+  change: [record: FileRecord]
   download: []
 }>()
 
@@ -21,6 +24,20 @@ const videoUrl = ref('')
 const videoRef = ref<HTMLVideoElement | null>(null)
 
 const videoType = computed(() => props.record.mimeType || 'video/mp4')
+
+const galleryList = computed(() => {
+  if (props.gallery && props.gallery.length > 0) return props.gallery
+  return [props.record]
+})
+
+const currentIndex = computed(() =>
+  galleryList.value.findIndex((item) => item.key === props.record.key),
+)
+
+const hasPrev = computed(() => currentIndex.value > 0)
+const hasNext = computed(
+  () => currentIndex.value >= 0 && currentIndex.value < galleryList.value.length - 1,
+)
 
 let heldSignedKey: string | null = null
 let loadToken = 0
@@ -95,6 +112,18 @@ function onVideoError() {
   }
 }
 
+function goPrev() {
+  if (!hasPrev.value) return
+  const prev = galleryList.value[currentIndex.value - 1]
+  if (prev) emit('change', prev)
+}
+
+function goNext() {
+  if (!hasNext.value) return
+  const next = galleryList.value[currentIndex.value + 1]
+  if (next) emit('change', next)
+}
+
 watch(
   () => props.record.key,
   () => {
@@ -113,6 +142,22 @@ onUnmounted(() => {
 <template>
   <div class="video-preview">
     <div class="video-preview__toolbar">
+      <el-button
+        v-if="galleryList.length > 1"
+        :icon="ArrowLeft"
+        circle
+        :disabled="!hasPrev"
+        aria-label="上一项"
+        @click="goPrev"
+      />
+      <el-button
+        v-if="galleryList.length > 1"
+        :icon="ArrowRight"
+        circle
+        :disabled="!hasNext"
+        aria-label="下一项"
+        @click="goNext"
+      />
       <el-button
         :icon="Refresh"
         circle

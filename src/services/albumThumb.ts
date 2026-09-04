@@ -10,7 +10,9 @@ import {
   type AlbumImageMeta,
 } from '@/services/imageMeta'
 import { cacheAspectFromBlob, clearAlbumAspectCache } from '@/services/imageAspect'
+import { AppError } from '@/types/error'
 import { createLimiter } from '@/utils/concurrency'
+import { isAbortError } from '@/utils/error'
 
 export type AlbumThumbKind = 'blob' | 'signed'
 
@@ -19,6 +21,11 @@ export interface AlbumThumbResult {
   url: string
   kind: AlbumThumbKind
   meta: AlbumImageMeta
+}
+
+export interface AcquireAlbumThumbOptions {
+  force?: boolean
+  signal?: AbortSignal
 }
 
 type CacheEntry = {
@@ -37,11 +44,28 @@ const SIGNED_REFRESH_MARGIN_MS = 60_000
 const MAX_IDLE_CACHE = 192
 
 const limiter = createLimiter(appEnv.albumThumbConcurrency)
+const metaLimiter = createLimiter(Math.max(1, Math.floor(appEnv.albumThumbConcurrency / 2)))
 const cache = new Map<string, CacheEntry>()
 const inflight = new Map<string, Promise<AlbumThumbResult>>()
+const metaInflight = new Map<string, Promise<AlbumImageMeta>>()
 
 function thumbProcess(): string {
   return appEnv.ossThumbProcess
+}
+
+export function isAlbumThumbProcessEnabled(): boolean {
+  return Boolean(thumbProcess())
+}
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) {
+    throw new AppError('CANCELLED', '操作已取消。')
+  }
+}
+
+function isMetaRich(meta: AlbumImageMeta | undefined): boolean {
+  if (!meta) return false
+  return Boolean(meta.captureAt || meta.locationLabel || meta.latitude != null)
 }
 
 function isUsable(entry: CacheEntry, now = Date.now()): boolean {
@@ -99,8 +123,9 @@ function evictIdle() {
   }
 }
 
-async function loadViaBlob(key: string): Promise<AlbumThumbResult> {
-  const blob = await getObjectBlob(key)
+async function loadViaBlob(key: string, signal?: AbortSignal): Promise<AlbumThumbResult> {
+  const blob = await getObjectBlob(key, { signal })
+  throwIfAborted(signal)
   const [meta] = await Promise.all([
     parseAlbumMetaFromBlob(key, blob),
     cacheAspectFromBlob(key, blob),
@@ -117,24 +142,16 @@ async function loadViaBlob(key: string): Promise<AlbumThumbResult> {
   return toResult(key, entry)
 }
 
-async function loadViaSignedProcess(key: string): Promise<AlbumThumbResult> {
+async function loadViaSignedProcess(key: string, signal?: AbortSignal): Promise<AlbumThumbResult> {
   const process = thumbProcess()
   const cachedMeta = getCachedAlbumMeta(key)
-
-  const [url, meta] = await Promise.all([
-    getAccessUrl(key, { expires: SIGNED_URL_TTL_SEC, process }),
-    cachedMeta
-      ? Promise.resolve(cachedMeta)
-      : getObjectBlob(key).then(async (blob) => {
-          void cacheAspectFromBlob(key, blob)
-          return parseAlbumMetaFromBlob(key, blob)
-        }),
-  ])
+  const url = await getAccessUrl(key, { expires: SIGNED_URL_TTL_SEC, process })
+  throwIfAborted(signal)
 
   const entry: CacheEntry = {
     url,
     kind: 'signed',
-    meta,
+    meta: cachedMeta ?? { key },
     refs: 0,
     expiresAt: Date.now() + SIGNED_URL_TTL_SEC * 1000,
     lastUsed: Date.now(),
@@ -143,17 +160,19 @@ async function loadViaSignedProcess(key: string): Promise<AlbumThumbResult> {
   return toResult(key, entry)
 }
 
-async function loadFresh(key: string): Promise<AlbumThumbResult> {
+async function loadFresh(key: string, signal?: AbortSignal): Promise<AlbumThumbResult> {
   return limiter.run(async () => {
+    throwIfAborted(signal)
     if (thumbProcess()) {
       try {
-        return await loadViaSignedProcess(key)
-      } catch {
+        return await loadViaSignedProcess(key, signal)
+      } catch (error) {
+        if (isAbortError(error)) throw error
         // 图片处理未开通 / 签名失败时回退原图 Blob
-        return loadViaBlob(key)
+        return loadViaBlob(key, signal)
       }
     }
-    return loadViaBlob(key)
+    return loadViaBlob(key, signal)
   })
 }
 
@@ -163,9 +182,12 @@ async function loadFresh(key: string): Promise<AlbumThumbResult> {
  */
 export async function acquireAlbumThumb(
   key: string,
-  options?: { force?: boolean },
+  options?: AcquireAlbumThumbOptions,
 ): Promise<AlbumThumbResult> {
   const force = Boolean(options?.force)
+  const signal = options?.signal
+  throwIfAborted(signal)
+
   const existing = cache.get(key)
 
   if (!force && existing && isUsable(existing)) {
@@ -183,21 +205,63 @@ export async function acquireAlbumThumb(
 
   let pending = inflight.get(key)
   if (force || !pending) {
-    pending = loadFresh(key).finally(() => {
+    pending = loadFresh(key, signal).finally(() => {
       if (inflight.get(key) === pending) inflight.delete(key)
     })
     inflight.set(key, pending)
   }
 
-  const result = await pending
-  const entry = cache.get(key)
-  if (entry) {
-    entry.refs += 1
-    touch(entry)
-    evictIdle()
-    return toResult(key, entry)
+  try {
+    const result = await pending
+    throwIfAborted(signal)
+    const entry = cache.get(key)
+    if (entry) {
+      entry.refs += 1
+      touch(entry)
+      evictIdle()
+      return toResult(key, entry)
+    }
+    return result
+  } catch (error) {
+    if (isAbortError(error) && inflight.get(key) === pending) {
+      inflight.delete(key)
+    }
+    throw error
   }
-  return result
+}
+
+/**
+ * 延后从原图解析 EXIF / 地点（处理模式下缩略图不再同步拉原图）。
+ * 已有完整元数据时直接返回缓存。
+ */
+export async function ensureAlbumThumbMeta(
+  key: string,
+  options?: { signal?: AbortSignal },
+): Promise<AlbumImageMeta> {
+  const signal = options?.signal
+  throwIfAborted(signal)
+
+  const cached = getCachedAlbumMeta(key)
+  if (isMetaRich(cached)) {
+    return cached!
+  }
+
+  let pending = metaInflight.get(key)
+  if (!pending) {
+    pending = metaLimiter
+      .run(async () => {
+        throwIfAborted(signal)
+        const blob = await getObjectBlob(key, { signal })
+        throwIfAborted(signal)
+        return parseAlbumMetaFromBlob(key, blob)
+      })
+      .finally(() => {
+        if (metaInflight.get(key) === pending) metaInflight.delete(key)
+      })
+    metaInflight.set(key, pending)
+  }
+
+  return pending
 }
 
 /** 释放一次引用；无引用且超出闲置上限时淘汰 Object URL */
@@ -232,6 +296,7 @@ export function clearAlbumThumbCache() {
   }
   cache.clear()
   inflight.clear()
+  metaInflight.clear()
   clearAlbumMetaCache()
   clearAlbumAspectCache()
 }

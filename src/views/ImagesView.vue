@@ -60,7 +60,7 @@ function onAlbumContextMenu(payload: { record: FileRecord; event: MouseEvent }) 
 }
 
 function goUpload() {
-  router.push({ name: 'home' })
+  router.push({ name: 'upload' })
 }
 
 async function refresh() {

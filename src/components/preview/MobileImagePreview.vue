@@ -87,6 +87,8 @@ let previewHistoryActive = false
 let previewHistoryGeneration = 0
 let activePreviewHistoryGeneration = 0
 let closingPreviewFromHistory = false
+/** 切到视频预览时抑制 closed，避免父级清空当前项 */
+let handoffToSibling = false
 let bootHideTimer = 0
 let bootHidden = false
 let activeDataSource: PswpSlideItem[] = []
@@ -202,15 +204,27 @@ function estimateSlideSize(key: string): { width: number; height: number } {
 }
 
 type PswpSlideItem = {
-  type: 'image'
+  type?: 'image' | 'html'
+  html?: string
   src?: string
   width: number
   height: number
-  alt: string
+  alt?: string
   key: string
 }
 
 function toPswpSlideItem(slide: CachedPreviewSlide | undefined, record: FileRecord): PswpSlideItem {
+  if (record.category === 'video') {
+    return {
+      type: 'html',
+      html: '<div class="heroxin-pswp-video-handoff">正在打开视频…</div>',
+      width: 800,
+      height: 450,
+      key: record.key,
+      alt: record.name,
+    }
+  }
+
   const size = slide
     ? { width: slide.width, height: slide.height }
     : estimateSlideSize(record.key)
@@ -374,6 +388,10 @@ async function loadSlideOnDemand(content: PswpContent, isLazy: boolean) {
     return
   }
 
+  if (record.category === 'video') {
+    return
+  }
+
   try {
     const slide = await resolvePreviewSlide(record, true)
     applySlideToContent(content, slide)
@@ -450,6 +468,7 @@ function prefetchNearby(centerIndex: number, instance: PhotoSwipe | null = pswp)
 
   for (const index of nearbyIndices(centerIndex, list.length, PRELOAD_RADIUS)) {
     const record = list[index]!
+    if (record.category !== 'image') continue
     const cached = peekPreviewSlideCache(record.key)
     if (cached?.src && cached.measured) continue
     if (prefetchingKeys.has(record.key)) continue
@@ -479,14 +498,20 @@ function prefetchNearby(centerIndex: number, instance: PhotoSwipe | null = pswp)
 
 function destroyViewer(options: { emitClosed?: boolean } = {}) {
   const instance = pswp
+  const wasHandoff = handoffToSibling
   pswp = null
   opening = false
   activeGallery = []
   activeDataSource = []
   prefetchingKeys.clear()
   resetBootOverlay()
-  disablePreviewHistory(closingPreviewFromHistory)
-  closingPreviewFromHistory = false
+  if (wasHandoff) {
+    window.removeEventListener('popstate', handlePreviewPopState)
+    previewHistoryActive = false
+  } else {
+    disablePreviewHistory(closingPreviewFromHistory)
+    closingPreviewFromHistory = false
+  }
   if (instance) {
     try {
       instance.destroy()
@@ -494,9 +519,10 @@ function destroyViewer(options: { emitClosed?: boolean } = {}) {
       // ignore
     }
   }
-  if (options.emitClosed) {
+  if (options.emitClosed && !wasHandoff) {
     emit('closed')
   }
+  handoffToSibling = false
 }
 
 function closeFromUi() {
@@ -545,16 +571,20 @@ async function openViewer() {
   try {
     activeGallery = list
 
-    // 当前 + 相邻图先准备好 URL 和尺寸，避免切换黑屏
+    // 当前 + 相邻图先准备好 URL 和尺寸，避免切换黑屏（跳过视频项）
     await Promise.all(
-      nearbyIndices(startIndex, list.length, PRELOAD_RADIUS).map((index) =>
-        resolvePreviewSlide(list[index]!, true),
-      ),
+      nearbyIndices(startIndex, list.length, PRELOAD_RADIUS)
+        .map((index) => list[index])
+        .filter((record): record is FileRecord => Boolean(record && record.category === 'image'))
+        .map((record) => resolvePreviewSlide(record, true)),
     )
     if (abortOpenAttempt(seq)) return
 
     const dataSource: PswpSlideItem[] = list.map((record) =>
-      toPswpSlideItem(peekPreviewSlideCache(record.key), record),
+      toPswpSlideItem(
+        record.category === 'image' ? peekPreviewSlideCache(record.key) : undefined,
+        record,
+      ),
     )
     activeDataSource = dataSource
 
@@ -642,17 +672,23 @@ async function openViewer() {
     instance.on('change', () => {
       const record = list[instance.currIndex]
       if (record) {
+        if (record.category === 'video') {
+          handoffToSibling = true
+        }
         syncingFromViewer = true
         emit('change', record)
         queueMicrotask(() => {
           syncingFromViewer = false
         })
       }
-      ensureActiveSlideLoaded(instance)
-      prefetchNearby(instance.currIndex, instance)
+      if (record?.category === 'image') {
+        ensureActiveSlideLoaded(instance)
+        prefetchNearby(instance.currIndex, instance)
+      }
     })
 
     instance.on('close', () => {
+      if (handoffToSibling) return
       if (!closingPreviewFromHistory) {
         disablePreviewHistory(false)
       } else {
@@ -670,7 +706,10 @@ async function openViewer() {
       activeDataSource = []
       resetBootOverlay()
       finishOpenAttempt(seq)
-      emit('closed')
+      if (!handoffToSibling) {
+        emit('closed')
+      }
+      handoffToSibling = false
     })
 
     scheduleBootOverlayFallback()

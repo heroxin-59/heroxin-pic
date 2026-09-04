@@ -39,8 +39,26 @@ function isMimeCompatible(ext: string, mime: string): boolean {
   return catalog.mimeTypes.some((item) => item.toLowerCase() === normalizedMime)
 }
 
+function getFileSizeLimit(file: File): { maxSizeBytes: number; maxSizeMb: number; categoryLabel: string } {
+  const limits = getUploadLimits()
+  const category = getFileCategoryByName(file.name)
+  if (category === 'video') {
+    return {
+      maxSizeBytes: limits.maxVideoSizeBytes,
+      maxSizeMb: limits.maxVideoSizeMb,
+      categoryLabel: '视频',
+    }
+  }
+  return {
+    maxSizeBytes: limits.maxSizeBytes,
+    maxSizeMb: limits.maxSizeMb,
+    categoryLabel: category === 'image' ? '图片' : '文件',
+  }
+}
+
 function validateFile(file: File): FileRejectReason | null {
-  const { maxSizeBytes, maxSizeMb, allowedExt } = getUploadLimits()
+  const { allowedExt } = getUploadLimits()
+  const { maxSizeBytes, maxSizeMb, categoryLabel } = getFileSizeLimit(file)
 
   if (!file || file.size <= 0) {
     return {
@@ -54,7 +72,7 @@ function validateFile(file: File): FileRejectReason | null {
     return {
       file,
       code: 'FILE_SIZE',
-      message: `${file.name}：单文件过大（${formatBytes(file.size)}），上限 ${maxSizeMb} MB。`,
+      message: `${file.name}：${categoryLabel}过大（${formatBytes(file.size)}），上限 ${maxSizeMb} MB。`,
     }
   }
 

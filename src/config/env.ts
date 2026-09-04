@@ -1,4 +1,5 @@
 const DEFAULT_MAX_SIZE_MB = 50
+const DEFAULT_MAX_VIDEO_SIZE_MB = 200
 const DEFAULT_MAX_TOTAL_SIZE_MB = 500
 const DEFAULT_ALLOWED_EXT = [
   'jpg',
@@ -17,6 +18,11 @@ const DEFAULT_ALLOWED_EXT = [
 function parseMaxSizeMb(value: string | undefined): number {
   const parsed = Number(value)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_SIZE_MB
+}
+
+function parseMaxVideoSizeMb(value: string | undefined, fallbackMb: number): number {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackMb
 }
 
 function parseMaxTotalSizeMb(value: string | undefined): number {
@@ -43,6 +49,13 @@ function parseThumbProcess(value: string | undefined): string {
   return trimmed
 }
 
+function parseVideoSnapshotProcess(value: string | undefined): string {
+  const trimmed = value?.trim() ?? ''
+  if (!trimmed) return 'video/snapshot,t_0,f_jpg,w_480,m_fast'
+  if (!trimmed.startsWith('video/')) return ''
+  return trimmed
+}
+
 function parsePositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number(value)
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback
@@ -56,6 +69,10 @@ export const appEnv = {
   ossDir: import.meta.env.VITE_OSS_DIR ?? 'uploads/',
   stsUrl: import.meta.env.VITE_STS_URL ?? '',
   maxSizeMb: parseMaxSizeMb(import.meta.env.VITE_MAX_SIZE_MB),
+  maxVideoSizeMb: parseMaxVideoSizeMb(
+    import.meta.env.VITE_MAX_VIDEO_SIZE_MB,
+    DEFAULT_MAX_VIDEO_SIZE_MB,
+  ),
   maxTotalSizeMb: parseMaxTotalSizeMb(import.meta.env.VITE_MAX_TOTAL_SIZE_MB),
   allowedExt: parseAllowedExt(import.meta.env.VITE_ALLOWED_EXT),
   /**
@@ -63,8 +80,12 @@ export const appEnv = {
    * 需 Bucket 开通图片处理；留空则拉原图 Blob 生成 Object URL。
    */
   ossThumbProcess: parseThumbProcess(import.meta.env.VITE_OSS_THUMB_PROCESS),
+  /** 相册视频封面 OSS 截帧（可选）；留空则用内置默认 */
+  ossVideoSnapshotProcess: parseVideoSnapshotProcess(import.meta.env.VITE_OSS_VIDEO_SNAPSHOT_PROCESS),
   /** 相册缩略图并发拉取上限 */
   albumThumbConcurrency: parsePositiveInt(import.meta.env.VITE_ALBUM_THUMB_CONCURRENCY, 4),
+  /** 上传队列并行数 */
+  uploadConcurrency: parsePositiveInt(import.meta.env.VITE_UPLOAD_CONCURRENCY, 2),
 }
 
 export type AppEnv = typeof appEnv

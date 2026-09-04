@@ -149,3 +149,16 @@ export function getErrorMessage(error: unknown): string {
 export function getErrorCode(error: unknown): AppErrorCode {
   return toAppError(error).code
 }
+
+export function isAbortError(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === 'AbortError') return true
+  if (
+    error &&
+    typeof error === 'object' &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'CANCELLED'
+  ) {
+    return true
+  }
+  return false
+}

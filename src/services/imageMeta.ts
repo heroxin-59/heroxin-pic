@@ -1,5 +1,6 @@
 import exifr from 'exifr'
 import { getObjectBlob } from '@/services/fileList'
+import { createLimiter } from '@/utils/concurrency'
 
 /** 相册图片元数据（EXIF + 可选逆地理） */
 export interface AlbumImageMeta {
@@ -15,6 +16,22 @@ export interface AlbumImageMeta {
 const metaCache = new Map<string, AlbumImageMeta>()
 const geocodeCache = new Map<string, string>()
 const geocodeInflight = new Map<string, Promise<string | undefined>>()
+
+/** 同一坐标待逆地理的对象 Key（按四位小数去重） */
+const geocodeKeysByCoord = new Map<string, Set<string>>()
+const geocodeQueue: string[] = []
+const geocodeQueued = new Set<string>()
+
+const geocodeLimiter = createLimiter(2)
+const SCROLL_IDLE_MS = 400
+
+let scrollIdle = true
+let scrollIdleTimer: ReturnType<typeof setTimeout> | null = null
+let scrollListenerAttached = false
+let geocodePumpScheduled = false
+
+type MetaUpdateListener = (meta: AlbumImageMeta) => void
+const metaUpdateListeners = new Set<MetaUpdateListener>()
 
 function toIsoFromExifDate(value: unknown): string | undefined {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
@@ -39,6 +56,112 @@ function geocodeCacheKey(lat: number, lng: number): string {
   return `${lat.toFixed(4)},${lng.toFixed(4)}`
 }
 
+function notifyMetaUpdate(meta: AlbumImageMeta) {
+  for (const listener of metaUpdateListeners) {
+    listener(meta)
+  }
+}
+
+function updateMetaLocationLabel(key: string, locationLabel: string) {
+  const cached = metaCache.get(key)
+  if (!cached || cached.locationLabel === locationLabel) return
+  const next = { ...cached, locationLabel }
+  metaCache.set(key, next)
+  notifyMetaUpdate(next)
+}
+
+function applyGeocodeLabel(geoKey: string, place: string | undefined) {
+  const keys = geocodeKeysByCoord.get(geoKey)
+  if (!keys) return
+  for (const key of keys) {
+    const cached = metaCache.get(key)
+    if (!cached) continue
+    const locationLabel = place || cached.locationLabel || formatGpsLabel(cached.latitude!, cached.longitude!)
+    updateMetaLocationLabel(key, locationLabel)
+  }
+  geocodeKeysByCoord.delete(geoKey)
+}
+
+function markScrolling() {
+  scrollIdle = false
+  if (scrollIdleTimer) clearTimeout(scrollIdleTimer)
+  scrollIdleTimer = setTimeout(() => {
+    scrollIdle = true
+    scheduleGeocodePump()
+  }, SCROLL_IDLE_MS)
+}
+
+function ensureScrollListener() {
+  if (scrollListenerAttached || typeof window === 'undefined') return
+  scrollListenerAttached = true
+  window.addEventListener('scroll', markScrolling, { passive: true, capture: true })
+}
+
+function enqueueGeocode(key: string, lat: number, lng: number) {
+  const geoKey = geocodeCacheKey(lat, lng)
+
+  const cachedPlace = geocodeCache.get(geoKey)
+  if (cachedPlace) {
+    updateMetaLocationLabel(key, cachedPlace)
+    return
+  }
+
+  let keys = geocodeKeysByCoord.get(geoKey)
+  if (!keys) {
+    keys = new Set()
+    geocodeKeysByCoord.set(geoKey, keys)
+  }
+  keys.add(key)
+
+  if (geocodeQueued.has(geoKey) || geocodeInflight.has(geoKey)) {
+    ensureScrollListener()
+    return
+  }
+
+  geocodeQueued.add(geoKey)
+  geocodeQueue.push(geoKey)
+
+  ensureScrollListener()
+  scheduleGeocodePump()
+}
+
+function scheduleGeocodePump() {
+  if (geocodePumpScheduled) return
+  geocodePumpScheduled = true
+  queueMicrotask(() => {
+    geocodePumpScheduled = false
+    void pumpGeocodeQueue()
+  })
+}
+
+async function pumpGeocodeQueue() {
+  if (!scrollIdle) return
+
+  while (scrollIdle && geocodeQueue.length > 0) {
+    const geoKey = geocodeQueue.shift()
+    if (!geoKey) break
+    geocodeQueued.delete(geoKey)
+
+    const keys = geocodeKeysByCoord.get(geoKey)
+    const sampleKey = keys ? keys.values().next().value : undefined
+    const sample = sampleKey ? metaCache.get(sampleKey) : undefined
+    if (!sample || sample.latitude == null || sample.longitude == null) {
+      geocodeKeysByCoord.delete(geoKey)
+      continue
+    }
+
+    const { latitude: lat, longitude: lng } = sample
+    void geocodeLimiter
+      .run(async () => {
+        const place = await reverseGeocode(lat, lng)
+        applyGeocodeLabel(geoKey, place)
+      })
+      .catch(() => {
+        applyGeocodeLabel(geoKey, undefined)
+      })
+  }
+}
+
 /** 浏览器端逆地理（BigDataCloud 免 key 客户端接口）；失败则返回 undefined */
 async function reverseGeocode(lat: number, lng: number): Promise<string | undefined> {
   const key = geocodeCacheKey(lat, lng)
@@ -54,7 +177,7 @@ async function reverseGeocode(lat: number, lng: number): Promise<string | undefi
         `https://api.bigdatacloud.net/data/reverse-geocode-client` +
         `?latitude=${encodeURIComponent(String(lat))}` +
         `&longitude=${encodeURIComponent(String(lng))}` +
-        `&localityLanguage=zh`
+        `&localityLanguage=zh-Hans`
       const response = await fetch(url)
       if (!response.ok) return undefined
       const data = (await response.json()) as {
@@ -137,19 +260,28 @@ async function parseExifMeta(key: string, blob: Blob): Promise<AlbumImageMeta> {
       ) {
         meta.latitude = lat
         meta.longitude = lng
+        meta.locationLabel = formatGpsLabel(lat, lng)
       }
     }
   } catch {
     // 无 EXIF / 不支持的格式：静默回退
   }
 
+  metaCache.set(key, meta)
+
   if (meta.latitude != null && meta.longitude != null) {
-    const place = await reverseGeocode(meta.latitude, meta.longitude)
-    meta.locationLabel = place || formatGpsLabel(meta.latitude, meta.longitude)
+    enqueueGeocode(key, meta.latitude, meta.longitude)
   }
 
-  metaCache.set(key, meta)
   return meta
+}
+
+/** 逆地理完成后通知 UI 刷新地点文案 */
+export function subscribeAlbumMetaUpdate(listener: MetaUpdateListener): () => void {
+  metaUpdateListeners.add(listener)
+  return () => {
+    metaUpdateListeners.delete(listener)
+  }
 }
 
 /** 供相册缩略图缓存层复用：从 Blob 解析并缓存 EXIF */
@@ -163,6 +295,19 @@ export function getCachedAlbumMeta(key: string): AlbumImageMeta | undefined {
 
 export function clearAlbumMetaCache() {
   metaCache.clear()
+  geocodeCache.clear()
+  geocodeInflight.clear()
+  geocodeKeysByCoord.clear()
+  geocodeQueue.length = 0
+  geocodeQueued.clear()
+}
+
+/** 测试用：重置滚停状态并立即处理逆地理队列 */
+export function flushDeferredGeocodeForTests(options?: { scrollIdle?: boolean }) {
+  if (options?.scrollIdle !== undefined) {
+    scrollIdle = options.scrollIdle
+  }
+  scheduleGeocodePump()
 }
 
 /**

@@ -45,7 +45,7 @@ function retry() {
 function goHome() {
   captured.value = null
   message.value = ''
-  void router.push({ name: 'home' })
+  void router.push({ name: 'images' })
 }
 </script>
 
@@ -61,7 +61,7 @@ function goHome() {
       <template #extra>
         <div class="app-error-boundary__actions">
           <el-button type="primary" :icon="Refresh" @click="retry">重试</el-button>
-          <el-button :icon="House" @click="goHome">回上传页</el-button>
+          <el-button :icon="House" @click="goHome">回相册</el-button>
         </div>
       </template>
     </el-result>

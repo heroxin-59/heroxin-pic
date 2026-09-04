@@ -336,12 +336,15 @@ heroxin-pic/
 | `VITE_OSS_ENDPOINT`       | Endpoint（可选）          | 自定义域名时使用                                                         |
 | `VITE_OSS_DIR`            | 上传目录前缀              | 如 `uploads/`                                                            |
 | `VITE_STS_URL`            | 获取 STS 的接口           | 推荐；本地可用 `/api/sts`（代理到 `sts-server`）                         |
-| `VITE_MAX_SIZE_MB`        | 单文件上限（MB）          | 默认 50                                                                  |
+| `VITE_MAX_SIZE_MB`        | 单文件上限（MB）          | 默认 50（图片 / 文档等）                                                 |
+| `VITE_MAX_VIDEO_SIZE_MB`  | 视频单文件上限（MB）      | 默认 200                                                                 |
 | `VITE_MAX_TOTAL_SIZE_MB`  | 本批/队列总体积上限（MB） | 默认 500                                                                 |
 | `VITE_ALLOWED_EXT`        | 允许扩展名列表            | 逗号分隔；含常见图片、视频、文档、文本扩展名 |
 | `VITE_DUPLICATE_STRATEGY` | 重名策略                  | `uuid`（默认，OSS 为 `UUID-文件名`，界面显示原名）/ `timestamp` / `overwrite` / `suffix` |
 | `VITE_ALBUM_THUMB_CONCURRENCY` | 相册缩略图并发数     | 默认 4                                                                   |
+| `VITE_UPLOAD_CONCURRENCY` | 上传队列并行数           | 默认 2                                                                   |
 | `VITE_OSS_THUMB_PROCESS`  | 相册缩略图图片处理        | 可选；如 `image/resize,m_lfit,w_480`；需开通 OSS 图片处理；留空拉原图   |
+| `VITE_OSS_VIDEO_SNAPSHOT_PROCESS` | 相册视频封面截帧 | 默认 `video/snapshot,t_0,f_jpg,w_480,m_fast`；需开通；失败回退 `<video>` 首帧 |
 | `APP_ACCESS_PASSWORD`     | 网站访问口令（仅 `.env.local`） | 构建时注入 SHA-256 摘要；留空不启用门禁；见 `AccessGate.vue`      |
 | `ALIBABA_CLOUD_*`         | STS 签发（仅 `.env.local`） | 长期 Key 与 RoleArn；勿写进 `VITE_*`                                  |
 
@@ -394,7 +397,32 @@ heroxin-pic/
 | **待人工** | 8.5 验收清单 | 桌面/移动浏览器、大文件、签名过期等 → [`docs/acceptance.md`](./docs/acceptance.md) |
 | **可选二期** | 文件重命名 | D5 暂不做 |
 | **可选二期** | PWA 离线 Service Worker | 6.7 仅 manifest |
-| **可选二期** | 相册内图片+视频混合左右切换 | 当前图片与视频分 gallery 切换 |
+| **可选二期** | 相册内图片+视频混合左右切换 | 已完成 → **9.7** |
+
+### 8.8 性能与体验优化（待办）
+
+> 千张级相册、批量上传、移动端场景下的后续优化 backlog。优先级：**P0** 收益最大，**P1** 体验提升，**P2** 可选。
+
+#### P0 — 相册 / OSS 流量（优先）
+
+- [x] **9.1** 默认启用 OSS 缩略图处理：开通 Bucket 图片处理并配置 `VITE_OSS_THUMB_PROCESS`（如 `image/resize,m_lfit,w_480/quality,q_80`）；验收失败回退原图路径 → `albumThumb.ts` · `.env`
+- [x] **9.2** 处理模式下避免双拉原图：开启图片处理后，EXIF/地点元数据延后或轻量读取，避免「签名缩略图 URL + 整对象 `getObjectBlob`」重复 GET → `albumThumb.ts` · `imageMeta.ts`
+- [x] **9.3** 缩略图请求可取消：滚出视口时对进行中的 OSS 请求传递 `AbortSignal`，真正释放并发槽（当前仅 bump `loadToken`）→ `ImageAlbumThumb.vue` · `ossClient.ts`
+
+#### P1 — 上传 / 预览 / 可靠性
+
+- [x] **9.4** 上传队列并行：当前 `startUpload` 基本串行；批量手机照片可配置并发（如 2–3）→ `useUploadQueue.ts`
+- [x] **9.5** 视频封面优化：首帧依赖完整 `<video>` 拉流，费流费电；评估 OSS 视频截帧或预生成 poster → `videoAlbumThumb.ts`
+- [x] **9.6** 文件列表缓存持久化：`fullListSnapshot` 仅会话内存，刷新必全量 list；可 IndexedDB 缓存 + 增量失效 → `stores/files.ts` · `fileListCache.ts`
+- [x] **9.7** 相册混合预览左右切换：图片与视频在同一 gallery 内连续切换（与 8.7 可选二期同项）→ `useFilePreview.ts` · 预览弹窗
+- [x] **9.8** 缩略图缓存即时回填：虚拟列表重挂载时用 `peekAlbumThumb` 先展示已缓存 URL，避免空白闪一下（视频已有 `peekVideoAlbumPoster`）→ `ImageAlbumThumb.vue`
+- [x] **9.9** 缩略图失败可点重试：弱网 / 签名过期后占位不可交互，增加点击重试 → `ImageAlbumThumb.vue`
+
+#### P2 — 配置 / 文档 / 细节
+
+- [x] **9.10** 文档与实现漂移对齐：`album-phase2` 闲置缓存上限（64 vs 192）、多选入口（已改长按）等 → `docs/album-phase2.md`
+- [x] **9.11** 逆地理限流 / 延后：带 GPS 千张相册滚动时同步打 BigDataCloud；可滚停后再解析或按坐标去重批量 → `imageMeta.ts`
+- [x] **9.12** 视频单文件上限：已允许 mp4/mov 等但默认 `VITE_MAX_SIZE_MB=50`，评估分类型上限或提高默认值 → `.env` · `fileValidate.ts`
 
 ---
 
@@ -499,6 +527,11 @@ heroxin-pic/
 | 2026-08-30 | 前缀+微秒时间戳文件名  | 支持 `Image_1294485035594420.jpg`（前缀 + 16 位微秒）归档与展示名 |
 | 2026-08-30 | 批量上传体积上限       | `VITE_MAX_TOTAL_SIZE_MB` 默认由 200 调整为 500 MB |
 | 2026-08-31 | 相册缩略图视口懒加载   | 恢复 `IntersectionObserver`：仅接近当前视口时拉取；滚出预加载区放弃排队中的请求 |
+| 2026-08-31 | 相册地点文案简体中文   | 逆地理 `localityLanguage` 改为 `zh-Hans`，避免 `zh` 返回繁体 |
+| 2026-09-04 | 导航顺序与默认页       | Tab 顺序改为上传/相册/文件列表；`/` 默认进入相册；上传路由 `/upload` |
+| 2026-09-04 | P0 相册缩略图优化      | 启用 OSS 图片处理；EXIF 延后拉原图；滚出视口 Abort 取消请求 |
+| 2026-09-04 | P1 体验与可靠性优化    | 上传并行、视频 OSS 截帧、列表 IndexedDB、混合预览、缩略图回填/重试 |
+| 2026-09-04 | P2 配置与细节优化      | 逆地理滚停延后+限流；视频分类型上传上限；`album-phase2` 文档对齐 |
 
 ---
 

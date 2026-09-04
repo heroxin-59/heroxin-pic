@@ -5,7 +5,7 @@ import { Back, Folder, House } from '@element-plus/icons-vue'
 const router = useRouter()
 
 function goHome() {
-  void router.push({ name: 'home' })
+  void router.push({ name: 'images' })
 }
 
 function goFiles() {
@@ -26,7 +26,7 @@ function goBack() {
     <el-result icon="warning" title="页面不存在" sub-title="地址可能写错了，或页面已被移除。">
       <template #extra>
         <div class="not-found__actions">
-          <el-button type="primary" :icon="House" @click="goHome">回上传页</el-button>
+          <el-button type="primary" :icon="House" @click="goHome">回相册</el-button>
           <el-button :icon="Folder" @click="goFiles">文件列表</el-button>
           <el-button text :icon="Back" @click="goBack">返回上一页</el-button>
         </div>

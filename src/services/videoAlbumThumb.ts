@@ -6,7 +6,7 @@ export interface VideoAlbumThumbResult {
   key: string
   /** 签名播放地址（无 poster 时用于 <video> 解码首帧） */
   url: string
-  /** 已提取的首帧封面（blob: 或 data: URL） */
+  /** 已提取的首帧封面（blob: / https 签名 URL） */
   posterUrl?: string
 }
 
@@ -26,6 +26,10 @@ const MAX_IDLE_CACHE = 96
 const limiter = createLimiter(appEnv.albumThumbConcurrency)
 const cache = new Map<string, VideoThumbEntry>()
 const inflight = new Map<string, Promise<VideoThumbEntry>>()
+
+function videoSnapshotProcess(): string {
+  return appEnv.ossVideoSnapshotProcess
+}
 
 function isUsable(entry: VideoThumbEntry, now = Date.now()): boolean {
   return entry.expiresAt - SIGNED_REFRESH_MARGIN_MS > now
@@ -67,10 +71,21 @@ function evictIdle() {
 }
 
 async function loadFresh(key: string, keepPoster: string | null): Promise<VideoThumbEntry> {
+  const snapshot = videoSnapshotProcess()
   const url = await getAccessUrl(key, { expires: SIGNED_URL_TTL_SEC })
+
+  let posterUrl = keepPoster
+  if (!posterUrl && snapshot) {
+    try {
+      posterUrl = await getAccessUrl(key, { expires: SIGNED_URL_TTL_SEC, process: snapshot })
+    } catch {
+      // 未开通视频截帧 / 签名失败时回退 <video> 首帧
+    }
+  }
+
   return {
     url,
-    posterUrl: keepPoster,
+    posterUrl,
     refs: 0,
     expiresAt: Date.now() + SIGNED_URL_TTL_SEC * 1000,
     lastUsed: Date.now(),
@@ -78,7 +93,7 @@ async function loadFresh(key: string, keepPoster: string | null): Promise<VideoT
 }
 
 /**
- * 获取相册视频缩略图（签名 URL + 可选首帧 poster 缓存）。
+ * 获取相册视频缩略图（签名 URL + 可选 OSS 截帧 / 首帧 poster 缓存）。
  * 组件须成对调用 `releaseVideoAlbumThumb`。
  */
 export async function acquireVideoAlbumThumb(

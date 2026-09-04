@@ -5,6 +5,7 @@ import ImageAlbumThumb from '@/components/file-list/ImageAlbumThumb.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useWindowVirtualRows } from '@/composables/useWindowVirtualRows'
 import type { AlbumImageMeta } from '@/services/imageMeta'
+import { subscribeAlbumMetaUpdate } from '@/services/imageMeta'
 import type { FileRecord } from '@/types/file'
 import {
   getAlbumJumpPlaceholder,
@@ -116,6 +117,7 @@ const { visibleRows: visibleItems, scheduleUpdate } = useWindowVirtualRows({
 
 let resizeObserver: ResizeObserver | null = null
 let longPressTimer: ReturnType<typeof setTimeout> | null = null
+let unsubscribeMetaUpdate: (() => void) | null = null
 let suppressClick = false
 let suppressContextMenuUntil = 0
 let aspectRaf = 0
@@ -346,6 +348,7 @@ watch(selectionMode, (enabled) => {
 
 onMounted(() => {
   syncWidth()
+  unsubscribeMetaUpdate = subscribeAlbumMetaUpdate(onThumbMeta)
   if (typeof ResizeObserver !== 'undefined' && rootRef.value) {
     resizeObserver = new ResizeObserver(() => syncWidth())
     resizeObserver.observe(rootRef.value)
@@ -353,6 +356,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  unsubscribeMetaUpdate?.()
+  unsubscribeMetaUpdate = null
   clearLongPress()
   if (aspectRaf) window.cancelAnimationFrame(aspectRaf)
   resizeObserver?.disconnect()

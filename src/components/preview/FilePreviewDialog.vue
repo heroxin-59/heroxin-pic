@@ -1,289 +1,294 @@
-<script setup lang="ts">
-import { computed, watch } from 'vue'
-import ImagePreview from '@/components/preview/ImagePreview.vue'
-import MobileImagePreview from '@/components/preview/MobileImagePreview.vue'
-import MobileVideoPreview from '@/components/preview/MobileVideoPreview.vue'
-import { AsyncPdfPreview, AsyncWordPreview } from '@/components/preview/asyncPreview'
-import TextPreview from '@/components/preview/TextPreview.vue'
-import VideoPreview from '@/components/preview/VideoPreview.vue'
-import PreviewFallback from '@/components/preview/PreviewFallback.vue'
-import { useBreakpoint } from '@/composables/useBreakpoint'
-import { useFilePreview } from '@/composables/useFilePreview'
-import CategoryTag from '@/components/file-list/CategoryTag.vue'
-import type { FileRecord } from '@/types/file'
-import { formatBytes } from '@/utils/format'
-
-const props = defineProps<{
-  modelValue: boolean
-  /** 打开弹窗时要预览的文件；关闭后可清空 */
-  record: FileRecord | null
-  /**
-   * 可选：限定图片左右切换范围（如「仅图片」相册当前列表）。
-   * 不传则使用 store 中全部已加载图片。
-   */
-  gallery?: FileRecord[]
-}>()
-
-const emit = defineEmits<{
-  'update:modelValue': [value: boolean]
-  'update:record': [value: FileRecord | null]
-}>()
-
-const { isMobile } = useBreakpoint()
-
-const {
-  current,
-  loading,
-  errorMessage,
-  previewKind,
-  imageGallery,
-  videoGallery,
-  load,
-  setCurrent,
-  clear,
-  download,
-} = useFilePreview({
-  gallery: () => props.gallery,
-})
-
-const visible = computed({
-  get: () => props.modelValue,
-  set: (value: boolean) => emit('update:modelValue', value),
-})
-
-const previewTarget = computed(() => props.record ?? current.value)
-
-/** 移动端图片走全屏 PhotoSwipe */
-const useMobileImagePreview = computed(() => {
-  if (!isMobile.value || !props.modelValue) return false
-  return previewTarget.value?.category === 'image'
-})
-
-/** 移动端视频走全屏沉浸播放（风格对齐图片预览） */
-const useMobileVideoPreview = computed(() => {
-  if (!isMobile.value || !props.modelValue) return false
-  return previewTarget.value?.category === 'video'
-})
-
-const useMobileMediaPreview = computed(
-  () => useMobileImagePreview.value || useMobileVideoPreview.value,
-)
-
-const mobilePreviewCurrent = computed(() => current.value ?? props.record)
-
-const dialogTitle = computed(
-  () => mobilePreviewCurrent.value?.name || props.record?.name || '文件预览',
-)
-
-function onChangeMedia(next: FileRecord) {
-  setCurrent(next)
-  emit('update:record', next)
-}
-
-function closeDialog() {
-  visible.value = false
-}
-
-function onClosed() {
-  clear()
-  emit('update:record', null)
-}
-
-function onMobileClosed() {
-  onClosed()
-}
-
-function onRetry() {
-  if (props.record) void load(props.record)
-}
-
-watch(
-  () =>
-    [props.modelValue, props.record?.key, props.record?.category, useMobileMediaPreview.value] as const,
-  ([open, , category, mobileMedia]) => {
-    if (!open) {
-      if (!mobileMedia) clear()
-      return
-    }
-    if (!props.record?.key) return
-    if (mobileMedia && (category === 'image' || category === 'video')) {
-      setCurrent(props.record)
-      return
-    }
-    if (current.value?.key !== props.record.key) {
-      void load(props.record)
-    }
-  },
-  { immediate: true },
-)
-</script>
-
-<template>
-  <MobileImagePreview
-    v-if="useMobileImagePreview"
-    v-model="visible"
-    :current="mobilePreviewCurrent"
-    :gallery="imageGallery"
-    :loading="loading"
-    :error-message="errorMessage"
-    @change="onChangeMedia"
-    @download="download"
-    @closed="onMobileClosed"
-    @retry="onRetry"
-  />
-
-  <MobileVideoPreview
-    v-else-if="useMobileVideoPreview"
-    v-model="visible"
-    :current="mobilePreviewCurrent"
-    :gallery="videoGallery"
-    :loading="loading"
-    :error-message="errorMessage"
-    @change="onChangeMedia"
-    @download="download"
-    @closed="onMobileClosed"
-    @retry="onRetry"
-  />
-
-  <el-dialog
-    v-else-if="visible"
-    v-model="visible"
-    class="file-preview-dialog"
-    :title="dialogTitle"
-    width="94%"
-    append-to-body
-    destroy-on-close
-    align-center
-    :close-on-click-modal="true"
-    :close-on-press-escape="true"
-    @closed="onClosed"
-  >
-    <template #header>
-      <div class="file-preview-dialog__heading">
-        <span class="file-preview-dialog__title" :title="dialogTitle">{{ dialogTitle }}</span>
-        <!-- 文本预览自带类型/大小/编码标签，避免拆成两行 -->
-        <div v-if="current && previewKind !== 'text'" class="file-preview-dialog__tags">
-          <CategoryTag :category="current.category" />
-          <el-tag v-if="current.size" size="small" type="success">
-            {{ formatBytes(current.size) }}
-          </el-tag>
-        </div>
-      </div>
-    </template>
-
-    <div v-if="loading" v-loading="true" class="file-preview-dialog__loading" />
-
-    <el-result
-      v-else-if="errorMessage || !current"
-      icon="error"
-      :title="errorMessage || '预览失败'"
-    >
-      <template #extra>
-        <el-button v-if="record" type="primary" @click="load(record)">重试</el-button>
-        <el-button @click="closeDialog">关闭</el-button>
-      </template>
-    </el-result>
-
-    <ImagePreview
-      v-else-if="previewKind === 'image'"
-      :current="current"
-      :gallery="imageGallery"
-      @change="onChangeMedia"
-      @download="download"
-    />
-
-    <AsyncPdfPreview v-else-if="previewKind === 'pdf'" :record="current" @download="download" />
-
-    <AsyncWordPreview v-else-if="previewKind === 'word'" :record="current" @download="download" />
-
-    <TextPreview v-else-if="previewKind === 'text'" :record="current" @download="download" />
-
-    <VideoPreview v-else-if="previewKind === 'video'" :record="current" @download="download" />
-
-    <PreviewFallback
-      v-else
-      :record="current"
-      :kind="previewKind || 'unsupported'"
-      @download="download"
-    />
-  </el-dialog>
-</template>
-
-<style scoped>
-.file-preview-dialog__heading {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  padding-right: 28px;
-}
-
-.file-preview-dialog__title {
-  font-weight: 600;
-  font-size: 16px;
-  color: #303133;
-  line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: min(100%, 420px);
-}
-
-.file-preview-dialog__tags {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 6px;
-}
-
-.file-preview-dialog__loading {
-  min-height: 280px;
-}
-</style>
-
-<style>
-/* append-to-body：强制相对视口垂直水平居中，避免内容少时贴底 */
-.el-overlay-dialog:has(> .file-preview-dialog) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.file-preview-dialog.el-dialog {
-  margin: 0 !important;
-  max-width: 960px;
-  max-height: 92vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.file-preview-dialog .el-dialog__body {
-  overflow: auto;
-  max-height: calc(92vh - 72px);
-  padding-top: 8px;
-}
-
-@media (max-width: 767px) {
-  .el-overlay-dialog:has(> .file-preview-dialog) {
-    align-items: stretch;
-  }
-
-  .file-preview-dialog.el-dialog {
-    width: 100vw !important;
-    max-width: 100vw;
-    margin: 0 !important;
-    border-radius: 0;
-    max-height: 100dvh;
-    height: 100dvh;
-  }
-
-  .file-preview-dialog .el-dialog__body {
-    max-height: none;
-    flex: 1;
-    overflow: auto;
-  }
-}
-</style>
-
+<script setup lang="ts">
+import { computed, watch } from 'vue'
+import ImagePreview from '@/components/preview/ImagePreview.vue'
+import MobileImagePreview from '@/components/preview/MobileImagePreview.vue'
+import MobileVideoPreview from '@/components/preview/MobileVideoPreview.vue'
+import { AsyncPdfPreview, AsyncWordPreview } from '@/components/preview/asyncPreview'
+import TextPreview from '@/components/preview/TextPreview.vue'
+import VideoPreview from '@/components/preview/VideoPreview.vue'
+import PreviewFallback from '@/components/preview/PreviewFallback.vue'
+import { useBreakpoint } from '@/composables/useBreakpoint'
+import { useFilePreview } from '@/composables/useFilePreview'
+import CategoryTag from '@/components/file-list/CategoryTag.vue'
+import type { FileRecord } from '@/types/file'
+import { formatBytes } from '@/utils/format'
+
+const props = defineProps<{
+  modelValue: boolean
+  /** 打开弹窗时要预览的文件；关闭后可清空 */
+  record: FileRecord | null
+  /**
+   * 可选：限定图片左右切换范围（如「仅图片」相册当前列表）。
+   * 不传则使用 store 中全部已加载图片。
+   */
+  gallery?: FileRecord[]
+}>()
+
+const emit = defineEmits<{
+  'update:modelValue': [value: boolean]
+  'update:record': [value: FileRecord | null]
+}>()
+
+const { isMobile } = useBreakpoint()
+
+const {
+  current,
+  loading,
+  errorMessage,
+  previewKind,
+  mediaGallery,
+  load,
+  setCurrent,
+  clear,
+  download,
+} = useFilePreview({
+  gallery: () => props.gallery,
+})
+
+const visible = computed({
+  get: () => props.modelValue,
+  set: (value: boolean) => emit('update:modelValue', value),
+})
+
+const previewTarget = computed(() => props.record ?? current.value)
+
+/** 移动端图片走全屏 PhotoSwipe */
+const useMobileImagePreview = computed(() => {
+  if (!isMobile.value || !props.modelValue) return false
+  return previewTarget.value?.category === 'image'
+})
+
+/** 移动端视频走全屏沉浸播放（风格对齐图片预览） */
+const useMobileVideoPreview = computed(() => {
+  if (!isMobile.value || !props.modelValue) return false
+  return previewTarget.value?.category === 'video'
+})
+
+const useMobileMediaPreview = computed(
+  () => useMobileImagePreview.value || useMobileVideoPreview.value,
+)
+
+const mobilePreviewCurrent = computed(() => current.value ?? props.record)
+
+const dialogTitle = computed(
+  () => mobilePreviewCurrent.value?.name || props.record?.name || '文件预览',
+)
+
+function onChangeMedia(next: FileRecord) {
+  setCurrent(next)
+  emit('update:record', next)
+}
+
+function closeDialog() {
+  visible.value = false
+}
+
+function onClosed() {
+  clear()
+  emit('update:record', null)
+}
+
+function onMobileClosed() {
+  onClosed()
+}
+
+function onRetry() {
+  if (props.record) void load(props.record)
+}
+
+watch(
+  () =>
+    [props.modelValue, props.record?.key, props.record?.category, useMobileMediaPreview.value] as const,
+  ([open, , category, mobileMedia]) => {
+    if (!open) {
+      if (!mobileMedia) clear()
+      return
+    }
+    if (!props.record?.key) return
+    if (mobileMedia && (category === 'image' || category === 'video')) {
+      setCurrent(props.record)
+      return
+    }
+    if (current.value?.key !== props.record.key) {
+      void load(props.record)
+    }
+  },
+  { immediate: true },
+)
+</script>
+
+<template>
+  <MobileImagePreview
+    v-if="useMobileImagePreview"
+    v-model="visible"
+    :current="mobilePreviewCurrent"
+    :gallery="mediaGallery"
+    :loading="loading"
+    :error-message="errorMessage"
+    @change="onChangeMedia"
+    @download="download"
+    @closed="onMobileClosed"
+    @retry="onRetry"
+  />
+
+  <MobileVideoPreview
+    v-else-if="useMobileVideoPreview"
+    v-model="visible"
+    :current="mobilePreviewCurrent"
+    :gallery="mediaGallery"
+    :loading="loading"
+    :error-message="errorMessage"
+    @change="onChangeMedia"
+    @download="download"
+    @closed="onMobileClosed"
+    @retry="onRetry"
+  />
+
+  <el-dialog
+    v-else-if="visible"
+    v-model="visible"
+    class="file-preview-dialog"
+    :title="dialogTitle"
+    width="94%"
+    append-to-body
+    destroy-on-close
+    align-center
+    :close-on-click-modal="true"
+    :close-on-press-escape="true"
+    @closed="onClosed"
+  >
+    <template #header>
+      <div class="file-preview-dialog__heading">
+        <span class="file-preview-dialog__title" :title="dialogTitle">{{ dialogTitle }}</span>
+        <!-- 文本预览自带类型/大小/编码标签，避免拆成两行 -->
+        <div v-if="current && previewKind !== 'text'" class="file-preview-dialog__tags">
+          <CategoryTag :category="current.category" />
+          <el-tag v-if="current.size" size="small" type="success">
+            {{ formatBytes(current.size) }}
+          </el-tag>
+        </div>
+      </div>
+    </template>
+
+    <div v-if="loading" v-loading="true" class="file-preview-dialog__loading" />
+
+    <el-result
+      v-else-if="errorMessage || !current"
+      icon="error"
+      :title="errorMessage || '预览失败'"
+    >
+      <template #extra>
+        <el-button v-if="record" type="primary" @click="load(record)">重试</el-button>
+        <el-button @click="closeDialog">关闭</el-button>
+      </template>
+    </el-result>
+
+    <ImagePreview
+      v-else-if="previewKind === 'image'"
+      :current="current"
+      :gallery="mediaGallery"
+      @change="onChangeMedia"
+      @download="download"
+    />
+
+    <AsyncPdfPreview v-else-if="previewKind === 'pdf'" :record="current" @download="download" />
+
+    <AsyncWordPreview v-else-if="previewKind === 'word'" :record="current" @download="download" />
+
+    <TextPreview v-else-if="previewKind === 'text'" :record="current" @download="download" />
+
+    <VideoPreview
+      v-else-if="previewKind === 'video'"
+      :record="current"
+      :gallery="mediaGallery"
+      @change="onChangeMedia"
+      @download="download"
+    />
+
+    <PreviewFallback
+      v-else
+      :record="current"
+      :kind="previewKind || 'unsupported'"
+      @download="download"
+    />
+  </el-dialog>
+</template>
+
+<style scoped>
+.file-preview-dialog__heading {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-right: 28px;
+}
+
+.file-preview-dialog__title {
+  font-weight: 600;
+  font-size: 16px;
+  color: #303133;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(100%, 420px);
+}
+
+.file-preview-dialog__tags {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.file-preview-dialog__loading {
+  min-height: 280px;
+}
+</style>
+
+<style>
+/* append-to-body：强制相对视口垂直水平居中，避免内容少时贴底 */
+.el-overlay-dialog:has(> .file-preview-dialog) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-preview-dialog.el-dialog {
+  margin: 0 !important;
+  max-width: 960px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-preview-dialog .el-dialog__body {
+  overflow: auto;
+  max-height: calc(92vh - 72px);
+  padding-top: 8px;
+}
+
+@media (max-width: 767px) {
+  .el-overlay-dialog:has(> .file-preview-dialog) {
+    align-items: stretch;
+  }
+
+  .file-preview-dialog.el-dialog {
+    width: 100vw !important;
+    max-width: 100vw;
+    margin: 0 !important;
+    border-radius: 0;
+    max-height: 100dvh;
+    height: 100dvh;
+  }
+
+  .file-preview-dialog .el-dialog__body {
+    max-height: none;
+    flex: 1;
+    overflow: auto;
+  }
+}
+</style>
+

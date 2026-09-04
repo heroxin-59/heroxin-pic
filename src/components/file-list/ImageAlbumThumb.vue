@@ -5,7 +5,10 @@ import type { FileRecord } from '@/types/file'
 import type { AlbumImageMeta } from '@/services/imageMeta'
 import {
   acquireAlbumThumb,
+  ensureAlbumThumbMeta,
   invalidateAlbumThumb,
+  isAlbumThumbProcessEnabled,
+  peekAlbumThumb,
   releaseAlbumThumb,
 } from '@/services/albumThumb'
 import {
@@ -15,6 +18,7 @@ import {
   setVideoAlbumPoster,
 } from '@/services/videoAlbumThumb'
 import { getCachedAlbumAspect, setAlbumAspect } from '@/services/imageAspect'
+import { isAbortError } from '@/utils/error'
 
 const props = defineProps<{
   record: FileRecord
@@ -45,6 +49,7 @@ let resizeObserver: ResizeObserver | null = null
 let intersectionObserver: IntersectionObserver | null = null
 /** 是否处于视口（含上下预加载缓冲）内 */
 let inView = false
+let loadAbortController: AbortController | null = null
 
 /** 进入视口前/后各预加载约 1 屏，避免快速滚动白块 */
 const VIEWPORT_ROOT_MARGIN = '100% 0px'
@@ -121,13 +126,52 @@ function hydrateVideoFromCache() {
   return true
 }
 
+function hydrateImageFromCache(): boolean {
+  const cached = peekAlbumThumb(props.record.key)
+  if (!cached?.url) return false
+
+  imageUrl.value = cached.url
+  emit('meta', cached.meta)
+  const cachedAspect = getCachedAlbumAspect(props.record.key)
+  if (cachedAspect != null) {
+    emit('aspect', { key: props.record.key, aspectRatio: cachedAspect })
+  }
+  return true
+}
+
+function abortActiveLoad() {
+  loadAbortController?.abort()
+  loadAbortController = null
+}
+
+function beginLoadAbort(): AbortSignal {
+  abortActiveLoad()
+  loadAbortController = new AbortController()
+  return loadAbortController.signal
+}
+
 function startThumbLoad() {
   if (!inView) return
   failed.value = false
   if (isVideo.value) {
     hydrateVideoFromCache()
+  } else {
+    hydrateImageFromCache()
   }
   void loadThumb()
+}
+
+function scheduleDeferredMeta(key: string, token: number, signal: AbortSignal) {
+  if (!isAlbumThumbProcessEnabled()) return
+
+  void ensureAlbumThumbMeta(key, { signal })
+    .then((meta) => {
+      if (token !== loadToken) return
+      emit('meta', meta)
+    })
+    .catch((error) => {
+      if (isAbortError(error)) return
+    })
 }
 
 function onViewportChange(isIntersecting: boolean) {
@@ -136,7 +180,8 @@ function onViewportChange(isIntersecting: boolean) {
     startThumbLoad()
     return
   }
-  // 滚出预加载区：放弃进行中的请求以释放并发槽，但保留已显示的缩略图
+  // 滚出预加载区：取消进行中的请求以释放并发槽，但保留已显示的缩略图
+  abortActiveLoad()
   if (loading.value) {
     loadToken += 1
     loading.value = false
@@ -176,9 +221,10 @@ async function loadImageThumb(force = false) {
   const token = ++loadToken
   loading.value = true
   failed.value = false
+  const signal = beginLoadAbort()
 
   try {
-    const result = await acquireAlbumThumb(key, { force })
+    const result = await acquireAlbumThumb(key, { force, signal })
     if (token !== loadToken) {
       releaseAlbumThumb(key)
       return
@@ -195,12 +241,15 @@ async function loadImageThumb(force = false) {
     if (cachedAspect != null) {
       emit('aspect', { key, aspectRatio: cachedAspect })
     }
-  } catch {
-    if (token !== loadToken) return
+    scheduleDeferredMeta(key, token, signal)
+  } catch (error) {
+    if (token !== loadToken || isAbortError(error)) return
     failed.value = true
     releaseHeld()
   } finally {
-    loading.value = false
+    if (token === loadToken) {
+      loading.value = false
+    }
   }
 }
 
@@ -336,6 +385,13 @@ function shouldRetryLoad(): boolean {
   return !imageUrl.value
 }
 
+function onRetryClick() {
+  if (loading.value) return
+  refreshAttempted = false
+  failed.value = false
+  void loadThumb(true)
+}
+
 function setupResizeRetry() {
   resizeObserver?.disconnect()
   const el = rootRef.value
@@ -350,6 +406,7 @@ function setupResizeRetry() {
 }
 
 function resetForRecordChange() {
+  abortActiveLoad()
   loadToken += 1
   refreshAttempted = false
   releaseHeld()
@@ -368,6 +425,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  abortActiveLoad()
   loadToken += 1
   intersectionObserver?.disconnect()
   intersectionObserver = null
@@ -404,10 +462,14 @@ onBeforeUnmount(() => {
 
       <div
         v-else-if="failed"
-        class="album-thumb__fallback album-thumb__fallback--video"
+        class="album-thumb__fallback album-thumb__fallback--video album-thumb__fallback--retry"
+        role="button"
+        tabindex="0"
+        @click.stop="onRetryClick"
+        @keydown.enter.stop="onRetryClick"
       >
         <el-icon :size="22"><VideoCamera /></el-icon>
-        <span class="album-thumb__hint">加载失败</span>
+        <span class="album-thumb__hint">加载失败，点击重试</span>
       </div>
 
       <div
@@ -432,9 +494,16 @@ onBeforeUnmount(() => {
         @error="onImgError"
       />
 
-      <div v-else-if="failed" class="album-thumb__fallback">
+      <div
+        v-else-if="failed"
+        class="album-thumb__fallback album-thumb__fallback--retry"
+        role="button"
+        tabindex="0"
+        @click.stop="onRetryClick"
+        @keydown.enter.stop="onRetryClick"
+      >
         <el-icon :size="22"><Picture /></el-icon>
-        <span class="album-thumb__hint">加载失败</span>
+        <span class="album-thumb__hint">加载失败，点击重试</span>
       </div>
 
       <div v-else class="album-thumb__fallback" :class="{ 'is-loading': loading }">
@@ -516,6 +585,14 @@ onBeforeUnmount(() => {
 .album-thumb__hint {
   font-size: 10px;
   color: #909399;
+}
+
+.album-thumb__fallback--retry {
+  cursor: pointer;
+}
+
+.album-thumb__fallback--retry:hover .album-thumb__hint {
+  color: #606266;
 }
 
 .album-thumb__fallback.is-loading {

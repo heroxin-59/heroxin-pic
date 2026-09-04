@@ -13,12 +13,15 @@
 | `VITE_OSS_DIR` | 建议 | 对象前缀，默认 `uploads/` |
 | `VITE_STS_URL` | 生产推荐 | STS 临时凭证接口；本地可用 `/api/sts`（见 [`sts-setup.md`](./sts-setup.md)） |
 | `VITE_OSS_ACCESS_KEY_ID` 等 | 仅本地 | 长期 Key 或手工临时凭证；**禁止生产 / 禁止提交** |
-| `VITE_MAX_SIZE_MB` | 否 | 单文件上限 MB，默认 50 |
+| `VITE_MAX_SIZE_MB` | 否 | 图片/文档等单文件上限 MB，默认 50 |
+| `VITE_MAX_VIDEO_SIZE_MB` | 否 | 视频单文件上限 MB，默认 200 |
 | `VITE_MAX_TOTAL_SIZE_MB` | 否 | 单批上限 MB，默认 500 |
 | `VITE_ALLOWED_EXT` | 否 | 允许扩展名，逗号分隔 |
 | `VITE_DUPLICATE_STRATEGY` | 否 | `uuid` / `timestamp` / `overwrite` / `suffix` |
 | `VITE_OSS_THUMB_PROCESS` | 否 | 相册缩略图图片处理参数 |
+| `VITE_OSS_VIDEO_SNAPSHOT_PROCESS` | 否 | 相册视频封面截帧；留空用内置默认 |
 | `VITE_ALBUM_THUMB_CONCURRENCY` | 否 | 缩略图并发，默认 4 |
+| `VITE_UPLOAD_CONCURRENCY` | 否 | 上传并行数，默认 2 |
 
 修改后需**重启** `pnpm dev`。
 

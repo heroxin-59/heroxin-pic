@@ -284,7 +284,14 @@ onUnmounted(() => {
   loadToken += 1
   pauseVideo()
   releaseHeldUrl()
-  disablePreviewHistory(closingPreviewFromHistory)
+  // 仍在预览中（切到图片）时不回退 history，交给图片预览继续接管
+  if (props.modelValue) {
+    window.removeEventListener('popstate', handlePreviewPopState)
+    previewHistoryActive = false
+    activePreviewHistoryGeneration = 0
+  } else {
+    disablePreviewHistory(closingPreviewFromHistory)
+  }
   closingPreviewFromHistory = false
 })
 </script>

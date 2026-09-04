@@ -1,7 +1,9 @@
 import { getOssConnectionConfig } from '@/config/oss'
 import { withOssClient } from '@/services/oss'
 import type { OssClient } from '@/services/ossClient'
+import { AppError } from '@/types/error'
 import { buildFileRecordFromKey, type FileRecord, type FolderEntry } from '@/types/file'
+import { isAbortError } from '@/utils/error'
 
 const OSS_LIST_BATCH_SIZE = 1000
 
@@ -204,8 +206,37 @@ export async function getAccessUrl(
   )
 }
 
-/** 通过 SDK 拉取对象 Blob（图片/文本预览更稳妥） */
-export async function getObjectBlob(key: string): Promise<Blob> {
+/** 通过 SDK 或（带 signal 时）签名 URL + fetch 拉取对象 Blob */
+export async function getObjectBlob(
+  key: string,
+  options?: { signal?: AbortSignal },
+): Promise<Blob> {
+  const signal = options?.signal
+  if (signal?.aborted) {
+    throw new AppError('CANCELLED', '操作已取消。')
+  }
+
+  // 可取消读取走独立 fetch，避免共享 OSS 客户端 cancel() 误伤其它并发请求
+  if (signal) {
+    const url = await getAccessUrl(key)
+    if (signal.aborted) {
+      throw new AppError('CANCELLED', '操作已取消。')
+    }
+    let response: Response
+    try {
+      response = await fetch(url, { signal })
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw new AppError('CANCELLED', '操作已取消。', error)
+      }
+      throw error
+    }
+    if (!response.ok) {
+      throw new AppError('NETWORK', `读取对象失败（HTTP ${response.status}）。`)
+    }
+    return response.blob()
+  }
+
   return withOssClient(async (client) => client.getObjectBlob(key))
 }
 

@@ -80,6 +80,8 @@ export function getUploadLimits() {
   return {
     maxSizeMb: appEnv.maxSizeMb,
     maxSizeBytes: appEnv.maxSizeMb * 1024 * 1024,
+    maxVideoSizeMb: appEnv.maxVideoSizeMb,
+    maxVideoSizeBytes: appEnv.maxVideoSizeMb * 1024 * 1024,
     maxTotalSizeMb: appEnv.maxTotalSizeMb,
     maxTotalBytes: appEnv.maxTotalSizeMb * 1024 * 1024,
     allowedExt,

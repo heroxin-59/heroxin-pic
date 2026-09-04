@@ -10,10 +10,14 @@ import { useFileStore } from '@/stores/files'
 import type { FileRecord } from '@/types/file'
 import { showAppError, showAppSuccess } from '@/utils/message'
 
+function isMediaRecord(item: FileRecord): boolean {
+  return item.category === 'image' || item.category === 'video'
+}
+
 export interface UseFilePreviewOptions {
   /**
-   * 可选：图片左右切换范围。
-   * 不传则使用 store 中全部已加载图片。
+   * 可选：左右切换范围（相册传入含图片+视频的列表）。
+   * 不传则使用 store 中已加载的图片与视频。
    */
   gallery?: () => FileRecord[] | undefined
 }
@@ -34,13 +38,23 @@ export function useFilePreview(options: UseFilePreviewOptions = {}) {
     current.value ? getPreviewKind(current.value) : null,
   )
 
-  const imageGallery = computed(() => {
-    const fromOption = options.gallery?.()?.filter((item) => item.category === 'image') ?? null
-    const images =
+  /** 图片 + 视频连续切换范围（相册混合预览） */
+  const mediaGallery = computed(() => {
+    const fromOption = options.gallery?.()?.filter(isMediaRecord) ?? null
+    const media =
       fromOption && fromOption.length > 0
         ? fromOption
-        : records.value.filter((item) => item.category === 'image')
+        : records.value.filter(isMediaRecord)
 
+    if (!current.value || !isMediaRecord(current.value)) return media
+    if (!media.some((item) => item.key === current.value!.key)) {
+      return [current.value, ...media]
+    }
+    return media
+  })
+
+  const imageGallery = computed(() => {
+    const images = mediaGallery.value.filter((item) => item.category === 'image')
     if (!current.value || current.value.category !== 'image') return images
     if (!images.some((item) => item.key === current.value!.key)) {
       return [current.value, ...images]
@@ -49,12 +63,7 @@ export function useFilePreview(options: UseFilePreviewOptions = {}) {
   })
 
   const videoGallery = computed(() => {
-    const fromOption = options.gallery?.()?.filter((item) => item.category === 'video') ?? null
-    const videos =
-      fromOption && fromOption.length > 0
-        ? fromOption
-        : records.value.filter((item) => item.category === 'video')
-
+    const videos = mediaGallery.value.filter((item) => item.category === 'video')
     if (!current.value || current.value.category !== 'video') return videos
     if (!videos.some((item) => item.key === current.value!.key)) {
       return [current.value, ...videos]
@@ -104,6 +113,7 @@ export function useFilePreview(options: UseFilePreviewOptions = {}) {
     loading,
     errorMessage,
     previewKind,
+    mediaGallery,
     imageGallery,
     videoGallery,
     load,
