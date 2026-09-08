@@ -37,8 +37,8 @@ body,
 
 body {
   font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  color: var(--app-text, #303133);
-  background-color: var(--app-bg, #f5f7fa);
+  color: var(--app-text, #1a2b3d);
+  background-color: var(--app-bg, #e8f4ff);
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: contain;
 }

@@ -73,32 +73,29 @@ watch(
 
 <template>
   <div class="preview-view">
-    <el-card shadow="never">
-      <template #header>
-        <div class="preview-view__header">
-          <div class="preview-view__title-wrap">
-            <el-button text :icon="ArrowLeft" class="preview-view__back" @click="goBack">
-              返回
-            </el-button>
-            <div class="preview-view__heading">
-              <span class="preview-view__title">
-                {{ current?.name || '文件预览' }}
-              </span>
-              <div v-if="current && previewKind !== 'text'" class="preview-view__tags">
-                <CategoryTag :category="current.category" />
-                <el-tag v-if="current.size" size="small" type="success">
-                  {{ formatBytes(current.size) }}
-                </el-tag>
-              </div>
-            </div>
+    <header class="preview-view__masthead">
+      <div class="preview-view__masthead-main">
+        <el-button text :icon="ArrowLeft" class="preview-view__back" @click="goBack">
+          返回
+        </el-button>
+        <div class="preview-view__heading">
+          <h1 class="preview-view__title">
+            {{ current?.name || '预览' }}
+          </h1>
+          <p class="preview-view__lede">源文件在线预览，不做转码</p>
+          <div v-if="current && previewKind !== 'text'" class="preview-view__tags">
+            <CategoryTag :category="current.category" />
+            <span v-if="current.size" class="preview-view__size">{{ formatBytes(current.size) }}</span>
           </div>
         </div>
-      </template>
+      </div>
+    </header>
 
+    <div class="preview-view__stage">
       <div v-if="loading" v-loading="true" class="preview-view__loading" />
 
       <el-empty v-else-if="!queryKey" description="请从文件列表选择文件进行预览">
-        <el-button type="primary" @click="goFiles">打开文件列表</el-button>
+        <el-button type="primary" @click="goFiles">打开文件</el-button>
       </el-empty>
 
       <el-result
@@ -138,19 +135,22 @@ watch(
         :kind="previewKind || 'unsupported'"
         @download="download"
       />
-    </el-card>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.preview-view__header {
+.preview-view {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  min-height: 100%;
 }
 
-.preview-view__title-wrap {
+.preview-view__masthead {
+  padding: 4px 2px 18px;
+}
+
+.preview-view__masthead-main {
   display: flex;
   align-items: flex-start;
   gap: 4px;
@@ -161,6 +161,7 @@ watch(
   flex-shrink: 0;
   min-height: 40px;
   touch-action: manipulation;
+  margin-top: 2px;
 }
 
 .preview-view__heading {
@@ -171,17 +172,50 @@ watch(
 }
 
 .preview-view__title {
-  font-weight: 600;
-  font-size: 16px;
-  color: #303133;
+  margin: 0;
+  font-size: clamp(1.35rem, 4vw, 1.85rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--app-text);
   word-break: break-all;
+  line-height: 1.25;
+}
+
+.preview-view__lede {
+  margin: 0;
+  font-size: 13px;
   line-height: 1.4;
+  color: var(--app-text-secondary);
 }
 
 .preview-view__tags {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
+}
+
+.preview-view__size {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-text);
+  background: color-mix(in srgb, var(--brand-chip) 50%, white);
+  border: 1px solid color-mix(in srgb, var(--brand-chip) 65%, white);
+}
+
+.preview-view__stage {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 12px 20px;
+  border-radius: var(--app-radius);
+  background: color-mix(in srgb, var(--app-surface) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-border) 80%, transparent);
+  box-shadow: var(--app-shadow);
+  backdrop-filter: blur(6px);
 }
 
 .preview-view__loading {
@@ -189,8 +223,14 @@ watch(
 }
 
 @media (max-width: 767px) {
-  .preview-view__title {
-    font-size: 15px;
+  .preview-view__masthead {
+    padding: 0 0 14px;
+  }
+
+  .preview-view__stage {
+    margin: 0 -4px;
+    padding: 12px 8px 16px;
+    border-radius: 14px;
   }
 }
 </style>

@@ -285,7 +285,7 @@ onUnmounted(() => {
 
 .pdf-preview__meta-hint {
   font-size: 12px;
-  color: #909399;
+  color: var(--app-text-muted);
 }
 
 .pdf-preview__actions {
@@ -303,7 +303,7 @@ onUnmounted(() => {
   position: relative;
   min-height: 360px;
   max-height: min(72vh, 900px);
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--app-border);
   border-radius: 12px;
   background: #e8ebf0;
   overflow: auto;
@@ -330,7 +330,7 @@ onUnmounted(() => {
 .pdf-preview__hint {
   margin: 0;
   font-size: 12px;
-  color: #909399;
+  color: var(--app-text-muted);
 }
 
 @media (max-width: 767px) {

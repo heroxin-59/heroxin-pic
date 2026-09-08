@@ -214,144 +214,139 @@ onMounted(() => {
 </script>
 
 <template>
-  <el-card shadow="never" class="file-list">
-    <template #header>
-      <div class="file-list__header">
-        <div class="file-list__title-wrap">
-          <span class="file-list__title">文件列表</span>
-          <el-tag size="small" type="success">OSS</el-tag>
-        </div>
-        <div class="file-list__meta">
-          <div class="file-list__mode">
-            <span class="file-list__mode-label">显示全部</span>
-            <el-switch
-              :model-value="showAllFiles"
-              size="small"
-              inline-prompt
-              active-text="是"
-              inactive-text="否"
-              :disabled="loading"
-              @change="onShowAllFilesChange"
-            />
-          </div>
+  <div class="file-list">
+    <header class="file-list__masthead">
+      <div class="file-list__masthead-copy">
+        <h1 class="file-list__title">文件</h1>
+        <p class="file-list__lede">浏览目录与全部对象，预览或下载源文件</p>
+      </div>
+      <div class="file-list__masthead-actions">
+        <div class="file-list__masthead-tools">
+          <span v-if="statsLabel" class="file-list__stats">{{ statsLabel }}</span>
           <el-button
-            size="small"
+            circle
             text
             type="primary"
             :icon="Refresh"
             :loading="loading"
+            aria-label="刷新文件列表"
             class="file-list__refresh-btn"
             @click="refresh"
-          >
-            刷新
-          </el-button>
+          />
         </div>
-      </div>
-    </template>
-
-    <div v-if="loading && !loaded" class="file-list__state">
-      <div v-loading="true" class="file-list__loading-box" />
-      <p class="file-list__loading-text">正在从 OSS 加载历史文件…</p>
-      <p class="file-list__loading-hint">文件较多时可能需要稍等片刻</p>
-    </div>
-
-    <el-result v-else-if="errorMessage" icon="error" title="加载失败" :sub-title="errorMessage">
-      <template #extra>
-        <el-button type="primary" :loading="loading" @click="refresh">重试</el-button>
-      </template>
-    </el-result>
-
-    <el-empty v-else-if="loaded && !hasListContent" class="file-list__empty">
-      <template #description>
-        <p>{{ showAllFiles ? '当前 OSS 前缀下暂无文件' : '当前目录为空' }}</p>
-        <p class="file-list__empty-hint">上传成功后会出现在此列表</p>
-      </template>
-      <el-button type="primary" @click="goUpload">去上传</el-button>
-    </el-empty>
-
-    <template v-else-if="hasListContent">
-      <div v-if="!showAllFiles" class="file-list__breadcrumb">
-        <el-button
-          text
-          type="primary"
-          :icon="ArrowLeft"
-          :disabled="!canGoParent || loading"
-          class="file-list__back"
-          @click="goParent"
-        >
-          返回上一级
-        </el-button>
-        <nav class="file-list__crumbs" aria-label="目录路径">
-          <template v-for="(crumb, index) in breadcrumbs" :key="crumb.prefix">
-            <span v-if="index > 0" class="file-list__crumb-sep">/</span>
-            <button
-              type="button"
-              class="file-list__crumb"
-              :class="{ 'is-current': index === breadcrumbs.length - 1 }"
-              :disabled="loading || index === breadcrumbs.length - 1"
-              @click="onBreadcrumbClick(crumb)"
-            >
-              {{ crumb.label }}
-            </button>
-          </template>
-        </nav>
-      </div>
-
-      <div class="file-list__toolbar">
-        <el-input
-          v-model="keyword"
-          class="file-list__search"
-          clearable
-          :placeholder="showAllFiles ? '搜索文件名 / Key / 扩展名' : '搜索本目录名称 / Key'"
-          :prefix-icon="Search"
-        />
-        <el-select
-          v-model="category"
-          class="file-list__filter"
-          placeholder="类型"
-        >
-          <el-option
-            v-for="item in FILE_CATEGORY_FILTERS"
-            :key="item.value"
-            :label="item.label"
-            :value="item.value"
+        <label class="file-list__mode">
+          <span class="file-list__mode-label">显示全部</span>
+          <el-switch
+            :model-value="showAllFiles"
+            size="small"
+            inline-prompt
+            active-text="是"
+            inactive-text="否"
+            :disabled="loading"
+            @change="onShowAllFilesChange"
           />
-        </el-select>
-        <el-select v-model="sortValue" class="file-list__sort" placeholder="排序">
-          <el-option
-            v-for="item in FILE_SORT_OPTIONS"
-            :key="item.value"
-            :label="item.label"
-            :value="item.value"
-          />
-        </el-select>
-        <el-button text type="primary" @click="resetQuery">重置</el-button>
+        </label>
+      </div>
+    </header>
+
+    <div class="file-list__stage">
+      <div v-if="loading && !loaded" class="file-list__state">
+        <div v-loading="true" class="file-list__loading-box" />
+        <p class="file-list__loading-text">正在从 OSS 加载历史文件…</p>
+        <p class="file-list__loading-hint">文件较多时可能需要稍等片刻</p>
       </div>
 
-      <el-empty v-if="showEmptyFilter" class="file-list__empty">
-        <template #description>
-          <p>没有符合条件的文件</p>
-          <p class="file-list__empty-hint">试试调整搜索关键词或类型筛选</p>
+      <el-result v-else-if="errorMessage" icon="error" title="加载失败" :sub-title="errorMessage">
+        <template #extra>
+          <el-button type="primary" :loading="loading" @click="refresh">重试</el-button>
         </template>
-        <el-button type="primary" plain @click="resetQuery">清除筛选</el-button>
+      </el-result>
+
+      <el-empty v-else-if="loaded && !hasListContent" class="file-list__empty">
+        <template #description>
+          <p>{{ showAllFiles ? '当前 OSS 前缀下暂无文件' : '当前目录为空' }}</p>
+          <p class="file-list__empty-hint">上传成功后会出现在此列表</p>
+        </template>
+        <el-button type="primary" @click="goUpload">去上传</el-button>
       </el-empty>
 
-      <template v-else>
-        <p v-if="filteredTotal > 0 || filteredFolders.length > 0" class="file-list__range">
-          <template v-if="showAllFiles">
-            <span class="file-list__range-prefix">全部</span>
-            <el-tag size="small" type="success">{{ statsLabel }}</el-tag>
-            <span v-if="filteredTotal > 0" class="file-list__range-extra">
-              · 第 {{ pageRangeStart }}–{{ pageRangeEnd }} 条
-            </span>
-          </template>
-          <template v-else>
-            <span class="file-list__range-prefix">本目录</span>
-            <el-tag size="small" type="success">{{ statsLabel }}</el-tag>
-          </template>
-        </p>
+      <template v-else-if="hasListContent">
+        <div v-if="!showAllFiles" class="file-list__breadcrumb">
+          <el-button
+            text
+            type="primary"
+            :icon="ArrowLeft"
+            :disabled="!canGoParent || loading"
+            class="file-list__back"
+            @click="goParent"
+          >
+            返回上一级
+          </el-button>
+          <nav class="file-list__crumbs" aria-label="目录路径">
+            <template v-for="(crumb, index) in breadcrumbs" :key="crumb.prefix">
+              <span v-if="index > 0" class="file-list__crumb-sep">/</span>
+              <button
+                type="button"
+                class="file-list__crumb"
+                :class="{ 'is-current': index === breadcrumbs.length - 1 }"
+                :disabled="loading || index === breadcrumbs.length - 1"
+                @click="onBreadcrumbClick(crumb)"
+              >
+                {{ crumb.label }}
+              </button>
+            </template>
+          </nav>
+        </div>
 
-        <el-table
+        <div class="file-list__toolbar">
+          <el-input
+            v-model="keyword"
+            class="file-list__search"
+            clearable
+            :placeholder="showAllFiles ? '搜索文件名 / Key / 扩展名' : '搜索本目录名称 / Key'"
+            :prefix-icon="Search"
+          />
+          <el-select v-model="category" class="file-list__filter" placeholder="类型">
+            <el-option
+              v-for="item in FILE_CATEGORY_FILTERS"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+          <el-select v-model="sortValue" class="file-list__sort" placeholder="排序">
+            <el-option
+              v-for="item in FILE_SORT_OPTIONS"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+          <el-button text type="primary" @click="resetQuery">重置</el-button>
+        </div>
+
+        <el-empty v-if="showEmptyFilter" class="file-list__empty">
+          <template #description>
+            <p>没有符合条件的文件</p>
+            <p class="file-list__empty-hint">试试调整搜索关键词或类型筛选</p>
+          </template>
+          <el-button type="primary" plain @click="resetQuery">清除筛选</el-button>
+        </el-empty>
+
+        <template v-else>
+          <p v-if="filteredTotal > 0 || filteredFolders.length > 0" class="file-list__range">
+            <template v-if="showAllFiles">
+              <span class="file-list__range-prefix">全部</span>
+              <span v-if="filteredTotal > 0" class="file-list__range-extra">
+                第 {{ pageRangeStart }}–{{ pageRangeEnd }} 条
+              </span>
+            </template>
+            <template v-else>
+              <span class="file-list__range-prefix">本目录</span>
+            </template>
+          </p>
+
+          <el-table
             v-if="!showAllFiles && filteredFolders.length > 0"
             v-loading="loading"
             :data="filteredFolders"
@@ -379,9 +374,7 @@ onMounted(() => {
             </el-table-column>
             <el-table-column label="操作" width="340" fixed="right">
               <template #default="{ row }">
-                <el-button size="small" text type="primary" @click="openFolder(row)"
-                  >打开</el-button
-                >
+                <el-button size="small" text type="primary" @click="openFolder(row)">打开</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -421,31 +414,13 @@ onMounted(() => {
             <el-table-column label="操作" width="340" fixed="right">
               <template #default="{ row }">
                 <div class="file-list__actions">
-                  <el-button
-                    size="small"
-                    text
-                    type="primary"
-                    :icon="View"
-                    @click="previewFile(row)"
-                  >
+                  <el-button size="small" text type="primary" :icon="View" @click="previewFile(row)">
                     预览
                   </el-button>
-                  <el-button
-                    size="small"
-                    text
-                    type="primary"
-                    :icon="Download"
-                    @click="downloadFile(row)"
-                  >
+                  <el-button size="small" text type="primary" :icon="Download" @click="downloadFile(row)">
                     下载
                   </el-button>
-                  <el-button
-                    size="small"
-                    text
-                    type="primary"
-                    :icon="CopyDocument"
-                    @click="copyUrl(row)"
-                  >
+                  <el-button size="small" text type="primary" :icon="CopyDocument" @click="copyUrl(row)">
                     复制
                   </el-button>
                   <el-button
@@ -494,13 +469,7 @@ onMounted(() => {
                 <el-button size="small" text type="primary" :icon="View" @click="previewFile(row)">
                   预览
                 </el-button>
-                <el-button
-                  size="small"
-                  text
-                  type="primary"
-                  :icon="Download"
-                  @click="downloadFile(row)"
-                >
+                <el-button size="small" text type="primary" :icon="Download" @click="downloadFile(row)">
                   下载
                 </el-button>
                 <el-button size="small" text type="primary" :icon="CopyDocument" @click="copyUrl(row)">
@@ -530,15 +499,12 @@ onMounted(() => {
             :layout="paginationLayout"
             background
           />
-
+        </template>
       </template>
-    </template>
-  </el-card>
+    </div>
+  </div>
 
-  <FilePreviewDialog
-    v-model="previewVisible"
-    v-model:record="previewRecord"
-  />
+  <FilePreviewDialog v-model="previewVisible" v-model:record="previewRecord" />
 
   <FileContextMenu
     ref="contextMenuRef"
@@ -553,44 +519,75 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.file-list__header {
+.file-list {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 0;
+  min-height: 100%;
+}
+
+.file-list__masthead {
+  display: flex;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
-  min-height: 32px;
+  gap: 16px;
+  padding: 4px 2px 18px;
 }
 
-.file-list :deep(.el-card__header) {
-  padding-top: 14px;
-  padding-bottom: 14px;
-}
-
-.file-list__title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+.file-list__masthead-copy {
+  min-width: 0;
 }
 
 .file-list__title {
-  font-weight: 600;
+  margin: 0;
+  font-size: clamp(1.75rem, 5vw, 2.25rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--app-text);
 }
 
-.file-list__meta {
+.file-list__lede {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--app-text-secondary);
+}
+
+.file-list__masthead-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-bottom: 2px;
+}
+
+.file-list__masthead-tools {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: nowrap;
-  justify-content: flex-end;
+}
+
+.file-list__stats {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-text);
+  background: color-mix(in srgb, var(--brand-chip) 50%, white);
+  border: 1px solid color-mix(in srgb, var(--brand-chip) 65%, white);
+  white-space: nowrap;
 }
 
 .file-list__mode {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 1;
-  min-width: 0;
+  flex-shrink: 0;
+  min-height: 28px;
 }
 
 .file-list__mode :deep(.el-switch) {
@@ -599,14 +596,23 @@ onMounted(() => {
 
 .file-list__mode-label {
   font-size: 13px;
-  color: #606266;
+  color: var(--app-text-secondary);
   white-space: nowrap;
 }
 
 .file-list__refresh-btn {
-  min-height: 32px;
-  padding: 4px 8px;
-  touch-action: manipulation;
+  --el-button-size: 36px;
+}
+
+.file-list__stage {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 12px 20px;
+  border-radius: var(--app-radius);
+  background: color-mix(in srgb, var(--app-surface) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-border) 80%, transparent);
+  box-shadow: var(--app-shadow);
+  backdrop-filter: blur(6px);
 }
 
 .file-list__breadcrumb {
@@ -616,8 +622,9 @@ onMounted(() => {
   gap: 8px 12px;
   margin-bottom: 12px;
   padding: 8px 10px;
-  background: #f5f7fa;
-  border-radius: 6px;
+  background: var(--app-surface-muted);
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
 }
 
 .file-list__back {
@@ -637,7 +644,7 @@ onMounted(() => {
   border: none;
   background: transparent;
   padding: 2px 4px;
-  color: #409eff;
+  color: var(--brand-primary);
   font-size: 13px;
   cursor: pointer;
   text-decoration: underline;
@@ -645,14 +652,14 @@ onMounted(() => {
 }
 
 .file-list__crumb:disabled {
-  color: #303133;
+  color: var(--app-text);
   text-decoration: none;
   cursor: default;
   font-weight: 600;
 }
 
 .file-list__crumb-sep {
-  color: #c0c4cc;
+  color: var(--app-border-strong);
   font-size: 12px;
 }
 
@@ -662,6 +669,11 @@ onMounted(() => {
   gap: 10px;
   margin-bottom: 12px;
   align-items: center;
+  padding: 8px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-surface) 88%, var(--app-bg));
+  border: 1px solid color-mix(in srgb, var(--app-border) 85%, transparent);
+  box-shadow: var(--app-shadow);
 }
 
 .file-list__search {
@@ -691,19 +703,23 @@ onMounted(() => {
 .file-list__loading-text {
   margin: 12px 0 0;
   font-size: 14px;
-  color: #606266;
+  color: var(--app-text-secondary);
 }
 
 .file-list__loading-hint {
   margin: 6px 0 0;
   font-size: 12px;
-  color: #909399;
+  color: var(--app-text-muted);
+}
+
+.file-list__empty {
+  padding: 24px 0 32px;
 }
 
 .file-list__empty-hint {
   margin: 4px 0 0;
   font-size: 13px;
-  color: #909399;
+  color: var(--app-text-muted);
 }
 
 .file-list__range {
@@ -713,15 +729,17 @@ onMounted(() => {
   gap: 8px;
   margin: 0 0 10px;
   font-size: 13px;
-  color: #606266;
+  color: var(--app-text-secondary);
 }
 
 .file-list__range-prefix {
   flex-shrink: 0;
+  font-weight: 600;
+  color: var(--app-text);
 }
 
 .file-list__range-extra {
-  color: #909399;
+  color: var(--app-text-muted);
 }
 
 .file-list__name-cell {
@@ -755,6 +773,13 @@ onMounted(() => {
   margin-bottom: 8px;
 }
 
+.file-list__table {
+  --el-table-border-color: var(--app-border);
+  --el-table-header-bg-color: var(--app-surface-muted);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
 .file-list__folder-btn {
   display: inline-flex;
   align-items: center;
@@ -769,11 +794,11 @@ onMounted(() => {
 
 .file-list__folder-icon {
   flex-shrink: 0;
-  color: #e6a23c;
+  color: var(--brand-warning);
 }
 
 .file-list__folder-name {
-  color: #409eff;
+  color: var(--brand-primary);
   text-decoration: underline;
   text-underline-offset: 2px;
   overflow: hidden;
@@ -789,8 +814,8 @@ onMounted(() => {
 }
 
 .file-list__card {
-  padding: 14px 0;
-  border-bottom: 1px solid #ebeef5;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--app-border);
 }
 
 .file-list__card:last-child {
@@ -819,13 +844,13 @@ onMounted(() => {
   flex: 1;
   font-size: 15px;
   font-weight: 600;
-  color: #303133;
+  color: var(--app-text);
   line-height: 1.4;
   word-break: break-all;
 }
 
 .file-list__card--folder .file-list__card-name {
-  color: #409eff;
+  color: var(--brand-primary);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -837,7 +862,7 @@ onMounted(() => {
   margin-top: 8px;
   margin-left: 30px;
   font-size: 12px;
-  color: #909399;
+  color: var(--app-text-muted);
 }
 
 .file-list__card-actions {
@@ -867,26 +892,19 @@ onMounted(() => {
 }
 
 @media (max-width: 767px) {
-  .file-list__header {
-    flex-wrap: nowrap;
-    gap: 8px;
+  .file-list__masthead {
+    align-items: flex-start;
+    padding: 0 0 14px;
   }
 
-  .file-list__title-wrap {
-    flex-shrink: 0;
+  .file-list__lede {
+    font-size: 13px;
   }
 
-  .file-list__meta {
-    margin-left: auto;
-    flex-shrink: 1;
-    min-width: 0;
-    justify-content: flex-end;
-    flex-wrap: nowrap;
-  }
-
-  .file-list__refresh-btn {
-    min-height: 32px;
-    flex-shrink: 0;
+  .file-list__stage {
+    margin: 0 -4px;
+    padding: 12px 8px 16px;
+    border-radius: 14px;
   }
 
   .file-list__filter,
@@ -908,7 +926,7 @@ onMounted(() => {
   }
 
   .file-list__card {
-    padding: 12px 0;
+    padding: 12px 2px;
   }
 
   .file-list__card-actions {

@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-08T09:04:00.000Z",
+  "title": "Design System: 阿鑫相册",
+  "extensions": {
+    "colorMeta": {
+      "beacon-blue": {
+        "role": "primary",
+        "displayName": "信标蓝",
+        "canonical": "#2f7dff",
+        "tonalRamp": ["#0d3a8c", "#1557c2", "#1a68e8", "#2f7dff", "#5c9aff", "#8bb8ff", "#cce0ff", "#e8f4ff"]
+      },
+      "day-chip": {
+        "role": "secondary",
+        "displayName": "日 chip 蓝",
+        "canonical": "#7ec8ff",
+        "tonalRamp": ["#1a5a8a", "#2f7aad", "#4a9fd4", "#7ec8ff", "#a6dbff", "#c5e9ff", "#dff3ff", "#f3faff"]
+      },
+      "sky-fog": {
+        "role": "neutral",
+        "displayName": "天空雾底",
+        "canonical": "#e8f4ff",
+        "tonalRamp": ["#6a8fb0", "#8eafcc", "#b3cfe3", "#cfe8ff", "#e8f4ff", "#f0f7ff", "#f7fbff", "#ffffff"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "墨青字",
+        "canonical": "#1a2b3d",
+        "tonalRamp": ["#0d1520", "#1a2b3d", "#2e4055", "#4a5d73", "#7a8fa3", "#a8b8c8", "#d0dae4", "#eef2f6"]
+      }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Title", "purpose": "顶栏品牌名。" },
+      "headline": { "displayName": "Headline", "purpose": "相册日期标题。" },
+      "body": { "displayName": "Body", "purpose": "说明与列表正文。" },
+      "label": { "displayName": "Label", "purpose": "底栏与 chip。" }
+    },
+    "shadows": [
+      {
+        "name": "rest",
+        "value": "0 1px 4px rgba(47, 125, 255, 0.08)",
+        "purpose": "静置卡片与顶栏。"
+      },
+      {
+        "name": "lift",
+        "value": "0 8px 24px rgba(15, 55, 120, 0.12)",
+        "purpose": "浮层与批量操作条。"
+      }
+    ],
+    "motion": [
+      {
+        "name": "nav-ease",
+        "value": "cubic-bezier(0.32, 0.72, 0, 1)",
+        "purpose": "手机页切换与跟手松手动画。"
+      },
+      {
+        "name": "state-ease",
+        "value": "0.2s ease",
+        "purpose": "颜色与轻抬状态切换。"
+      }
+    ],
+    "breakpoints": [
+      { "name": "xs-max", "value": "767px" },
+      { "name": "sm", "value": "768px" },
+      { "name": "md", "value": "992px" },
+      { "name": "lg", "value": "1200px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "信标蓝主按钮，仅用于主行动。",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">上传</button>",
+      "css": ".ds-btn-primary { background: var(--brand-primary, #2f7dff); color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-weight: 600; cursor: pointer; transition: background 0.2s, box-shadow 0.2s; box-shadow: 0 1px 4px rgba(47,125,255,0.08);} .ds-btn-primary:hover { background: var(--brand-primary-hover, #5c9aff); box-shadow: 0 8px 24px rgba(15,55,120,0.12);} .ds-btn-primary:focus-visible { outline: 2px solid #2f7dff; outline-offset: 2px; }"
+    },
+    {
+      "name": "Active Nav",
+      "kind": "nav",
+      "refersTo": "nav-active",
+      "description": "桌面顶栏活动项。",
+      "html": "<a class=\"ds-nav-active\" href=\"#\">相册</a>",
+      "css": ".ds-nav-active { display: inline-flex; align-items: center; gap: 6px; color: #2f7dff; background: #d6ebff; text-decoration: none; padding: 8px 12px; border-radius: 8px; font-weight: 600; box-shadow: 0 1px 4px rgba(47,125,255,0.08);} .ds-nav-active:hover { background: #cce0ff; }"
+    },
+    {
+      "name": "Day Chip",
+      "kind": "chip",
+      "refersTo": "day-chip",
+      "description": "相册日期组计数标记。",
+      "html": "<span class=\"ds-day-chip\">12 个</span>",
+      "css": ".ds-day-chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; color: #1a2b3d; background: color-mix(in srgb, #7ec8ff 55%, white); border: 1px solid color-mix(in srgb, #7ec8ff 70%, white); }"
+    },
+    {
+      "name": "Surface Card",
+      "kind": "card",
+      "refersTo": "card-surface",
+      "description": "白面内容卡，托起相册与列表。",
+      "html": "<div class=\"ds-card\"><strong>相册</strong><p>按拍摄日浏览</p></div>",
+      "css": ".ds-card { background: #fff; border: 1px solid #cfe0f2; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(47,125,255,0.08); color: #1a2b3d; } .ds-card p { margin: 8px 0 0; color: #4a5d73; font-size: 14px; }"
+    },
+    {
+      "name": "Upload Dropzone",
+      "kind": "custom",
+      "refersTo": "button-primary",
+      "description": "虚线上传区，拖入时信标描边。",
+      "html": "<div class=\"ds-upload\" tabindex=\"0\"><strong>点击或拖拽上传</strong><span>源文件直传 OSS</span></div>",
+      "css": ".ds-upload { display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 160px; justify-content: center; border: 1.5px dashed #b3d0eb; border-radius: 12px; background: #fff; color: #4a5d73; padding: 24px; transition: border-color 0.2s, background 0.2s, box-shadow 0.2s; } .ds-upload:hover, .ds-upload:focus-visible { border-color: #2f7dff; color: #2f7dff; box-shadow: inset 0 0 0 1px #2f7dff; background: #d6ebff; outline: none; } .ds-upload strong { color: #1a2b3d; } .ds-upload span { font-size: 13px; color: #7a8fa3; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "天空口袋",
+    "overview": "阿鑫相册的界面像装进口袋的一片晴空：亮天蓝雾托起白卡片与照片，信标蓝只出现在可点与选中处。气质是实用、冷静、轻盈；深度是轻触觉——静止浅阴影，悬停或浮层再抬起。照片与按日归档是主角。壳层（顶栏、底栏、卡片）退后，不为装饰消耗饱和色。",
+    "keyCharacteristics": [
+      "亮天蓝雾底（#e8f4ff）而非中性灰后台",
+      "信标蓝（#2f7dff）专属于动作与选中",
+      "日 chip（#7ec8ff）标记日期组计数",
+      "轻触觉阴影；系统中文无衬线",
+      "桌面顶栏 / 手机底栏同一套色语"
+    ],
+    "rules": [
+      {
+        "name": "The Beacon-Only Rule",
+        "body": "信标蓝只出现在可点或明确选中态；装饰性色块用雾底或 chip，不用主色铺满。",
+        "section": "colors"
+      },
+      {
+        "name": "The Photo-Leads Rule",
+        "body": "任何屏上饱和色面积不得超过照片内容的视觉权重。",
+        "section": "colors"
+      },
+      {
+        "name": "The One-Family Rule",
+        "body": "全站一族无衬线，靠字重与尺度分层，不加第二展示字体。",
+        "section": "typography"
+      },
+      {
+        "name": "The Light-Tactile Rule",
+        "body": "阴影只响应状态（hover / 浮层），不为装饰常驻加重。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do 用雾底 #e8f4ff 作为默认页面大气，而不是灰 #f5f7fa。",
+      "Do 把信标蓝留给导航选中、主按钮、焦点与多选确认。",
+      "Do 保持轻触觉：静置浅影，抬起再用 lift。"
+    ],
+    "donts": [
+      "Don't 用信标蓝做大面积装饰底或渐变字。",
+      "Don't 引入第二套强调色（紫霓虹、暖橙主色）抢信标。",
+      "Don't 让壳层卡片压过照片的视觉比例。"
+    ]
+  }
+}

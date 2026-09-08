@@ -1,48 +1,54 @@
 /**
- * 品牌与主题色（阶段 7.2）
- * 简洁蓝灰，贴近 Element Plus；避免额外装饰与多套主题色。
+ * 天空口袋 · 品牌与主题色
+ * 亮天蓝雾底 + 信标蓝动作色；轻触觉阴影；挂钩 Element Plus。
  * 在 element-plus 样式之后引入，以覆盖 --el-color-*。
  */
 
 :root {
-  /* —— 品牌主色 —— */
-  --brand-primary: #409eff;
-  --brand-primary-hover: #79bbff;
-  --brand-primary-active: #337ecc;
-  --brand-primary-soft: #ecf5ff;
+  /* —— 品牌主色（信标蓝：只用于可点 / 选中） —— */
+  --brand-primary: #2f7dff;
+  --brand-primary-hover: #5c9aff;
+  --brand-primary-active: #1a68e8;
+  --brand-primary-soft: #d6ebff;
+  --brand-chip: #7ec8ff;
 
-  /* —— 语义色（与 Element Plus 对齐） —— */
-  --brand-success: #67c23a;
+  /* —— 语义色 —— */
+  --brand-success: #3db86b;
   --brand-warning: #e6a23c;
   --brand-danger: #f56c6c;
-  --brand-info: #909399;
+  --brand-info: #7a8fa3;
 
-  /* —— 表面与文字 —— */
-  --app-bg: #f5f7fa;
-  --app-bg-accent: #e8eef5;
+  /* —— 表面与文字（天空口袋） —— */
+  --app-bg: #e8f4ff;
+  --app-bg-accent: #cfe8ff;
   --app-surface: #ffffff;
-  --app-surface-muted: #f5f7fa;
-  --app-border: #e4e7ed;
-  --app-border-strong: #dcdfe6;
-  --app-text: #303133;
-  --app-text-secondary: #606266;
-  --app-text-muted: #909399;
+  --app-surface-muted: #f0f7ff;
+  --app-border: #cfe0f2;
+  --app-border-strong: #b3d0eb;
+  --app-text: #1a2b3d;
+  --app-text-secondary: #4a5d73;
+  --app-text-muted: #7a8fa3;
 
-  /* —— 圆角 / 阴影（克制） —— */
+  /* —— 圆角 / 轻触觉阴影 —— */
   --app-radius: 12px;
   --app-radius-sm: 8px;
-  --app-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  --app-shadow: 0 1px 4px rgba(47, 125, 255, 0.08);
+  --app-shadow-lift: 0 8px 24px rgba(15, 55, 120, 0.12);
 
   /* —— 布局令牌（与 style.css 共用） —— */
   --color-text: var(--app-text);
   --color-bg: var(--app-bg);
 
+  /* —— 浏览器表面 —— */
+  --app-selection-bg: color-mix(in srgb, var(--brand-primary) 28%, white);
+  --app-focus-ring: var(--brand-primary);
+
   /* —— Element Plus 主色挂钩 —— */
   --el-color-primary: var(--brand-primary);
-  --el-color-primary-light-3: #79bbff;
-  --el-color-primary-light-5: #a0cfff;
-  --el-color-primary-light-7: #c6e2ff;
-  --el-color-primary-light-8: #d9ecff;
+  --el-color-primary-light-3: #5c9aff;
+  --el-color-primary-light-5: #8bb8ff;
+  --el-color-primary-light-7: #b3d2ff;
+  --el-color-primary-light-8: #cce0ff;
   --el-color-primary-light-9: var(--brand-primary-soft);
   --el-color-primary-dark-2: var(--brand-primary-active);
 
@@ -60,4 +66,16 @@
   --el-bg-color: var(--app-surface);
   --el-bg-color-page: var(--app-bg);
   --el-fill-color-blank: var(--app-surface);
+  --el-fill-color-light: var(--app-surface-muted);
+  --el-box-shadow: var(--app-shadow);
+  --el-box-shadow-light: var(--app-shadow);
+}
+
+::selection {
+  background: var(--app-selection-bg);
+  color: var(--app-text);
+}
+
+:focus-visible {
+  outline-color: var(--app-focus-ring);
 }

@@ -18,12 +18,12 @@ const iconMap: Record<FileCategory, Component> = {
 }
 
 const colorMap: Record<FileCategory, string> = {
-  image: '#67c23a',
+  image: '#3db86b',
   pdf: '#f56c6c',
-  word: '#409eff',
+  word: '#2f7dff',
   text: '#e6a23c',
   video: '#626aef',
-  other: '#909399',
+  other: '#7a8fa3',
 }
 </script>
 

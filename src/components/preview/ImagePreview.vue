@@ -430,7 +430,7 @@ onUnmounted(() => {
 .image-preview__counter {
   justify-self: start;
   font-size: 13px;
-  color: #606266;
+  color: var(--app-text-secondary);
 }
 
 .image-preview__counter--spacer {
@@ -483,13 +483,13 @@ onUnmounted(() => {
   min-height: 360px;
   max-height: min(70vh, 720px);
   overflow: hidden;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--app-border);
   border-radius: 12px;
   background:
-    linear-gradient(45deg, #f5f7fa 25%, transparent 25%) 0 0 / 16px 16px,
-    linear-gradient(-45deg, #f5f7fa 25%, transparent 25%) 0 8px / 16px 16px,
-    linear-gradient(45deg, transparent 75%, #f5f7fa 75%) 8px -8px / 16px 16px,
-    linear-gradient(-45deg, transparent 75%, #f5f7fa 75%) -8px 0 / 16px 16px,
+    linear-gradient(45deg, var(--app-surface-muted) 25%, transparent 25%) 0 0 / 16px 16px,
+    linear-gradient(-45deg, var(--app-surface-muted) 25%, transparent 25%) 0 8px / 16px 16px,
+    linear-gradient(45deg, transparent 75%, var(--app-surface-muted) 75%) 8px -8px / 16px 16px,
+    linear-gradient(-45deg, transparent 75%, var(--app-surface-muted) 75%) -8px 0 / 16px 16px,
     #fff;
   touch-action: pan-y;
   user-select: none;
@@ -515,7 +515,7 @@ onUnmounted(() => {
   padding: 0;
   border: none;
   background: transparent;
-  color: #303133;
+  color: var(--app-text);
   cursor: pointer;
   opacity: 0;
   transition:

@@ -1,0 +1,60 @@
+{
+  "title": "蓝亮主题 · 推荐方向（safer）",
+  "question": "按你要的「蓝亮」收束了三套熟悉端方案，外加现有蓝灰 canon。选一张落地。",
+  "options": [
+    {
+      "id": "sky-pocket",
+      "label": "天空口袋",
+      "kicker": "推荐",
+      "lineage": "晴空口袋相册：亮天蓝底 + 信标蓝动作",
+      "thesis": "整站像装进口袋的一片晴空：大面积亮蓝白，信标蓝只出现在可点处，照片仍是主角。",
+      "palette": ["#e8f4ff", "#ffffff", "#2f7dff", "#7ec8ff"],
+      "materials": ["亮天蓝雾底", "白卡片轻抬", "信标蓝强调", "日间通透"],
+      "viewport": "手机相册：亮蓝雾底上的白日组；当前日用浅蓝 chip；底栏「相册」为信标蓝。",
+      "risk": "若蓝底过重，会抢照片色彩；需把蓝压在底与动作上。",
+      "comp": ".impeccable/mocks/decision/assigned.webp"
+    },
+    {
+      "id": "ice-signal",
+      "label": "冰讯蓝",
+      "kicker": "工具感",
+      "lineage": "冰面信号台：近白底 + 锐利信号蓝",
+      "thesis": "更冷、更利落的蓝亮：近白台面，信号蓝作导航与主按钮，适合长期自用工具。",
+      "palette": ["#f7fbff", "#d9ecff", "#1a73e8", "#0b57d0"],
+      "materials": ["冰白台面", "冰蓝描边", "锐利信号蓝", "细线分隔"],
+      "viewport": "日期标题带蓝色底线；缩略图干净网格；底栏选中为深蓝。",
+      "risk": "偏「效率工具」，口袋亲密感弱于天空口袋。",
+      "comp": ".impeccable/mocks/decision/model-pick.webp"
+    },
+    {
+      "id": "aqua-daybook",
+      "label": "水色手账",
+      "kicker": "手账感",
+      "lineage": "亮水色日期手账：青绿墨 + 浅蓝点缀",
+      "thesis": "把日期归档写成一本亮水色手账：页边日期用青绿墨，浅蓝只作次级 chip。",
+      "palette": ["#eefaf8", "#ffffff", "#0d9488", "#38bdf8"],
+      "materials": ["水色纸面", "白照片井", "青绿墨日期", "浅蓝标签"],
+      "viewport": "左缘日期栏 + 右侧照片井；当前日青绿高亮；底栏同色系。",
+      "risk": "偏青绿，若你要的是纯「天蓝亮」会略偏色相。",
+      "comp": ".impeccable/mocks/decision/challenger-warm-consumer.webp"
+    }
+  ],
+  "reroll": {
+    "registers": ["safer", "bolder"]
+  },
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  },
+  "canon": true,
+  "canonCard": {
+    "label": "现有清爽蓝灰（对照 Google 相册 / 阿里云控制台 / iOS 相册的完成度）",
+    "thesis": "不换世界观：口袋蓝 #409eff + 雾蓝灰 + 轻触觉，把现有 Element 体系做到竞品级完成度。",
+    "palette": ["#409eff", "#f5f7fa", "#ffffff", "#303133"],
+    "materials": ["冷灰纸面", "白卡片", "浅阴影轻抬", "系统字体"],
+    "viewport": "现有结构原样，强化蓝亮对比与轻抬层次。",
+    "risk": "最稳，但辨识度主要靠打磨而非新隐喻。",
+    "comp": ".impeccable/mocks/decision/canon.webp"
+  },
+  "steer": true
+}

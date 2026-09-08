@@ -133,6 +133,24 @@ function onClearQueue() {
 
 <template>
   <div class="home-view">
+    <header class="home-view__masthead">
+      <div class="home-view__masthead-copy">
+        <h1 class="home-view__title">上传</h1>
+        <p class="home-view__lede">源文件直传 OSS，图片按拍摄日归档</p>
+      </div>
+      <div class="home-view__masthead-actions">
+        <span
+          class="home-view__status"
+          :class="canUpload ? 'is-ready' : 'is-wait'"
+        >
+          {{ canUpload ? '可上传' : '待配置' }}
+        </span>
+        <span v-if="hasTasks" class="home-view__queue-chip">
+          {{ summary.success }}/{{ summary.total }} · {{ formatBytes(queueBytes) }}
+        </span>
+      </div>
+    </header>
+
     <el-alert
       v-if="!canUpload"
       type="warning"
@@ -147,22 +165,7 @@ function onClearQueue() {
       "
     />
 
-    <el-card shadow="never" class="home-view__card">
-      <template #header>
-        <div class="card-header">
-          <span class="card-header__title">上传文件</span>
-          <div class="card-header__tags">
-            <el-tag v-if="hasTasks" size="small" type="info">
-              队列 {{ summary.success }}/{{ summary.total }} · {{ formatBytes(queueBytes) }} /
-              {{ uploadLimits.maxTotalSizeMb }} MB
-            </el-tag>
-            <el-tag size="small" :type="canUpload ? 'success' : 'info'">
-              {{ canUpload ? '可上传' : '待配置' }}
-            </el-tag>
-          </div>
-        </div>
-      </template>
-
+    <section class="home-view__stage">
       <UploadPanel multiple :disabled="!canUpload || queueBusy" @select="onSelectFiles" />
 
       <p v-if="resolvingArchive" class="home-view__resolving">正在解析图片归档日期…</p>
@@ -189,7 +192,7 @@ function onClearQueue() {
         </el-button>
         <el-button size="small" @click="onClearQueue">清空队列</el-button>
       </div>
-    </el-card>
+    </section>
   </div>
 </template>
 
@@ -197,40 +200,92 @@ function onClearQueue() {
 .home-view {
   display: flex;
   flex-direction: column;
+  gap: 14px;
+  min-height: 100%;
+}
+
+.home-view__masthead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
   gap: 16px;
+  padding: 4px 2px 18px;
+}
+
+.home-view__masthead-copy {
+  min-width: 0;
+}
+
+.home-view__title {
+  margin: 0;
+  font-size: clamp(1.75rem, 5vw, 2.25rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--app-text);
+}
+
+.home-view__lede {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--app-text-secondary);
+}
+
+.home-view__masthead-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-bottom: 2px;
+}
+
+.home-view__status,
+.home-view__queue-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.home-view__status.is-ready {
+  color: var(--app-text);
+  background: color-mix(in srgb, var(--brand-success) 18%, white);
+  border: 1px solid color-mix(in srgb, var(--brand-success) 35%, white);
+}
+
+.home-view__status.is-wait {
+  color: var(--app-text-secondary);
+  background: var(--app-surface-muted);
+  border: 1px solid var(--app-border);
+}
+
+.home-view__queue-chip {
+  color: var(--app-text);
+  background: color-mix(in srgb, var(--brand-chip) 50%, white);
+  border: 1px solid color-mix(in srgb, var(--brand-chip) 65%, white);
 }
 
 .home-view__alert {
   margin: 0;
 }
 
+.home-view__stage {
+  padding: 16px 14px 18px;
+  border-radius: var(--app-radius);
+  background: color-mix(in srgb, var(--app-surface) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--app-border) 80%, transparent);
+  box-shadow: var(--app-shadow);
+  backdrop-filter: blur(6px);
+}
+
 .home-view__resolving {
   margin: 12px 0 0;
   font-size: 13px;
-  color: #909399;
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 32px;
-}
-
-.home-view__card :deep(.el-card__header) {
-  padding-top: 14px;
-  padding-bottom: 14px;
-}
-
-.card-header__title {
-  font-weight: 600;
-}
-
-.card-header__tags {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  color: var(--app-text-muted);
 }
 
 .queue-actions {
@@ -242,20 +297,19 @@ function onClearQueue() {
 }
 
 @media (max-width: 767px) {
-  .card-header {
-    flex-wrap: nowrap;
-    gap: 8px;
+  .home-view__masthead {
+    align-items: flex-start;
+    padding: 0 0 14px;
   }
 
-  .card-header__title {
-    flex-shrink: 0;
+  .home-view__lede {
+    font-size: 13px;
   }
 
-  .card-header__tags {
-    margin-left: auto;
-    flex-shrink: 0;
-    justify-content: flex-end;
-    flex-wrap: wrap;
+  .home-view__stage {
+    margin: 0 -4px;
+    padding: 14px 10px 16px;
+    border-radius: 14px;
   }
 
   .queue-actions {

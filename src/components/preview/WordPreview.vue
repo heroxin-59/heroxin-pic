@@ -265,7 +265,7 @@ onUnmounted(() => {
 .word-preview__stage {
   position: relative;
   min-height: 360px;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--app-border);
   border-radius: 12px;
   background: #fff;
   overflow: hidden;
@@ -321,7 +321,7 @@ onUnmounted(() => {
 .word-preview__hint {
   margin: 0;
   font-size: 12px;
-  color: #909399;
+  color: var(--app-text-muted);
 }
 
 @media (max-width: 767px) {

@@ -86,8 +86,8 @@ onUnmounted(() => {
 
 @media (hover: hover) and (pointer: fine) {
   .back-to-top:hover {
-    background: var(--brand-primary);
-    box-shadow: 0 4px 16px rgba(64, 158, 255, 0.35);
+    background: var(--brand-primary-hover, var(--brand-primary));
+    box-shadow: var(--app-shadow-lift, 0 8px 24px rgba(15, 55, 120, 0.12));
   }
 }
 

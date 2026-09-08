@@ -40,10 +40,11 @@ export interface AlbumVirtualLayout {
   columnWidth: number
 }
 
-const HEADER_HEIGHT = 32
-const HEADER_WITH_LOCATION_HEIGHT = 52
-const AFTER_HEADER_GAP = 10
-const SECTION_GAP = 20
+/** 天空口袋：日期头更醒目，组间断层更大，照片主导视线 */
+const HEADER_HEIGHT = 48
+const HEADER_WITH_LOCATION_HEIGHT = 68
+const AFTER_HEADER_GAP = 14
+const SECTION_GAP = 36
 
 /** 瀑布流列数（比等分方格略少，单列更易看出高低差） */
 export function albumColumnCount(viewportWidth: number): number {
@@ -53,7 +54,7 @@ export function albumColumnCount(viewportWidth: number): number {
 }
 
 export function albumGridGap(viewportWidth: number): number {
-  return viewportWidth >= BREAKPOINTS.sm ? 8 : 6
+  return viewportWidth >= BREAKPOINTS.sm ? 10 : 8
 }
 
 function shortestColumnIndex(heights: number[]): number {

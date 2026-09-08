@@ -163,9 +163,9 @@ watch(
         <!-- 文本预览自带类型/大小/编码标签，避免拆成两行 -->
         <div v-if="current && previewKind !== 'text'" class="file-preview-dialog__tags">
           <CategoryTag :category="current.category" />
-          <el-tag v-if="current.size" size="small" type="success">
+          <span v-if="current.size" class="file-preview-dialog__size">
             {{ formatBytes(current.size) }}
-          </el-tag>
+          </span>
         </div>
       </div>
     </template>
@@ -226,10 +226,11 @@ watch(
 }
 
 .file-preview-dialog__title {
-  font-weight: 600;
-  font-size: 16px;
-  color: #303133;
-  line-height: 1.4;
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+  color: var(--app-text);
+  line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -241,6 +242,18 @@ watch(
   flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
+}
+
+.file-preview-dialog__size {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-text);
+  background: color-mix(in srgb, var(--brand-chip) 50%, white);
+  border: 1px solid color-mix(in srgb, var(--brand-chip) 65%, white);
 }
 
 .file-preview-dialog__loading {
@@ -262,12 +275,25 @@ watch(
   max-height: 92vh;
   display: flex;
   flex-direction: column;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--app-border) 85%, transparent);
+  background: color-mix(in srgb, var(--app-surface) 94%, var(--app-bg));
+  box-shadow: var(--app-shadow-lift, 0 8px 24px rgba(15, 55, 120, 0.12));
+  overflow: hidden;
+}
+
+.file-preview-dialog .el-dialog__header {
+  padding: 16px 18px 10px;
+  margin: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-border) 80%, transparent);
+  background: color-mix(in srgb, var(--app-surface) 70%, transparent);
 }
 
 .file-preview-dialog .el-dialog__body {
   overflow: auto;
   max-height: calc(92vh - 72px);
-  padding-top: 8px;
+  padding: 12px 16px 18px;
+  background: transparent;
 }
 
 @media (max-width: 767px) {

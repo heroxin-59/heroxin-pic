@@ -444,7 +444,7 @@ onUnmounted(() => {
             </div>
           </button>
           <div class="image-album__header-aside">
-            <span class="image-album__count">{{ item.count }} 个</span>
+            <span class="image-album__count image-album__day-chip">{{ item.count }} 个</span>
             <el-button
               v-if="selectionMode"
               size="small"
@@ -536,14 +536,24 @@ onUnmounted(() => {
 .image-album-wrap {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
 }
 
 .image-album__toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 8px;
+  margin: 0 -2px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-surface) 88%, var(--app-bg));
+  border: 1px solid color-mix(in srgb, var(--app-border) 85%, transparent);
+  box-shadow: var(--app-shadow);
+  backdrop-filter: blur(10px);
 }
 
 .image-album__filters {
@@ -575,13 +585,14 @@ onUnmounted(() => {
 .image-album__hint {
   margin: 0;
   font-size: 12px;
-  color: #909399;
+  color: var(--app-text-muted);
 }
 
 @media (max-width: 767px) {
   .image-album__toolbar {
     flex-wrap: wrap;
     align-items: stretch;
+    padding: 8px;
   }
 
   .image-album__filters {
@@ -628,14 +639,15 @@ onUnmounted(() => {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
   height: 100%;
+  padding: 4px 2px 0;
 }
 
 .image-album__heading-btn {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
+  gap: 8px;
   flex: 1;
   min-width: 0;
   margin: 0;
@@ -648,15 +660,15 @@ onUnmounted(() => {
 }
 
 .image-album__heading-btn:focus-visible {
-  outline: 2px solid #409eff;
+  outline: 2px solid var(--brand-primary);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
 .image-album__collapse-icon {
   flex-shrink: 0;
-  margin-top: 5px;
-  color: #909399;
+  margin-top: 8px;
+  color: var(--app-text-muted);
   transition: transform 0.2s ease;
 }
 
@@ -673,10 +685,23 @@ onUnmounted(() => {
 
 .image-album__date {
   margin: 0;
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 700;
-  color: #303133;
-  line-height: 1.3;
+  letter-spacing: -0.03em;
+  color: var(--app-text);
+  line-height: 1.2;
+}
+
+.image-album__day-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-text);
+  background: color-mix(in srgb, var(--brand-chip) 55%, white);
+  border: 1px solid color-mix(in srgb, var(--brand-chip) 70%, white);
 }
 
 .image-album__location {
@@ -685,13 +710,13 @@ onUnmounted(() => {
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  color: #909399;
+  color: var(--app-text-muted);
   line-height: 1.3;
 }
 
 .image-album__location-icon {
   flex-shrink: 0;
-  color: #c0c4cc;
+  color: var(--brand-chip);
 }
 
 .image-album__header-aside {
@@ -699,37 +724,50 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding-top: 2px;
+  padding-top: 6px;
 }
 
 .image-album__count {
-  font-size: 13px;
-  color: #909399;
+  font-size: 12px;
+  color: var(--app-text);
 }
 
 .image-album__tile {
   position: relative;
+  display: block;
   width: 100%;
   height: 100%;
   min-height: 0;
+  margin: 0;
   padding: 0;
   border: none;
-  border-radius: 4px;
+  border-radius: 10px;
   overflow: hidden;
-  background: #ebeef5;
+  background: var(--app-surface-muted);
   cursor: pointer;
   touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
+  box-shadow: var(--app-shadow);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .image-album__tile:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--app-shadow-lift);
+  }
 }
 
 .image-album__tile:focus-visible {
-  outline: 2px solid #409eff;
+  outline: 2px solid var(--brand-primary);
   outline-offset: 1px;
 }
 
 .image-album__tile.is-selected {
-  outline: 2px solid #409eff;
+  outline: 2px solid var(--brand-primary);
   outline-offset: -2px;
 }
 
@@ -737,7 +775,7 @@ onUnmounted(() => {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(64, 158, 255, 0.18);
+  background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
   pointer-events: none;
 }
 
@@ -746,7 +784,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 16px 6px 5px;
+  padding: 18px 8px 6px;
   font-size: 10px;
   line-height: 1.2;
   color: #fff;
@@ -754,7 +792,7 @@ onUnmounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+  background: linear-gradient(transparent, rgba(15, 40, 70, 0.55));
   pointer-events: none;
 }
 
@@ -770,19 +808,19 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.92);
-  border: 1.5px solid #c0c4cc;
+  border: 1.5px solid var(--app-border-strong);
   color: #fff;
   pointer-events: none;
 }
 
 .image-album__tile.is-selected .image-album__check {
-  background: #409eff;
-  border-color: #409eff;
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
 }
 
 @media (min-width: 768px) {
   .image-album__date {
-    font-size: 20px;
+    font-size: 26px;
   }
 }
 </style>
@@ -801,8 +839,8 @@ onUnmounted(() => {
   padding: 10px 14px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.96);
-  border: 1px solid #e4e7ed;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--app-border);
+  box-shadow: var(--app-shadow-lift);
   backdrop-filter: blur(8px);
 }
 
@@ -849,7 +887,7 @@ onUnmounted(() => {
 
 .album-action-bar__count {
   font-size: 13px;
-  color: #606266;
+  color: var(--app-text-secondary);
   white-space: nowrap;
 }
 

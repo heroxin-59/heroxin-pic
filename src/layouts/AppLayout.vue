@@ -31,6 +31,10 @@ const layoutClass = computed(() => ({
   'is-compact': isMobile.value && isCompactHeight.value,
   'is-nav-dragging': isDragging.value,
   'is-nav-animating': isAnimating.value,
+  'is-album': route.name === 'images',
+  'is-upload': route.name === 'upload',
+  'is-files': route.name === 'files',
+  'is-preview': route.name === 'preview',
 }))
 
 const mobileTransitionName = computed(() => {
@@ -145,14 +149,16 @@ const boundaryKey = computed(() => route.fullPath)
   min-height: var(--header-height, 52px);
   padding: calc(10px + var(--safe-top, 0px)) calc(16px + var(--safe-right, 0px)) 10px
     calc(16px + var(--safe-left, 0px));
-  background: color-mix(in srgb, var(--app-surface) 92%, transparent);
+  background: color-mix(in srgb, var(--app-surface) 88%, var(--app-bg) 12%);
   border-bottom: 1px solid var(--app-border);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--app-shadow);
 }
 
 .brand {
   font-weight: 700;
-  font-size: 1.05rem;
+  font-size: 1.12rem;
+  letter-spacing: -0.03em;
   color: var(--app-text);
 }
 
@@ -180,12 +186,14 @@ const boundaryKey = computed(() => route.fullPath)
   .desktop-nav__link:hover {
     color: var(--brand-primary);
     background: var(--app-surface-muted);
+    box-shadow: var(--app-shadow);
   }
 }
 
 .desktop-nav__link.router-link-active {
   color: var(--brand-primary);
   background: var(--brand-primary-soft);
+  box-shadow: var(--app-shadow);
 }
 
 .app-main {
@@ -196,6 +204,17 @@ const boundaryKey = computed(() => route.fullPath)
   padding-left: max(16px, var(--safe-left, 0px));
   padding-right: max(16px, var(--safe-right, 0px));
   overflow: hidden;
+}
+
+.app-layout.is-album .app-main,
+.app-layout.is-upload .app-main,
+.app-layout.is-files .app-main,
+.app-layout.is-preview .app-main {
+  width: min(1120px, 100%);
+}
+
+.app-layout.is-album .brand {
+  letter-spacing: -0.02em;
 }
 
 .app-main__viewport {
@@ -266,12 +285,13 @@ const boundaryKey = computed(() => route.fullPath)
   z-index: 100;
   display: none;
   grid-template-columns: repeat(3, 1fr);
-  background: color-mix(in srgb, var(--app-surface) 96%, transparent);
+  background: color-mix(in srgb, var(--app-surface) 92%, var(--app-bg) 8%);
   border-top: 1px solid var(--app-border);
   padding-bottom: var(--safe-bottom, 0px);
   padding-left: var(--safe-left, 0px);
   padding-right: var(--safe-right, 0px);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 -1px 8px rgba(47, 125, 255, 0.06);
 }
 
 .mobile-tabbar__item {
@@ -316,6 +336,13 @@ const boundaryKey = computed(() => route.fullPath)
     padding-bottom: calc(var(--tabbar-height, 56px) + 16px + var(--safe-bottom, 0px));
   }
 
+  .app-layout.is-album .app-main,
+  .app-layout.is-files .app-main {
+    padding-left: max(10px, var(--safe-left, 0px));
+    padding-right: max(10px, var(--safe-right, 0px));
+    padding-top: calc(12px + var(--safe-top, 0px));
+  }
+
   .app-main__viewport {
     min-height: calc(
       100dvh - var(--tabbar-height, 56px) - 32px - var(--safe-top, 0px) - var(--safe-bottom, 0px)
@@ -346,11 +373,25 @@ const boundaryKey = computed(() => route.fullPath)
   .app-main {
     width: min(1100px, 100%);
   }
+
+  .app-layout.is-album .app-main,
+  .app-layout.is-upload .app-main,
+  .app-layout.is-files .app-main,
+  .app-layout.is-preview .app-main {
+    width: min(1200px, 100%);
+  }
 }
 
 @media (min-width: 1200px) {
   .app-main {
     width: min(1200px, 100%);
+  }
+
+  .app-layout.is-album .app-main,
+  .app-layout.is-upload .app-main,
+  .app-layout.is-files .app-main,
+  .app-layout.is-preview .app-main {
+    width: min(1280px, 100%);
   }
 }
 
