@@ -1,6 +1,6 @@
 import { mainNavItems } from '@/constants/navigation'
 
-/** 是否为主 Tab 页（上传 / 文件列表 / 相册） */
+/** 是否为主 Tab 页（相册 / 文件；上传走中央加号，不参与左右滑切 Tab） */
 export function isMainNavPath(path: string): boolean {
   return mainNavItems.some((item) => item.path === path)
 }

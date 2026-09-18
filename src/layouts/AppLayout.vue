@@ -5,7 +5,7 @@ import AppErrorBoundary from '@/components/AppErrorBoundary.vue'
 import { appTitle } from '@/config/appMeta'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useMobileNavSwipe } from '@/composables/useMobileNavSwipe'
-import { mainNavItems } from '@/constants/navigation'
+import { mainNavItems, uploadNavItem } from '@/constants/navigation'
 import { useFileStore } from '@/stores/files'
 import { isMainNavPath } from '@/utils/mobileNavSwipe'
 
@@ -36,6 +36,8 @@ const layoutClass = computed(() => ({
   'is-files': route.name === 'files',
   'is-preview': route.name === 'preview',
 }))
+
+const isUploadRoute = computed(() => route.path === uploadNavItem.path)
 
 const mobileTransitionName = computed(() => {
   if (!isMobile.value || !navTransitionName.value) return undefined
@@ -98,6 +100,14 @@ const boundaryKey = computed(() => route.fullPath)
           <el-icon><component :is="item.icon" /></el-icon>
           <span>{{ item.title }}</span>
         </router-link>
+        <router-link
+          :to="uploadNavItem.path"
+          class="desktop-nav__upload"
+          :aria-label="uploadNavItem.title"
+          :title="uploadNavItem.title"
+        >
+          <el-icon><component :is="uploadNavItem.icon" /></el-icon>
+        </router-link>
       </nav>
     </header>
 
@@ -116,14 +126,26 @@ const boundaryKey = computed(() => route.fullPath)
     </main>
 
     <nav class="mobile-tabbar" aria-label="底部导航">
+      <router-link :to="mainNavItems[0]!.path" class="mobile-tabbar__item">
+        <el-icon class="mobile-tabbar__icon"><component :is="mainNavItems[0]!.icon" /></el-icon>
+        <span class="mobile-tabbar__label">{{ mainNavItems[0]!.title }}</span>
+      </router-link>
+
       <router-link
-        v-for="item in mainNavItems"
-        :key="item.path"
-        :to="item.path"
-        class="mobile-tabbar__item"
+        :to="uploadNavItem.path"
+        class="mobile-tabbar__fab"
+        :class="{ 'is-active': isUploadRoute }"
+        :aria-label="uploadNavItem.title"
       >
-        <el-icon class="mobile-tabbar__icon"><component :is="item.icon" /></el-icon>
-        <span class="mobile-tabbar__label">{{ item.title }}</span>
+        <span class="mobile-tabbar__fab-btn">
+          <el-icon class="mobile-tabbar__fab-icon"><component :is="uploadNavItem.icon" /></el-icon>
+        </span>
+        <span class="mobile-tabbar__fab-label">{{ uploadNavItem.title }}</span>
+      </router-link>
+
+      <router-link :to="mainNavItems[1]!.path" class="mobile-tabbar__item">
+        <el-icon class="mobile-tabbar__icon"><component :is="mainNavItems[1]!.icon" /></el-icon>
+        <span class="mobile-tabbar__label">{{ mainNavItems[1]!.title }}</span>
       </router-link>
     </nav>
   </div>
@@ -194,6 +216,46 @@ const boundaryKey = computed(() => route.fullPath)
   color: var(--brand-primary);
   background: var(--brand-primary-soft);
   box-shadow: var(--app-shadow);
+}
+
+.desktop-nav__upload {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-left: 8px;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(
+    160deg,
+    var(--brand-primary-hover) 0%,
+    var(--brand-primary) 55%,
+    var(--brand-primary-active) 100%
+  );
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(26, 104, 232, 0.28);
+  transition:
+    background 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s;
+}
+
+.desktop-nav__upload :deep(.el-icon) {
+  font-size: 20px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .desktop-nav__upload:hover {
+    background: var(--brand-primary-hover);
+    box-shadow: var(--app-shadow-lift);
+    transform: translateY(-1px);
+  }
+}
+
+.desktop-nav__upload.router-link-active {
+  background: var(--brand-primary-active);
+  box-shadow: var(--app-shadow-lift);
 }
 
 .app-main {
@@ -284,29 +346,34 @@ const boundaryKey = computed(() => route.fullPath)
 }
 
 .mobile-tabbar {
+  --tabbar-surface: color-mix(in srgb, var(--app-surface) 94%, var(--app-bg) 6%);
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 100;
   display: none;
-  grid-template-columns: repeat(3, 1fr);
-  background: color-mix(in srgb, var(--app-surface) 92%, var(--app-bg) 8%);
-  border-top: 1px solid var(--app-border);
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  background: var(--tabbar-surface);
+  border-top: 1px solid color-mix(in srgb, var(--app-border) 70%, transparent);
   padding-bottom: var(--safe-bottom, 0px);
   padding-left: var(--safe-left, 0px);
   padding-right: var(--safe-right, 0px);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 -1px 8px rgba(47, 125, 255, 0.06);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 -6px 20px rgba(15, 55, 120, 0.05);
+  overflow: visible;
 }
 
 .mobile-tabbar__item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
+  justify-content: flex-end;
+  gap: 3px;
   min-height: var(--tabbar-height, 56px);
+  padding: 8px 8px 8px;
   color: var(--app-text-muted);
   text-decoration: none;
   touch-action: manipulation;
@@ -314,16 +381,98 @@ const boundaryKey = computed(() => route.fullPath)
 }
 
 .mobile-tabbar__icon {
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .mobile-tabbar__label {
   font-size: 11px;
+  font-weight: 600;
   line-height: 1;
+  letter-spacing: 0.02em;
 }
 
 .mobile-tabbar__item.router-link-active {
   color: var(--brand-primary);
+}
+
+/* 中央抬起加号：嵌在底栏正中，座面与底栏齐平 */
+.mobile-tabbar__fab {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  min-width: 76px;
+  min-height: var(--tabbar-height, 56px);
+  padding: 0 6px 8px;
+  margin-top: calc(var(--tabbar-fab-lift, 22px) * -1);
+  text-decoration: none;
+  color: var(--app-text-muted);
+  touch-action: manipulation;
+}
+
+.mobile-tabbar__fab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(
+    160deg,
+    var(--brand-primary-hover) 0%,
+    var(--brand-primary) 55%,
+    var(--brand-primary-active) 100%
+  );
+  /* 厚座圈盖住底栏顶线，形成嵌槽感 */
+  border: 4px solid var(--tabbar-surface);
+  box-shadow:
+    0 6px 16px rgba(26, 104, 232, 0.28),
+    0 1px 3px rgba(15, 55, 120, 0.12);
+  transition:
+    background 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s;
+}
+
+.mobile-tabbar__fab-icon {
+  font-size: 24px;
+}
+
+.mobile-tabbar__fab-label {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.mobile-tabbar__fab.is-active,
+.mobile-tabbar__fab.router-link-active {
+  color: var(--brand-primary);
+}
+
+.mobile-tabbar__fab.is-active .mobile-tabbar__fab-btn,
+.mobile-tabbar__fab.router-link-active .mobile-tabbar__fab-btn {
+  background: linear-gradient(
+    160deg,
+    var(--brand-primary) 0%,
+    var(--brand-primary-active) 100%
+  );
+  box-shadow:
+    0 8px 20px rgba(26, 104, 232, 0.34),
+    0 0 0 3px color-mix(in srgb, var(--brand-primary-soft) 75%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mobile-tabbar__fab:hover .mobile-tabbar__fab-btn {
+    transform: translateY(-1px);
+    box-shadow:
+      0 10px 22px rgba(26, 104, 232, 0.32),
+      0 1px 3px rgba(15, 55, 120, 0.12);
+  }
 }
 
 /* xs：手机 — 隐藏顶栏，底栏导航 */
@@ -339,7 +488,9 @@ const boundaryKey = computed(() => route.fullPath)
   .app-main {
     width: 100%;
     padding-top: calc(16px + var(--safe-top, 0px));
-    padding-bottom: calc(var(--tabbar-height, 56px) + 16px + var(--safe-bottom, 0px));
+    padding-bottom: calc(
+      var(--tabbar-height, 56px) + var(--tabbar-fab-lift, 22px) + 16px + var(--safe-bottom, 0px)
+    );
   }
 
   .app-layout.is-album .app-main,
@@ -351,7 +502,8 @@ const boundaryKey = computed(() => route.fullPath)
 
   .app-main__viewport {
     min-height: calc(
-      100dvh - var(--tabbar-height, 56px) - 32px - var(--safe-top, 0px) - var(--safe-bottom, 0px)
+      100dvh - var(--tabbar-height, 56px) - var(--tabbar-fab-lift, 22px) - 32px -
+        var(--safe-top, 0px) - var(--safe-bottom, 0px)
     );
   }
 }
@@ -405,14 +557,37 @@ const boundaryKey = computed(() => route.fullPath)
 .app-layout.is-compact .mobile-tabbar__item {
   min-height: 44px;
   gap: 0;
+  padding-bottom: 6px;
 }
 
 .app-layout.is-compact .mobile-tabbar__label {
   display: none;
 }
 
+.app-layout.is-compact .mobile-tabbar__fab {
+  margin-top: calc(var(--tabbar-fab-lift, 16px) * -1);
+  min-height: 44px;
+  padding-bottom: 6px;
+}
+
+.app-layout.is-compact .mobile-tabbar__fab-btn {
+  width: 44px;
+  height: 44px;
+  border-width: 3px;
+}
+
+.app-layout.is-compact .mobile-tabbar__fab-icon {
+  font-size: 22px;
+}
+
+.app-layout.is-compact .mobile-tabbar__fab-label {
+  display: none;
+}
+
 .app-layout.is-compact .app-main {
   padding-top: 10px;
-  padding-bottom: calc(48px + 10px + var(--safe-bottom, 0px));
+  padding-bottom: calc(
+    48px + var(--tabbar-fab-lift, 16px) + 10px + var(--safe-bottom, 0px)
+  );
 }
 </style>

@@ -20,6 +20,8 @@
 
   --header-height: 52px;
   --tabbar-height: 56px;
+  /* 中央加号抬起高度：内容区 / 回顶钮需一并避让 */
+  --tabbar-fab-lift: 22px;
 }
 
 html {
@@ -79,5 +81,6 @@ body {
   :root {
     --header-height: 44px;
     --tabbar-height: 48px;
+    --tabbar-fab-lift: 16px;
   }
 }

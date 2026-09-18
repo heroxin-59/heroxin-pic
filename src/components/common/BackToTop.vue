@@ -81,7 +81,9 @@ onUnmounted(() => {
 }
 
 .back-to-top.is-mobile {
-  bottom: calc(var(--tabbar-height, 56px) + 16px + var(--safe-bottom, 0px));
+  bottom: calc(
+    var(--tabbar-height, 56px) + var(--tabbar-fab-lift, 22px) + 16px + var(--safe-bottom, 0px)
+  );
 }
 
 @media (hover: hover) and (pointer: fine) {

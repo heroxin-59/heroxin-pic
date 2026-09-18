@@ -25,7 +25,7 @@ const SLIDE_DURATION_MS = 300
 
 /**
  * 移动端主导航左右滑：左滑 → 右侧 Tab，右滑 → 左侧 Tab（对齐 iOS / Android 桌面）。
- * 仅在上传 / 文件列表 / 相册三页生效。
+ * 仅在相册 / 文件两页生效（上传由中央加号进入，不参与滑切）。
  */
 export function useMobileNavSwipe(options: UseMobileNavSwipeOptions) {
   const route = useRoute()

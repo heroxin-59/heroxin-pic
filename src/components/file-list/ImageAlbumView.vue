@@ -1392,7 +1392,9 @@ onUnmounted(() => {
 }
 
 .album-action-bar.is-compact {
-  bottom: calc(var(--tabbar-height, 56px) + 12px + var(--safe-bottom, 0px));
+  bottom: calc(
+    var(--tabbar-height, 56px) + var(--tabbar-fab-lift, 22px) + 12px + var(--safe-bottom, 0px)
+  );
   width: calc(100vw - 24px);
   gap: 6px;
   padding: 8px 10px;
