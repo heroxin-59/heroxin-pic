@@ -1,0 +1,140 @@
+{
+  "title": "选择阿鑫相册的视觉世界",
+  "question": "骰子落到「日期手账」。保留它、选另一张、走现有蓝灰 canon，或重抽。",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "日期手账",
+      "kicker": "THE ROLL",
+      "lineage": "口袋 field notebook：页边日期 + 正文照片",
+      "thesis": "相册就是一本随身日期手账：每一天是一条页边记录，照片填满正文，界面退后。",
+      "palette": ["#e8eaed", "#fafbfc", "#1a2332", "#2a6f7a"],
+      "materials": ["石墨格线", "页边日期戳", "轻抬纸面", "口袋装订感"],
+      "viewport": "手机竖屏相册：左侧窄日期栏，右侧瀑布照片；底栏三个入口；当前日用青墨高亮。",
+      "risk": "若照片不够大，会像备忘录 App 而不是相册。",
+      "raised": [
+        {
+          "from": "challenger-instruments",
+          "raise": "每一个日期条只陈述一件事实（那天的图），不与工具栏抢语义。"
+        },
+        {
+          "from": "challenger-one-bit",
+          "raise": "多选态必须一眼可辨、持续可见（不能靠淡色勾）。"
+        },
+        {
+          "from": "challenger-orienteering",
+          "raise": "青墨强调色只用于「当前日 / 可点按的动作」，别处禁用。"
+        },
+        {
+          "from": "challenger-tensegrity",
+          "raise": "上传等待 / 成功 / 失败是三种结构态，不只是换色标签。"
+        },
+        {
+          "from": "challenger-cloud-quarry",
+          "raise": "日期层之间留出明显「断层空隙」，像切开的地层。"
+        }
+      ],
+      "comp": ".impeccable/mocks/decision/assigned.webp"
+    },
+    {
+      "id": "model-pick",
+      "label": "地铁卡夹",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "口袋交通卡夹 / 金属夹扣面板",
+      "thesis": "整站像塞进裤袋的卡夹：圆角面板叠放，金属夹扣色只出现在可行动处。",
+      "palette": ["#eef1f5", "#ffffff", "#1e2a3a", "#409eff"],
+      "materials": ["雾灰卡面", "金属夹扣高光", "圆角口袋裁切", "轻触觉抬起"],
+      "viewport": "手机竖屏：按日叠卡，顶缘露出日期；底栏贴拇指；夹扣蓝仅在选中与主按钮。",
+      "risk": "最贴近「口袋」隐喻，也最容易长成常见消费级 App 壳。",
+      "comp": ".impeccable/mocks/decision/model-pick.webp"
+    },
+    {
+      "id": "challenger-warm-consumer",
+      "label": "指尖软卡片",
+      "verdict": "competitive",
+      "lineage": "暖色消费级 App 表面（软圆角卡片 + 底栏）",
+      "thesis": "一切都是好按的卡片；屏幕上唯一的饱和色，永远是你能点的东西。",
+      "palette": ["#f3efe8", "#ffffff", "#2c2a26", "#e86b3a"],
+      "materials": ["暖石色底", "大圆角白卡", "动作色橙", "弹簧按压"],
+      "viewport": "单列卡片滚动 + 持久底栏；相册日组是一张张可展开的软卡。",
+      "case": "拇指亲和力胜出手账；按拍摄日归档的独特性略弱。",
+      "risk": "偏「通用手机 App」，和竞品同温层。",
+      "comp": ".impeccable/mocks/decision/challenger-warm-consumer.webp",
+      "hero": "https://impeccable.style/worlds/cards/digital-design-canon-warm-consumer-app-surface-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/digital-design-canon-warm-consumer-app-surface.webp"
+    },
+    {
+      "id": "challenger-instruments",
+      "label": "夜航仪表",
+      "verdict": "declined",
+      "lineage": "小型飞机夜间六件仪表组",
+      "palette": ["#0b0d10", "#d7ffe3", "#f0b429", "#e11d48"],
+      "materials": ["哑光黑面板", "磷光刻度", "阻尼指针"],
+      "case": "个人相册用户难代入驾驶舱；仪表语法也抢照片主角。",
+      "kept": "每个日期条只陈述一件事实。",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-night-flight-six-pack-hero.webp"
+    },
+    {
+      "id": "challenger-one-bit",
+      "label": "一比特桌面",
+      "verdict": "declined",
+      "lineage": "早期一比特桌面与行进蚁选区",
+      "palette": ["#ffffff", "#000000", "#808080"],
+      "materials": ["抖动网点", "像素窗框", "行进蚁选区"],
+      "case": "双色抖动与照片预览冲突，清晰度失败。",
+      "kept": "多选态必须一眼可辨、持续可见。",
+      "hero": "https://impeccable.style/worlds/cards/medium-native-one-bit-desktop-hero.webp"
+    },
+    {
+      "id": "challenger-orienteering",
+      "label": "定向越野图",
+      "verdict": "declined",
+      "lineage": "ISO 定向地图与紫色赛道",
+      "palette": ["#f7f5ef", "#6b4c9a", "#8b5a2b", "#2f6b4f"],
+      "materials": ["等高线底纹", "图例表", "紫色赛道"],
+      "case": "地图隐喻对日常私密相册过重，识别弱。",
+      "kept": "强调色只用于当前日 / 可点动作。",
+      "hero": "https://impeccable.style/worlds/cards/notation-diagram-systems-orienteering-map-hero.webp"
+    },
+    {
+      "id": "challenger-tensegrity",
+      "label": "张拉柱",
+      "verdict": "declined",
+      "lineage": "碳杆与红绳的张拉整体柱",
+      "palette": ["#e9e6e1", "#1a1a1a", "#d62828"],
+      "materials": ["碳黑杆", "张力红绳", "混凝土底"],
+      "case": "雕塑语法与归档任务两轴皆弱。",
+      "kept": "上传等待/成功/失败是结构态，不只是换色。",
+      "hero": "https://impeccable.style/worlds/cards/kinetic-sculpture-automata-tensegrity-breathing-column-hero.webp"
+    },
+    {
+      "id": "challenger-cloud-quarry",
+      "label": "云石采场",
+      "verdict": "declined",
+      "lineage": "切开积云露出蓝空的采石场",
+      "palette": ["#f4f7fb", "#5b9fd4", "#8a93a0", "#c0c8d0"],
+      "materials": ["积云块面", "切开蓝空", "银色锯线"],
+      "case": "超现实云石场无法服务冷静自用工具。",
+      "kept": "日期层之间留出明显断层空隙。",
+      "hero": "https://impeccable.style/worlds/cards/dream-surreal-impossible-worlds-cloud-quarry-hero.webp"
+    }
+  ],
+  "reroll": {
+    "registers": ["safer", "bolder"]
+  },
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  },
+  "canon": true,
+  "canonCard": {
+    "label": "现有清爽蓝灰（你刚偏向的 1B/2B/3B）",
+    "thesis": "保留 Element 对齐的口袋蓝体系，把轻触觉与雾蓝灰执行到完整工艺。",
+    "palette": ["#409eff", "#f5f7fa", "#ffffff", "#303133"],
+    "materials": ["冷灰纸面", "白卡片", "浅阴影轻抬", "系统中文字体"],
+    "viewport": "现有结构：桌面顶栏 / 手机底栏；相册按日瀑布；主色仅导航与动作。",
+    "risk": "像「很好的 Element 后台 + 图墙」，辨识度取决于执行而非世界观。",
+    "comp": ".impeccable/mocks/decision/canon.webp"
+  },
+  "steer": true
+}

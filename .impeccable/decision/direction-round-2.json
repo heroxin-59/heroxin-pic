@@ -1,0 +1,140 @@
+{
+  "title": "选择阿鑫相册的视觉世界（第 2 手）",
+  "question": "重抽落到「漆铁饼干盒」。保留、选另一张、走现有蓝灰 canon，或再抽。",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "漆铁饼干盒",
+      "kicker": "THE ROLL",
+      "lineage": "家用漆皮饼干盒：揭盖分格收纳旧照片",
+      "thesis": "相册是家里的漆铁饼干盒：揭开盖子，按日期分格躺着照片，界面像盒壁与隔板。",
+      "palette": ["#1f2a24", "#f3f5f2", "#c5a46a", "#2f6f5e"],
+      "materials": ["深漆绿盒壁", "米白内衬", "黄铜铰链点缀", "分格隔板"],
+      "viewport": "手机竖屏：顶缘像盒盖横条（阿鑫相册）；下方按日分格，格内照片；底栏贴在「盒底」。",
+      "risk": "若漆面过重，会像复古装饰品而不是好用的网盘工具。",
+      "raised": [
+        {
+          "from": "challenger-civic-bureau",
+          "raise": "几乎整屏留白内衬；色彩只花在一条连续强调带 + 主按钮上。"
+        },
+        {
+          "from": "challenger-streetwear",
+          "raise": "当前选中的日期格保留一枚「挂签」态，其它格不抢戏。"
+        },
+        {
+          "from": "challenger-arcade",
+          "raise": "缩略图按整数格对齐，不出现半格裁切。"
+        },
+        {
+          "from": "challenger-scope",
+          "raise": "相册与元数据（地点/计数）叠在同一视口，不另开一层喧宾夺主的壳。"
+        },
+        {
+          "from": "challenger-alphabet",
+          "raise": "全站只用同一族无衬线，靠字重与尺度分层，不堆第二展示字体。"
+        }
+      ],
+      "comp": ".impeccable/mocks/decision/assigned.webp"
+    },
+    {
+      "id": "model-pick",
+      "label": "行李吊牌",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "旅行箱吊牌 + 撕齿登机条",
+      "thesis": "每一天是一张可撕的行程吊牌：日期、地点、张数印在牌头，照片是行程本体。",
+      "palette": ["#0f2744", "#f5f7fa", "#e8eef5", "#e4572e"],
+      "materials": ["航空蓝牌面", "撕齿分节", "橙红挂绳点", "雾白行程纸"],
+      "viewport": "竖屏：日组像吊牌叠落，牌头露出日期与地点；照片铺满牌身；底栏三个口。",
+      "risk": "旅行隐喻强，日常截图/单据类内容会略别扭。",
+      "comp": ".impeccable/mocks/decision/model-pick.webp"
+    },
+    {
+      "id": "challenger-transit-map",
+      "label": "午夜线路图",
+      "verdict": "competitive",
+      "lineage": "地铁搪瓷线路图（午夜蓝底）",
+      "thesis": "按拍摄日前进像坐一趟地铁：日期是站，照片是车厢风景，当前日是最亮的那条线。",
+      "palette": ["#0b1c33", "#f4f7fb", "#e31c23", "#2f6fed"],
+      "materials": ["午夜搪瓷底", "瓷白站标", "45°折线", "换乘圆点"],
+      "viewport": "顶区一条日期线路；下方当前站的照片网格；底栏是三条线路入口。",
+      "case": "「沿日期前进」清晰度很强；亲密口袋感弱于饼干盒/吊牌。",
+      "risk": "深色底上照片要处理对比，否则像调度大屏。",
+      "comp": ".impeccable/mocks/decision/challenger-transit-map.webp",
+      "hero": "https://impeccable.style/worlds/cards/wayfinding-cartography-signage-midnight-transit-diagram-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/wayfinding-cartography-signage-midnight-transit-diagram.webp"
+    },
+    {
+      "id": "challenger-civic-bureau",
+      "label": "市政说明书",
+      "verdict": "declined",
+      "lineage": "晚近市政 prospectus 骨白板 + 青绿到紫丝带",
+      "palette": ["#F7F7FA", "#1B1547", "#6B5CE7", "#7FD8D0"],
+      "materials": ["骨白板", "丝带渐变", "细发线"],
+      "case": "市政/企业气质与个人私密相册两轴皆弱，且易落入紫调模板。",
+      "kept": "几乎整屏留白；色彩只花在一条强调带 + 主按钮。",
+      "hero": "https://impeccable.style/worlds/cards/civic-bureau-prospectus-late-modern-hero.webp"
+    },
+    {
+      "id": "challenger-alphabet",
+      "label": "字母风暴",
+      "verdict": "declined",
+      "lineage": "字母凝成天气的超现实排版世界",
+      "palette": ["#ffffff", "#111111", "#c0c0c0"],
+      "materials": ["纸白地", "字母体块", "银色变形闪"],
+      "case": "文字风暴抢照片主角，自用工具清晰度失败。",
+      "kept": "全站一族字体，靠字重与尺度分层。",
+      "hero": "https://impeccable.style/worlds/cards/dream-surreal-impossible-worlds-alphabet-storm-hero.webp"
+    },
+    {
+      "id": "challenger-streetwear",
+      "label": "工业引用语法",
+      "verdict": "declined",
+      "lineage": "街潮工业：直引号大字 + 斜纹警戒条 + 扎带标",
+      "palette": ["#ffffff", "#111111", "#ff5a1f"],
+      "materials": ["棉白/尼龙黑", "45°警戒斜纹", "安全橙扎带"],
+      "case": "工业街潮语气与冷静私密相册冲突。",
+      "kept": "当前选中项保留一枚挂签态。",
+      "hero": "https://impeccable.style/worlds/cards/textiles-weave-drape-fashion-industrial-quote-grammar-hero.webp"
+    },
+    {
+      "id": "challenger-arcade",
+      "label": "街机像素屏",
+      "verdict": "declined",
+      "lineage": "CRT 街机磷光像素",
+      "palette": ["#050505", "#39ff14", "#ffd700"],
+      "materials": ["扫描线", "磷光辉光", "整格像素"],
+      "case": "游戏厅能量与「实用/冷静」产品原则冲突。",
+      "kept": "缩略图整数格对齐。",
+      "hero": "https://impeccable.style/worlds/cards/medium-native-crt-arcade-pixel-glow-hero.webp"
+    },
+    {
+      "id": "challenger-scope",
+      "label": "示波器台",
+      "verdict": "declined",
+      "lineage": "信号台上的 CRT 示波器",
+      "palette": ["#0a0f0a", "#33ff66", "#9aa3a0"],
+      "materials": ["磷光描迹", "刻度网格", "阻尼旋钮"],
+      "case": "实验台隐喻对个人相册识别弱。",
+      "kept": "内容与元数据叠同一视口，不另开喧宾壳层。",
+      "hero": "https://impeccable.style/worlds/cards/scientific-notation-oscilloscope-signal-bench-hero.webp"
+    }
+  ],
+  "reroll": {
+    "registers": ["safer", "bolder"]
+  },
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  },
+  "canon": true,
+  "canonCard": {
+    "label": "现有清爽蓝灰（1B/2B/3B）",
+    "thesis": "保留口袋蓝 + 雾蓝灰 + 轻触觉，把现有体系执行完整，不换世界观。",
+    "palette": ["#409eff", "#f5f7fa", "#ffffff", "#303133"],
+    "materials": ["冷灰纸面", "白卡片", "浅阴影轻抬", "系统中文字体"],
+    "viewport": "桌面顶栏 / 手机底栏；按日瀑布相册；主色只用于导航与动作。",
+    "risk": "辨识度靠执行，不靠独特世界观。",
+    "comp": ".impeccable/mocks/decision/canon.webp"
+  },
+  "steer": true
+}

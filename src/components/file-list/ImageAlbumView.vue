@@ -14,7 +14,7 @@ import {
   type AlbumGroupGranularity,
 } from '@/utils/albumGroup'
 import type { AlbumMediaFilter } from '@/composables/useImageAlbumQuery'
-import { buildAlbumWaterfallLayout, findAlbumDateOffset } from '@/utils/albumVirtual'
+import { buildAlbumTimelineSpineLayout, findAlbumDateOffset, type AlbumVirtualSpineItem } from '@/utils/albumVirtual'
 
 const props = defineProps<{
   records: FileRecord[]
@@ -60,6 +60,8 @@ const activeMediaFilter = computed({
 })
 
 const rootRef = ref<HTMLElement | null>(null)
+const wrapRef = ref<HTMLElement | null>(null)
+const toolbarRef = ref<HTMLElement | null>(null)
 const containerWidth = ref(0)
 const metaByKey = shallowRef(new Map<string, AlbumImageMeta>())
 /** 触发布局重算的宽高比版本（实际比例在 imageAspect 缓存） */
@@ -70,6 +72,12 @@ const jumpDateKey = ref('')
 const collapsedDateKeys = shallowRef(new Set<string>())
 const { width: viewportWidth, isMobile } = useBreakpoint()
 
+/** 筛选条吸顶偏移；脊标签吸顶在其下方 */
+const toolbarStickyTop = ref(0)
+const spineStickyTop = ref(56)
+/** 当前视口对应的时间脊节点（固定条展示，不依赖 CSS sticky 进虚拟项） */
+const activeSpine = shallowRef<AlbumVirtualSpineItem | null>(null)
+
 const groups = computed(() =>
   groupRecordsByDate(props.records, metaByKey.value, activeGranularity.value),
 )
@@ -79,7 +87,7 @@ const selectGroupLabel = computed(() => getAlbumSelectGroupLabel(activeGranulari
 
 const layout = computed(() => {
   void aspectRev.value
-  return buildAlbumWaterfallLayout(
+  return buildAlbumTimelineSpineLayout(
     groups.value,
     containerWidth.value,
     viewportWidth.value,
@@ -116,11 +124,64 @@ const { visibleRows: visibleItems, scheduleUpdate } = useWindowVirtualRows({
 })
 
 let resizeObserver: ResizeObserver | null = null
+let stickyObserver: ResizeObserver | null = null
 let longPressTimer: ReturnType<typeof setTimeout> | null = null
 let unsubscribeMetaUpdate: (() => void) | null = null
 let suppressClick = false
 let suppressContextMenuUntil = 0
 let aspectRaf = 0
+let stickyRaf = 0
+let activeSpineRaf = 0
+
+function onStickyMetricsChange() {
+  if (stickyRaf) return
+  stickyRaf = window.requestAnimationFrame(() => {
+    stickyRaf = 0
+    measureStickyOffsets()
+    updateActiveSpine()
+  })
+}
+
+function spinesInLayout(): AlbumVirtualSpineItem[] {
+  return items.value.filter((item): item is AlbumVirtualSpineItem => item.type === 'spine')
+}
+
+function updateActiveSpine() {
+  const spines = spinesInLayout()
+  if (!rootRef.value || spines.length === 0) {
+    if (activeSpine.value) activeSpine.value = null
+    return
+  }
+
+  const scrollTop = window.scrollY || document.documentElement.scrollTop || 0
+  const listTop = rootRef.value.getBoundingClientRect().top + scrollTop
+  // 探测线落在吸顶条稍下，避免边界闪烁
+  const probe = scrollTop - listTop + spineStickyTop.value + 20
+
+  let current = spines[0]!
+  for (const spine of spines) {
+    if (spine.offset <= probe) current = spine
+    else break
+  }
+
+  if (activeSpine.value?.dateKey !== current.dateKey) {
+    activeSpine.value = current
+  } else if (
+    activeSpine.value.label !== current.label ||
+    activeSpine.value.locationLabel !== current.locationLabel ||
+    activeSpine.value.count !== current.count
+  ) {
+    activeSpine.value = current
+  }
+}
+
+function onScrollOrResizeForSpine() {
+  if (activeSpineRaf) return
+  activeSpineRaf = window.requestAnimationFrame(() => {
+    activeSpineRaf = 0
+    updateActiveSpine()
+  })
+}
 
 function onThumbMeta(meta: AlbumImageMeta) {
   const next = new Map(metaByKey.value)
@@ -145,6 +206,18 @@ function syncWidth() {
     containerWidth.value = next
   }
   scheduleUpdate()
+}
+
+function measureStickyOffsets() {
+  const header = document.querySelector('.app-header') as HTMLElement | null
+  const headerVisible =
+    !!header && getComputedStyle(header).display !== 'none' && header.getBoundingClientRect().height > 0
+  const headerH = headerVisible ? Math.round(header.getBoundingClientRect().height) : 0
+  const toolbarH = Math.round(toolbarRef.value?.getBoundingClientRect().height ?? 48)
+  toolbarStickyTop.value = headerH
+  spineStickyTop.value = headerH + toolbarH + 6
+  wrapRef.value?.style.setProperty('--album-toolbar-sticky-top', `${toolbarStickyTop.value}px`)
+  wrapRef.value?.style.setProperty('--album-spine-sticky-top', `${spineStickyTop.value}px`)
 }
 
 function clearLongPress() {
@@ -278,7 +351,8 @@ async function jumpToDate(dateKey: string) {
   if (offset == null) return
   const scrollTop = window.scrollY || document.documentElement.scrollTop || 0
   const listTop = rootRef.value.getBoundingClientRect().top + scrollTop
-  const target = Math.max(0, listTop + offset - 12)
+  const stickyPad = spineStickyTop.value + 8
+  const target = Math.max(0, listTop + offset - stickyPad)
   window.scrollTo({ top: target, behavior: 'smooth' })
   jumpDateKey.value = dateKey
 }
@@ -295,6 +369,31 @@ function onBatchDownload() {
 function onBatchDelete() {
   if (selectedRecords.value.length === 0) return
   emit('batch-delete', selectedRecords.value)
+}
+
+/** 时间脊日记层级：从 dateKey 拆年/月/日（日 YYYY-MM-DD；月 YYYY-MM；年 YYYY） */
+function spineParts(dateKey: string): { year: string; month?: string; day?: string; fallback: string } {
+  const dayMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey)
+  if (dayMatch) {
+    return {
+      year: dayMatch[1]!,
+      month: String(Number(dayMatch[2])),
+      day: String(Number(dayMatch[3])),
+      fallback: dateKey,
+    }
+  }
+  const monthMatch = /^(\d{4})-(\d{2})$/.exec(dateKey)
+  if (monthMatch) {
+    return {
+      year: monthMatch[1]!,
+      month: String(Number(monthMatch[2])),
+      fallback: dateKey,
+    }
+  }
+  if (/^\d{4}$/.test(dateKey)) {
+    return { year: dateKey, fallback: dateKey }
+  }
+  return { year: '', fallback: dateKey }
 }
 
 watch(activeGranularity, () => {
@@ -338,8 +437,13 @@ watch(
   },
 )
 
+watch(isMobile, () => {
+  onStickyMetricsChange()
+})
+
 watch([items, totalHeight], () => {
   scheduleUpdate()
+  onScrollOrResizeForSpine()
 })
 
 watch(selectionMode, (enabled) => {
@@ -348,26 +452,53 @@ watch(selectionMode, (enabled) => {
 
 onMounted(() => {
   syncWidth()
+  measureStickyOffsets()
+  updateActiveSpine()
   unsubscribeMetaUpdate = subscribeAlbumMetaUpdate(onThumbMeta)
-  if (typeof ResizeObserver !== 'undefined' && rootRef.value) {
-    resizeObserver = new ResizeObserver(() => syncWidth())
-    resizeObserver.observe(rootRef.value)
+  if (typeof ResizeObserver !== 'undefined') {
+    if (rootRef.value) {
+      resizeObserver = new ResizeObserver(() => syncWidth())
+      resizeObserver.observe(rootRef.value)
+    }
+    stickyObserver = new ResizeObserver(() => onStickyMetricsChange())
+    if (toolbarRef.value) stickyObserver.observe(toolbarRef.value)
+    const header = document.querySelector('.app-header')
+    if (header) stickyObserver.observe(header)
+  }
+  window.addEventListener('resize', onStickyMetricsChange, { passive: true })
+  window.addEventListener('scroll', onScrollOrResizeForSpine, { passive: true })
+  // 审阅/开发：允许向当前页注入地点元数据（不影响生产包体积外行为）
+  if (import.meta.env.DEV) {
+    ;(window as unknown as { __seedAlbumMeta?: (rows: AlbumImageMeta[]) => void }).__seedAlbumMeta = (
+      rows,
+    ) => {
+      for (const row of rows) onThumbMeta(row)
+    }
   }
 })
 
 onUnmounted(() => {
   unsubscribeMetaUpdate?.()
   unsubscribeMetaUpdate = null
+  if (import.meta.env.DEV) {
+    delete (window as unknown as { __seedAlbumMeta?: unknown }).__seedAlbumMeta
+  }
   clearLongPress()
   if (aspectRaf) window.cancelAnimationFrame(aspectRaf)
+  if (stickyRaf) window.cancelAnimationFrame(stickyRaf)
+  if (activeSpineRaf) window.cancelAnimationFrame(activeSpineRaf)
+  window.removeEventListener('resize', onStickyMetricsChange)
+  window.removeEventListener('scroll', onScrollOrResizeForSpine)
   resizeObserver?.disconnect()
   resizeObserver = null
+  stickyObserver?.disconnect()
+  stickyObserver = null
 })
 </script>
 
 <template>
-  <div class="image-album-wrap">
-    <div class="image-album__toolbar">
+  <div ref="wrapRef" class="image-album-wrap">
+    <div ref="toolbarRef" class="image-album__toolbar">
       <div class="image-album__filters">
         <el-segmented
           v-model="activeGranularity"
@@ -402,12 +533,78 @@ onUnmounted(() => {
       </el-select>
     </div>
 
-    <p v-if="isMobile && !selectionMode" class="image-album__hint">长按图片或视频可进入多选</p>
+    <div
+      v-if="activeSpine"
+      class="image-album__spine-pin"
+      :class="{ 'is-collapsed': isDateCollapsed(activeSpine.dateKey) }"
+    >
+      <button
+        type="button"
+        class="image-album__spine-pin-btn"
+        :aria-expanded="!isDateCollapsed(activeSpine.dateKey)"
+        :aria-label="activeSpine.label"
+        @click="toggleDateCollapse(activeSpine.dateKey)"
+      >
+        <span class="image-album__spine-track" aria-hidden="true">
+          <span class="image-album__spine-node" />
+        </span>
+        <span
+          v-for="parts in [spineParts(activeSpine.dateKey)]"
+          :key="`${activeSpine.dateKey}-pin`"
+          class="image-album__spine-copy"
+        >
+          <template v-if="parts.day">
+            <span class="image-album__spine-head">
+              <span class="image-album__spine-day">{{ parts.day }}</span>
+              <span class="image-album__spine-meta">
+                <span class="image-album__spine-month">{{ parts.month }}月</span>
+                <span class="image-album__spine-year">{{ parts.year }}</span>
+              </span>
+            </span>
+          </template>
+          <template v-else-if="parts.month">
+            <span class="image-album__spine-head">
+              <span class="image-album__spine-day">{{ parts.month }}</span>
+              <span class="image-album__spine-meta">
+                <span class="image-album__spine-month">月</span>
+                <span class="image-album__spine-year">{{ parts.year }}</span>
+              </span>
+            </span>
+          </template>
+          <template v-else-if="parts.year">
+            <span class="image-album__spine-head is-year-only">
+              <span class="image-album__spine-day image-album__spine-day--year">{{ parts.year }}</span>
+            </span>
+          </template>
+          <span v-else class="image-album__spine-date">{{ activeSpine.label }}</span>
+          <span
+            v-if="activeSpine.locationLabel"
+            class="image-album__spine-place"
+            :title="activeSpine.locationLabel"
+          >
+            <el-icon class="image-album__spine-place-icon" :size="11"><Location /></el-icon>
+            <span class="image-album__spine-place-text">{{ activeSpine.locationLabel }}</span>
+          </span>
+          <span class="image-album__spine-count">{{ activeSpine.count }} 张</span>
+        </span>
+      </button>
+      <el-button
+        v-if="selectionMode"
+        class="image-album__spine-select"
+        size="small"
+        text
+        type="primary"
+        :disabled="batchBusy"
+        @click.stop="toggleGroupSelection(activeSpine.dateKey)"
+      >
+        {{ isGroupFullySelected(activeSpine.dateKey) ? '取消' : selectGroupLabel }}
+      </el-button>
+    </div>
 
     <div
       ref="rootRef"
       v-loading="loading"
-      class="image-album"
+      class="image-album image-album--timeline"
       :class="{ 'is-selecting': selectionMode }"
       :style="{ height: `${Math.max(totalHeight, 160)}px` }"
     >
@@ -419,12 +616,27 @@ onUnmounted(() => {
         :style="{
           top: `${item.offset}px`,
           left: `${item.left}px`,
-          width: item.type === 'header' ? '100%' : `${item.width}px`,
+          width:
+            item.type === 'header' ? '100%' : `${item.width}px`,
           height: `${item.height}px`,
         }"
       >
+        <aside
+          v-if="item.type === 'spine'"
+          class="image-album__spine image-album__spine--marker"
+          :class="{
+            'is-collapsed': isDateCollapsed(item.dateKey),
+            'is-active': activeSpine?.dateKey === item.dateKey,
+          }"
+          :aria-hidden="activeSpine?.dateKey === item.dateKey"
+        >
+          <span class="image-album__spine-track" aria-hidden="true">
+            <span class="image-album__spine-node" />
+          </span>
+        </aside>
+
         <header
-          v-if="item.type === 'header'"
+          v-else-if="item.type === 'header'"
           class="image-album__header"
           :class="{ 'is-collapsed': isDateCollapsed(item.dateKey) }"
         >
@@ -444,7 +656,7 @@ onUnmounted(() => {
             </div>
           </button>
           <div class="image-album__header-aside">
-            <span class="image-album__count">{{ item.count }} 个</span>
+            <span class="image-album__count image-album__day-chip">{{ item.count }} 个</span>
             <el-button
               v-if="selectionMode"
               size="small"
@@ -534,16 +746,27 @@ onUnmounted(() => {
 
 <style scoped>
 .image-album-wrap {
+  --album-spine-width: 68px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
 .image-album__toolbar {
+  position: sticky;
+  top: var(--album-toolbar-sticky-top, 0px);
+  z-index: 6;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  padding: 6px 8px;
+  margin: 0 -2px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--app-surface) 92%, var(--app-bg));
+  border: 1px solid color-mix(in srgb, var(--app-border) 85%, transparent);
+  box-shadow: var(--app-shadow);
+  backdrop-filter: blur(12px);
 }
 
 .image-album__filters {
@@ -567,44 +790,60 @@ onUnmounted(() => {
 }
 
 .image-album__jump {
-  width: min(260px, 100%);
-  flex: 1;
+  width: min(220px, 100%);
+  flex: 0 1 220px;
   min-width: 0;
 }
 
-.image-album__hint {
-  margin: 0;
-  font-size: 12px;
-  color: #909399;
+@media (min-width: 768px) {
+  .image-album-wrap {
+    --album-spine-width: 88px;
+  }
 }
 
 @media (max-width: 767px) {
+  .image-album-wrap {
+    gap: 8px;
+  }
+
   .image-album__toolbar {
-    flex-wrap: wrap;
-    align-items: stretch;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .image-album__filters {
-    width: 100%;
+    width: auto;
+    flex: 1 1 auto;
     min-width: 0;
     flex-wrap: nowrap;
+    gap: 6px;
   }
 
   .image-album__granularity,
   .image-album__media-filter {
-    flex: 1;
+    flex: 0 0 auto;
     min-width: 0;
     width: auto;
   }
 
+  .image-album__granularity :deep(.el-segmented),
+  .image-album__media-filter :deep(.el-segmented) {
+    width: auto;
+  }
+
   .image-album__jump {
-    flex: 1 1 100%;
-    width: 100%;
-    min-width: 0;
+    flex: 0 0 112px;
+    width: 112px;
+    min-width: 112px;
   }
 
   .image-album__jump :deep(.el-select__wrapper) {
-    min-height: var(--touch-min, 44px);
+    min-height: 32px;
+    font-size: 12px;
   }
 }
 
@@ -613,9 +852,291 @@ onUnmounted(() => {
   min-height: 160px;
 }
 
+.image-album--timeline {
+  --album-spine-width: 68px;
+  --album-spine-rail-x: 11px;
+}
+
+@media (min-width: 768px) {
+  .image-album--timeline {
+    --album-spine-width: 88px;
+    --album-spine-rail-x: 14px;
+  }
+}
+
+.image-album--timeline::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: var(--album-spine-rail-x);
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand-spine) 12%, transparent),
+    color-mix(in srgb, var(--brand-spine) 42%, transparent) 12%,
+    color-mix(in srgb, var(--brand-chip) 55%, transparent) 50%,
+    color-mix(in srgb, var(--brand-spine) 42%, transparent) 88%,
+    color-mix(in srgb, var(--brand-spine) 12%, transparent)
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
 .image-album__item {
   position: absolute;
   box-sizing: border-box;
+  z-index: 1;
+}
+
+.image-album__item--spine {
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* 固定当前时间节点：雾底轻洗，不要白卡片壳 */
+.image-album__spine-pin {
+  position: sticky;
+  top: var(--album-spine-sticky-top, 56px);
+  z-index: 5;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  width: var(--album-spine-width, 68px);
+  max-width: var(--album-spine-width, 68px);
+  margin: 0 0 2px;
+  padding: 4px 6px 14px 0;
+  border: none;
+  border-radius: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--app-bg) 94%, transparent) 0%,
+    color-mix(in srgb, var(--app-bg) 78%, transparent) 55%,
+    transparent 100%
+  );
+  box-shadow: none;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  mask-image: linear-gradient(180deg, #000 0%, #000 70%, transparent 100%);
+}
+
+.image-album__spine-pin-btn {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  min-width: 0;
+  width: 100%;
+}
+
+.image-album__spine-pin-btn:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.image-album__spine--marker {
+  display: flex;
+  justify-content: flex-start;
+  height: 100%;
+  padding: 6px 0 0;
+}
+
+.image-album__spine--marker .image-album__spine-track {
+  min-height: 16px;
+  padding-top: 2px;
+}
+
+.image-album__spine--marker.is-active .image-album__spine-node {
+  opacity: 0.3;
+}
+
+.image-album__spine-track {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: 18px;
+  padding-top: 6px;
+}
+
+.image-album__spine-node {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--app-surface);
+  border: 2.5px solid var(--brand-spine);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--brand-spine-soft) 80%, transparent),
+    0 1px 3px color-mix(in srgb, var(--brand-spine) 18%, transparent);
+}
+
+.image-album__spine-pin.is-collapsed .image-album__spine-node,
+.image-album__spine--marker.is-collapsed .image-album__spine-node {
+  border-color: color-mix(in srgb, var(--brand-spine) 45%, var(--app-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-spine-soft) 50%, transparent);
+}
+
+.image-album__spine-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.image-album__spine-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+
+.image-album__spine-head.is-year-only {
+  align-items: baseline;
+}
+
+.image-album__spine-day {
+  flex-shrink: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 0.92;
+  color: var(--brand-spine);
+  font-variant-numeric: tabular-nums;
+}
+
+.image-album__spine-day--year {
+  font-size: 22px;
+  letter-spacing: -0.03em;
+}
+
+.image-album__spine-meta {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 1px;
+  min-width: 0;
+  padding-bottom: 1px;
+}
+
+.image-album__spine-month {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--app-text);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.image-album__spine-year {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--app-text-muted);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.image-album__spine-date {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--app-text);
+}
+
+.image-album__spine-place {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.25;
+  color: var(--app-text-muted);
+}
+
+.image-album__spine-place-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: color-mix(in srgb, var(--brand-spine) 70%, var(--brand-chip));
+}
+
+.image-album__spine-place-text {
+  min-width: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  word-break: break-all;
+}
+
+.image-album__spine-count {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--app-text-muted);
+  background: none;
+  white-space: nowrap;
+}
+
+.image-album__spine-select {
+  flex-shrink: 0;
+  margin: 2px 0 0;
+  padding: 0 4px !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+@media (min-width: 768px) {
+  .image-album__spine-pin {
+    width: var(--album-spine-width, 88px);
+    max-width: var(--album-spine-width, 88px);
+  }
+
+  .image-album__spine-day {
+    font-size: 28px;
+  }
+
+  .image-album__spine-day--year {
+    font-size: 26px;
+  }
+
+  .image-album__spine-month {
+    font-size: 12px;
+  }
+
+  .image-album__spine-year {
+    font-size: 11px;
+  }
+
+  .image-album__spine-place {
+    font-size: 11px;
+  }
+
+  .image-album__spine-count {
+    font-size: 11px;
+  }
+}
+
+.image-album--timeline .image-album__tile {
+  border-radius: 12px;
 }
 
 .image-album__item--header {
@@ -628,14 +1149,15 @@ onUnmounted(() => {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
   height: 100%;
+  padding: 4px 2px 0;
 }
 
 .image-album__heading-btn {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
+  gap: 8px;
   flex: 1;
   min-width: 0;
   margin: 0;
@@ -648,15 +1170,15 @@ onUnmounted(() => {
 }
 
 .image-album__heading-btn:focus-visible {
-  outline: 2px solid #409eff;
+  outline: 2px solid var(--brand-primary);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
 .image-album__collapse-icon {
   flex-shrink: 0;
-  margin-top: 5px;
-  color: #909399;
+  margin-top: 8px;
+  color: var(--app-text-muted);
   transition: transform 0.2s ease;
 }
 
@@ -673,10 +1195,23 @@ onUnmounted(() => {
 
 .image-album__date {
   margin: 0;
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 700;
-  color: #303133;
-  line-height: 1.3;
+  letter-spacing: -0.03em;
+  color: var(--app-text);
+  line-height: 1.2;
+}
+
+.image-album__day-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-text);
+  background: color-mix(in srgb, var(--brand-chip) 55%, white);
+  border: 1px solid color-mix(in srgb, var(--brand-chip) 70%, white);
 }
 
 .image-album__location {
@@ -685,13 +1220,13 @@ onUnmounted(() => {
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  color: #909399;
+  color: var(--app-text-muted);
   line-height: 1.3;
 }
 
 .image-album__location-icon {
   flex-shrink: 0;
-  color: #c0c4cc;
+  color: var(--brand-chip);
 }
 
 .image-album__header-aside {
@@ -699,37 +1234,50 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding-top: 2px;
+  padding-top: 6px;
 }
 
 .image-album__count {
-  font-size: 13px;
-  color: #909399;
+  font-size: 12px;
+  color: var(--app-text);
 }
 
 .image-album__tile {
   position: relative;
+  display: block;
   width: 100%;
   height: 100%;
   min-height: 0;
+  margin: 0;
   padding: 0;
   border: none;
-  border-radius: 4px;
+  border-radius: 10px;
   overflow: hidden;
-  background: #ebeef5;
+  background: var(--app-surface-muted);
   cursor: pointer;
   touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
+  box-shadow: var(--app-shadow);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .image-album__tile:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--app-shadow-lift);
+  }
 }
 
 .image-album__tile:focus-visible {
-  outline: 2px solid #409eff;
+  outline: 2px solid var(--brand-primary);
   outline-offset: 1px;
 }
 
 .image-album__tile.is-selected {
-  outline: 2px solid #409eff;
+  outline: 2px solid var(--brand-primary);
   outline-offset: -2px;
 }
 
@@ -737,7 +1285,7 @@ onUnmounted(() => {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(64, 158, 255, 0.18);
+  background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
   pointer-events: none;
 }
 
@@ -746,7 +1294,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 16px 6px 5px;
+  padding: 18px 8px 6px;
   font-size: 10px;
   line-height: 1.2;
   color: #fff;
@@ -754,7 +1302,7 @@ onUnmounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+  background: linear-gradient(transparent, rgba(15, 40, 70, 0.55));
   pointer-events: none;
 }
 
@@ -770,19 +1318,19 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.92);
-  border: 1.5px solid #c0c4cc;
+  border: 1.5px solid var(--app-border-strong);
   color: #fff;
   pointer-events: none;
 }
 
 .image-album__tile.is-selected .image-album__check {
-  background: #409eff;
-  border-color: #409eff;
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
 }
 
 @media (min-width: 768px) {
   .image-album__date {
-    font-size: 20px;
+    font-size: 26px;
   }
 }
 </style>
@@ -801,8 +1349,8 @@ onUnmounted(() => {
   padding: 10px 14px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.96);
-  border: 1px solid #e4e7ed;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--app-border);
+  box-shadow: var(--app-shadow-lift);
   backdrop-filter: blur(8px);
 }
 
@@ -849,7 +1397,7 @@ onUnmounted(() => {
 
 .album-action-bar__count {
   font-size: 13px;
-  color: #606266;
+  color: var(--app-text-secondary);
   white-space: nowrap;
 }
 

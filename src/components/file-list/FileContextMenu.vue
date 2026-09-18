@@ -3,7 +3,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { CopyDocument, Delete, Download, View } from '@element-plus/icons-vue'
 import type { FileRecord } from '@/types/file'
 
-const props = defineProps<{
+defineProps<{
   /** 正在删除的文件 key（用于禁用 / loading） */
   deletingKey?: string | null
 }>()
@@ -134,10 +134,11 @@ defineExpose({ open, close })
   z-index: 4000;
   min-width: 148px;
   padding: 6px;
-  border: 1px solid #e4e7ed;
-  border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-surface) 96%, var(--app-bg));
+  box-shadow: var(--app-shadow-lift, 0 8px 24px rgba(15, 55, 120, 0.12));
+  backdrop-filter: blur(10px);
 }
 
 .file-context-menu__item {
@@ -150,7 +151,7 @@ defineExpose({ open, close })
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: #303133;
+  color: var(--app-text);
   font-size: 13px;
   line-height: 1.2;
   text-align: left;
@@ -158,7 +159,7 @@ defineExpose({ open, close })
 }
 
 .file-context-menu__item:hover:not(:disabled) {
-  background: #f5f7fa;
+  background: var(--app-surface-muted);
 }
 
 .file-context-menu__item:disabled {
@@ -167,16 +168,16 @@ defineExpose({ open, close })
 }
 
 .file-context-menu__item.is-danger {
-  color: #f56c6c;
+  color: var(--brand-danger);
 }
 
 .file-context-menu__item.is-danger:hover:not(:disabled) {
-  background: #fef0f0;
+  background: color-mix(in srgb, var(--brand-danger) 10%, var(--app-surface));
 }
 
 .file-context-menu__divider {
   height: 1px;
   margin: 4px 6px;
-  background: #ebeef5;
+  background: var(--app-border);
 }
 </style>

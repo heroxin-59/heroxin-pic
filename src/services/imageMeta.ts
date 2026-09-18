@@ -293,6 +293,15 @@ export function getCachedAlbumMeta(key: string): AlbumImageMeta | undefined {
   return metaCache.get(key)
 }
 
+/** 写入/合并相册元数据缓存并通知订阅方（用于测试与审阅种子） */
+export function upsertAlbumMeta(meta: AlbumImageMeta): AlbumImageMeta {
+  const prev = metaCache.get(meta.key)
+  const next = prev ? { ...prev, ...meta } : { ...meta }
+  metaCache.set(meta.key, next)
+  notifyMetaUpdate(next)
+  return next
+}
+
 export function clearAlbumMetaCache() {
   metaCache.clear()
   geocodeCache.clear()

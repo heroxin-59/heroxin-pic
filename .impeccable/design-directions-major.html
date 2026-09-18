@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>大改设计方向 · 阿鑫相册</title>
+  <style>
+    :root {
+      --bg: #e8f4ff;
+      --surface: #fff;
+      --text: #1a2b3d;
+      --muted: #4a5d73;
+      --primary: #2f7dff;
+      --chip: #7ec8ff;
+      --border: #cfe0f2;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(160deg, var(--bg), #cfe8ff);
+      color: var(--text);
+      line-height: 1.45;
+      padding: 20px 16px 48px;
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 1.5rem; letter-spacing: -0.03em; }
+    .lede { margin: 0 0 24px; color: var(--muted); font-size: 0.95rem; max-width: 52rem; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(47,125,255,.08);
+    }
+    .card.is-rec { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .card__head { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); }
+    .card__kicker { font-size: 11px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: .06em; }
+    .card__title { margin: 4px 0 0; font-size: 1.15rem; font-weight: 700; }
+    .card__thesis { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+    .phone-wrap { padding: 12px; background: #f0f7ff; }
+    .phone {
+      width: 100%;
+      max-width: 280px;
+      margin: 0 auto;
+      aspect-ratio: 9/16;
+      border-radius: 22px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      font-size: 9px;
+    }
+    .tabbar {
+      display: grid;
+      grid-template-columns: repeat(3,1fr);
+      border-top: 1px solid var(--border);
+      background: rgba(255,255,255,.95);
+      padding: 6px 0 8px;
+      text-align: center;
+      color: var(--muted);
+      margin-top: auto;
+    }
+    .tabbar .on { color: var(--primary); font-weight: 700; }
+
+    /* A: edge gallery */
+    .mock-a .top { height: 28px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; background: rgba(255,255,255,.9); font-weight: 700; }
+    .mock-a .sticky { background: rgba(255,255,255,.85); padding: 4px 8px; font-weight: 600; border-bottom: 1px solid var(--border); }
+    .mock-a .grid { flex: 1; display: grid; grid-template-columns: repeat(3,1fr); gap: 2px; padding: 2px; align-content: start; }
+    .mock-a .cell { aspect-ratio: 1; background: linear-gradient(135deg,#b3d2ff,#5c9aff); border-radius: 2px; }
+
+    /* B: timeline spine */
+    .mock-b .body { flex: 1; display: flex; min-height: 0; }
+    .mock-b .spine { width: 28%; background: rgba(255,255,255,.7); border-right: 1px solid var(--border); padding: 6px 4px; }
+    .mock-b .spine div { margin-bottom: 8px; padding-left: 4px; border-left: 2px solid #0d9488; font-weight: 600; font-size: 8px; }
+    .mock-b .well { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 4px; align-content: start; }
+    .mock-b .well div { aspect-ratio: .85; background: linear-gradient(160deg,#d9ecff,#2f7dff); border-radius: 6px; }
+
+    /* C: day cards */
+    .mock-c .scroll { flex: 1; padding: 6px; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
+    .mock-c .dcard { background: #fff; border-radius: 10px; padding: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+    .mock-c .dcard-head { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 4px; }
+    .mock-c .dcard-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 2px; }
+    .mock-c .dcard-grid span { aspect-ratio: 1; background: #b3d2ff; border-radius: 3px; }
+    .mock-c .fab { position: relative; }
+    .mock-c .fab::after { content: "+"; position: absolute; right: 10px; bottom: 36px; width: 28px; height: 28px; border-radius: 50%; background: var(--primary); color: #fff; display: grid; place-items: center; font-size: 16px; font-weight: 700; box-shadow: 0 4px 12px rgba(47,125,255,.4); }
+
+    /* D: library pro */
+    .mock-d .dock { padding: 4px 6px; background: #fff; border-bottom: 1px solid var(--border); display: flex; gap: 4px; flex-wrap: wrap; }
+    .mock-d .pill { padding: 2px 6px; border-radius: 999px; background: #eef4fb; border: 1px solid var(--border); font-size: 7px; }
+    .mock-d .pill.on { background: var(--primary); color: #fff; }
+    .mock-d .scrub { display: flex; gap: 3px; padding: 4px 6px; overflow: hidden; }
+    .mock-d .scrub span { flex: 0 0 24px; height: 14px; border-radius: 4px; background: #d9ecff; font-size: 6px; display: grid; place-items: center; }
+    .mock-d .scrub span.on { background: var(--primary); color: #fff; }
+    .mock-d .dense { flex: 1; display: grid; grid-template-columns: repeat(5,1fr); gap: 1px; padding: 2px; }
+    .mock-d .dense div { aspect-ratio: 1; background: #c6e2ff; }
+
+    /* E: bento home */
+    .mock-e .bento { flex: 1; padding: 6px; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto auto; gap: 4px; }
+    .mock-e .hero { grid-column: 1 / -1; height: 52px; border-radius: 8px; background: linear-gradient(120deg,#2f7dff,#7ec8ff); color: #fff; padding: 8px; font-weight: 700; }
+    .mock-e .mod { background: #fff; border-radius: 8px; padding: 6px; border: 1px solid var(--border); min-height: 36px; }
+    .mock-e .mod.wide { grid-column: 1 / -1; }
+
+    .card__foot { padding: 12px 16px 14px; font-size: 12px; color: var(--muted); }
+    .card__foot strong { color: var(--text); }
+    .pick { margin-top: 24px; padding: 16px; background: #fff; border-radius: var(--radius); border: 1px solid var(--border); }
+    .pick code { background: #f0f7ff; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>大改设计方向 · 结构对比</h1>
+    <p class="lede">下面每一张手机示意<strong>布局结构不同</strong>（不只是配色）。选好后回复编号，例如：<code>选 沉浸图墙</code> 或 <code>edge-gallery</code>。</p>
+
+    <div class="grid">
+      <article class="card is-rec">
+        <div class="card__head">
+          <div class="card__kicker">推荐 · A</div>
+          <h2 class="card__title">沉浸图墙</h2>
+          <p class="card__thesis">去掉白卡片壳，照片贴边铺满；日期条 sticky；Tab 极简。最接近「相册 App」。</p>
+        </div>
+        <div class="phone-wrap">
+          <div class="phone mock-a">
+            <div class="top"><span>阿鑫相册</span><span>↻</span></div>
+            <div class="sticky">2024-08-12 · 12 张</div>
+            <div class="grid"><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></div>
+            <div class="tabbar"><span>上传</span><span class="on">相册</span><span>文件</span></div>
+          </div>
+        </div>
+        <div class="card__foot"><strong>会变：</strong>相册无 stage 白框；顶栏变薄；文件页可改为轻列表/抽屉。</div>
+      </article>
+
+      <article class="card">
+        <div class="card__head">
+          <div class="card__kicker">B</div>
+          <h2 class="card__title">时间脊</h2>
+          <p class="card__thesis">左固定日期脊 + 右大图井，纵向像翻日记。</p>
+        </div>
+        <div class="phone-wrap">
+          <div class="phone mock-b">
+            <div class="top" style="padding:0 8px;height:24px;display:flex;align-items:center;font-weight:700;background:#fff">相册</div>
+            <div class="body">
+              <div class="spine"><div>08-12<br/>上海</div><div>08-11</div><div>08-10</div></div>
+              <div class="well"><div></div><div></div><div></div><div></div></div>
+            </div>
+            <div class="tabbar"><span>上传</span><span class="on">相册</span><span>文件</span></div>
+          </div>
+        </div>
+        <div class="card__foot"><strong>会变：</strong>重做相册虚拟布局；瀑布改为脊+井双栏。</div>
+      </article>
+
+      <article class="card">
+        <div class="card__head">
+          <div class="card__kicker">C</div>
+          <h2 class="card__title">日卡片栈</h2>
+          <p class="card__thesis">每天一张大卡片，封面+张数，点开再进网格；上传 FAB。</p>
+        </div>
+        <div class="phone-wrap mock-c">
+          <div class="phone mock-c fab">
+            <div class="scroll">
+              <div class="dcard"><div class="dcard-head"><span>8月12日</span><span>12</span></div><div class="dcard-grid"><span></span><span></span><span></span><span></span></div></div>
+              <div class="dcard"><div class="dcard-head"><span>8月11日</span><span>8</span></div><div class="dcard-grid"><span></span><span></span><span></span><span></span></div></div>
+            </div>
+            <div class="tabbar"><span>上传</span><span class="on">相册</span><span>文件</span></div>
+          </div>
+        </div>
+        <div class="card__foot"><strong>会变：</strong>相册两级导航；首屏更 calm，重度浏览多一次点击。</div>
+      </article>
+
+      <article class="card">
+        <div class="card__head">
+          <div class="card__kicker">D</div>
+          <h2 class="card__title">资料库 Pro</h2>
+          <p class="card__thesis">筛选坞+日期横滑条常驻；缩略图更密；文件表格为主。</p>
+        </div>
+        <div class="phone-wrap">
+          <div class="phone mock-d">
+            <div class="dock"><span class="pill on">全部</span><span class="pill">图片</span><span class="pill">视频</span></div>
+            <div class="scrub"><span>10</span><span>11</span><span class="on">12</span><span>13</span><span>14</span></div>
+            <div class="dense"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+            <div class="tabbar"><span>上传</span><span class="on">相册</span><span>文件</span></div>
+          </div>
+        </div>
+        <div class="card__foot"><strong>会变：</strong>偏工具效率；亲密感弱，找文件/筛日期最快。</div>
+      </article>
+
+      <article class="card">
+        <div class="card__head">
+          <div class="card__kicker">E</div>
+          <h2 class="card__title">模块首页</h2>
+          <p class="card__thesis">Bento 仪表盘：相册 Hero、最近上传、统计、快捷入口。</p>
+        </div>
+        <div class="phone-wrap">
+          <div class="phone mock-e">
+            <div class="bento">
+              <div class="hero">相册 · 3285 张</div>
+              <div class="mod">最近上传</div>
+              <div class="mod">7.6 GB</div>
+              <div class="mod wide">快捷：上传 / 文件 / 刷新</div>
+            </div>
+            <div class="tabbar"><span class="on">首页</span><span>相册</span><span>文件</span></div>
+          </div>
+        </div>
+        <div class="card__foot"><strong>会变：</strong>新增 Home 层；Tab 可能变成 首页+相册+文件。</div>
+      </article>
+    </div>
+
+    <div class="pick">
+      <strong>怎么选：</strong> 在对话里回复方向名或 id（<code>edge-gallery</code> · <code>timeline-spine</code> · <code>day-cards</code> · <code>library-pro</code> · <code>bento-home</code>），或说「保持现状」不大改。
+    </div>
+  </div>
+</body>
+</html>

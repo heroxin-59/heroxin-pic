@@ -58,20 +58,20 @@ const hintText = computed(() => kindHint[props.kind])
   margin: 8px 0 0;
   font-size: 18px;
   font-weight: 600;
-  color: #303133;
+  color: var(--app-text);
   word-break: break-all;
 }
 
 .preview-fallback__meta {
   margin: 0;
   font-size: 13px;
-  color: #606266;
+  color: var(--app-text-secondary);
 }
 
 .preview-fallback__hint {
   margin: 4px 0 0;
   font-size: 14px;
-  color: #909399;
+  color: var(--app-text-muted);
 }
 
 .preview-fallback__key {

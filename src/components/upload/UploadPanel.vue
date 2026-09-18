@@ -228,36 +228,45 @@ function onPanelKeydown(event: KeyboardEvent) {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  min-height: 200px;
-  padding: 28px 20px;
-  border: 1.5px dashed #c0c4cc;
-  border-radius: 12px;
-  background: #fff;
-  color: #606266;
+  min-height: 220px;
+  padding: 32px 22px;
+  border: 1.5px dashed color-mix(in srgb, var(--brand-primary) 28%, var(--app-border));
+  border-radius: 14px;
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--app-surface) 92%, transparent) 0%,
+      color-mix(in srgb, var(--brand-primary-soft) 55%, var(--app-surface)) 100%
+    );
+  color: var(--app-text-secondary);
   cursor: pointer;
+  box-shadow: var(--app-shadow);
   transition:
     border-color 0.2s,
     background-color 0.2s,
-    box-shadow 0.2s;
+    box-shadow 0.2s,
+    transform 0.2s;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
 .upload-panel:focus-visible {
-  border-color: #409eff;
+  border-color: var(--brand-primary);
   outline: none;
+  box-shadow: var(--app-shadow-lift);
 }
 
 .upload-panel.is-dragging {
-  border-color: #409eff;
-  background: #ecf5ff;
-  box-shadow: inset 0 0 0 1px #409eff;
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+  box-shadow: inset 0 0 0 1px var(--brand-primary), var(--app-shadow-lift);
 }
 
 .upload-panel.is-disabled {
   cursor: not-allowed;
   opacity: 0.65;
-  background: #f5f7fa;
+  background: var(--app-surface-muted);
+  box-shadow: none;
 }
 
 .upload-panel.is-mobile {
@@ -268,25 +277,25 @@ function onPanelKeydown(event: KeyboardEvent) {
 }
 
 .upload-panel__icon {
-  color: #909399;
+  color: var(--app-text-muted);
 }
 
 .upload-panel.is-dragging .upload-panel__icon {
-  color: #409eff;
+  color: var(--brand-primary);
 }
 
 .upload-panel__title {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--app-text);
   text-align: center;
 }
 
 .upload-panel__hint {
   margin: 0;
   font-size: 13px;
-  color: #909399;
+  color: var(--app-text-muted);
   text-align: center;
   line-height: 1.5;
 }
@@ -309,7 +318,7 @@ function onPanelKeydown(event: KeyboardEvent) {
 
 .type-group__label {
   font-size: 12px;
-  color: #909399;
+  color: var(--app-text-muted);
 }
 
 .upload-panel__mobile-actions {
@@ -344,11 +353,13 @@ function onPanelKeydown(event: KeyboardEvent) {
 
 @media (hover: hover) and (pointer: fine) {
   .upload-panel:not(.is-mobile):hover {
-    border-color: #409eff;
+    border-color: var(--brand-primary);
+    box-shadow: var(--app-shadow-lift);
+    transform: translateY(-1px);
   }
 
   .upload-panel:not(.is-mobile):hover .upload-panel__icon {
-    color: #409eff;
+    color: var(--brand-primary);
   }
 }
 

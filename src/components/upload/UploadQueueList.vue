@@ -134,32 +134,36 @@ function archiveHint(task: UploadTask): string | null {
 }
 
 .upload-queue__item {
-  padding: 12px;
-  border: 1px solid #ebeef5;
-  border-radius: 8px;
-  background: #fafafa;
+  padding: 12px 14px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-surface) 92%, var(--app-bg));
+  box-shadow: var(--app-shadow);
   transition:
     border-color 0.2s,
-    background-color 0.2s;
+    background-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .upload-queue__item.is-active {
-  border-color: #409eff;
-  background: #ecf5ff;
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+  box-shadow: var(--app-shadow-lift);
 }
 
 .upload-queue__item.is-success {
-  border-color: #e1f3d8;
+  border-color: color-mix(in srgb, var(--brand-success) 35%, var(--app-border));
+  background: color-mix(in srgb, var(--brand-success) 10%, var(--app-surface));
 }
 
 .upload-queue__item.is-error {
-  border-color: #fde2e2;
-  background: #fef0f0;
+  border-color: color-mix(in srgb, var(--brand-danger) 40%, var(--app-border));
+  background: color-mix(in srgb, var(--brand-danger) 8%, var(--app-surface));
 }
 
 .upload-queue__item.is-cancelled {
-  border-color: #faecd8;
-  background: #fdf6ec;
+  border-color: color-mix(in srgb, var(--brand-warning) 40%, var(--app-border));
+  background: color-mix(in srgb, var(--brand-warning) 8%, var(--app-surface));
 }
 
 .upload-queue__meta {
@@ -191,24 +195,24 @@ function archiveHint(task: UploadTask): string | null {
 }
 
 .icon-waiting {
-  color: #909399;
+  color: var(--app-text-muted);
 }
 
 .icon-uploading {
-  color: #409eff;
+  color: var(--brand-primary);
   animation: spin 1s linear infinite;
 }
 
 .icon-success {
-  color: #67c23a;
+  color: var(--brand-success);
 }
 
 .icon-error {
-  color: #f56c6c;
+  color: var(--brand-danger);
 }
 
 .icon-cancelled {
-  color: #e6a23c;
+  color: var(--brand-warning);
 }
 
 @keyframes spin {
@@ -227,13 +231,13 @@ function archiveHint(task: UploadTask): string | null {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 13px;
-  color: #303133;
+  color: var(--app-text);
 }
 
 .upload-queue__size {
   margin: 4px 0 0;
   font-size: 12px;
-  color: #909399;
+  color: var(--app-text-muted);
 }
 
 .upload-queue__key {
@@ -248,7 +252,7 @@ function archiveHint(task: UploadTask): string | null {
 .upload-queue__archive {
   margin: 4px 0 0;
   font-size: 12px;
-  color: #606266;
+  color: var(--app-text-secondary);
 }
 
 .upload-queue__error {

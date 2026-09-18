@@ -1,0 +1,67 @@
+{
+  "title": "阿鑫相册 · 大改设计方向",
+  "question": "选一套作为大改基准（会改导航、相册结构、文件页形态，不只是换色）。",
+  "options": [
+    {
+      "id": "edge-gallery",
+      "label": "沉浸图墙",
+      "kicker": "推荐",
+      "thesis": "相册即首页：顶栏极薄，照片铺满屏宽，日期条悬浮在滚动上方；上传/文件退为轻入口。",
+      "palette": ["#e8f4ff", "#ffffff", "#2f7dff", "#1a2b3d"],
+      "materials": ["无边距瀑布", "悬浮日期条", "底部三 Tab 极简"],
+      "viewport": "打开即全宽缩略图；日期 sticky；长按多选；几乎无白卡片壳。",
+      "risk": "文件列表要从「表格页」改成更轻的列表/抽屉，开发量中等。"
+    },
+    {
+      "id": "timeline-spine",
+      "label": "时间脊",
+      "thesis": "左侧日期脊 + 右侧大图井：像日记时间轴，按拍摄日纵向阅读，地点写在脊上。",
+      "palette": ["#eef4fb", "#ffffff", "#0d9488", "#2f7dff"],
+      "materials": ["左脊日期", "右井照片", "分段断层"],
+      "viewport": "左 72px 日期栏固定；右侧 2 列大图；滚动像翻日记。",
+      "risk": "与现有瀑布虚拟布局差异大，需重做相册布局算法与移动端适配。"
+    },
+    {
+      "id": "day-cards",
+      "label": "日卡片栈",
+      "thesis": "每一天是一张可展开的大卡片：封面图 + 张数 + 地点，点开才进网格；上传用右下角 FAB。",
+      "palette": ["#e8f4ff", "#ffffff", "#2f7dff", "#7ec8ff"],
+      "materials": ["日封面", "叠卡阴影", "FAB 上传"],
+      "viewport": "纵向卡片列表；卡片内再瀑布；减少首屏信息密度。",
+      "risk": "多一层「先选日再看图」，重度浏览者可能觉得多一次点击。"
+    },
+    {
+      "id": "library-pro",
+      "label": "资料库 Pro",
+      "thesis": "偏工具：顶栏固定筛选坞 + 日期横滑条 + 更密的缩略图带；文件页是主表格 + 侧滑预览。",
+      "palette": ["#f7fbff", "#ffffff", "#1a73e8", "#1a2b3d"],
+      "materials": ["横滑日期条", "筛选坞常驻", "表格文件"],
+      "viewport": "相册上方永远有筛选；缩略图更小更密；文件像 Finder/DAM。",
+      "risk": "「口袋亲密感」弱，更像运维工具；但找文件最快。"
+    },
+    {
+      "id": "bento-home",
+      "label": "模块首页",
+      "thesis": "首屏是 Bento 模块：相册 Hero、最近上传、存储统计、快捷入口；再进各子页。",
+      "palette": ["#e8f4ff", "#ffffff", "#2f7dff", "#3db86b"],
+      "materials": ["Bento 栅格", "Hero 相册", "快捷入口"],
+      "viewport": "新 Home 仪表盘；相册/文件/上传仍是 Tab 但首页多一层总览。",
+      "risk": "多一跳；个人自用可能觉得首页多余。"
+    }
+  ],
+  "reroll": false,
+  "buildPath": {
+    "value": "code",
+    "toggle": false
+  },
+  "canon": true,
+  "canonCard": {
+    "label": "保持现状（仅天空口袋换色版）",
+    "thesis": "不再大改结构：masthead + stage + 现有瀑布/表格。",
+    "palette": ["#2f7dff", "#e8f4ff", "#ffffff", "#1a2b3d"],
+    "materials": ["当前结构"],
+    "viewport": "你已看到的版本。",
+    "risk": "不是大改，只是 polish。"
+  },
+  "steer": true
+}

@@ -62,10 +62,11 @@ function progressStatus(uploading: boolean, failed: number, cancelled: number) {
 <style scoped>
 .upload-progress {
   margin-top: 16px;
-  padding: 14px;
-  border: 1px solid #ebeef5;
-  border-radius: 10px;
-  background: #fff;
+  padding: 14px 16px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-surface) 92%, var(--app-bg));
+  box-shadow: var(--app-shadow);
 }
 
 .upload-progress__header {
@@ -80,14 +81,14 @@ function progressStatus(uploading: boolean, failed: number, cancelled: number) {
   flex: 1;
   min-width: 0;
   font-size: 13px;
-  color: #303133;
+  color: var(--app-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .upload-progress__file {
-  color: #606266;
+  color: var(--app-text-secondary);
 }
 
 .upload-progress__actions {
@@ -100,7 +101,7 @@ function progressStatus(uploading: boolean, failed: number, cancelled: number) {
 .upload-progress__percent {
   font-size: 13px;
   font-weight: 600;
-  color: #409eff;
+  color: var(--brand-primary);
 }
 
 .upload-progress__stats {
@@ -109,19 +110,19 @@ function progressStatus(uploading: boolean, failed: number, cancelled: number) {
   gap: 12px;
   margin-top: 10px;
   font-size: 12px;
-  color: #909399;
+  color: var(--app-text-muted);
 }
 
 .upload-progress__stats .is-success {
-  color: #67c23a;
+  color: var(--brand-success);
 }
 
 .upload-progress__stats .is-failed {
-  color: #f56c6c;
+  color: var(--brand-danger);
 }
 
 .upload-progress__stats .is-cancelled {
-  color: #e6a23c;
+  color: var(--brand-warning);
 }
 
 @media (max-width: 767px) {

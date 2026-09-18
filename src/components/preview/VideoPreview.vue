@@ -226,7 +226,7 @@ onUnmounted(() => {
 .video-preview__stage {
   position: relative;
   min-height: 280px;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--app-border);
   border-radius: 12px;
   background: #000;
   overflow: hidden;
@@ -245,7 +245,7 @@ onUnmounted(() => {
 .video-preview__hint {
   margin: 0;
   font-size: 12px;
-  color: #909399;
+  color: var(--app-text-muted);
 }
 
 @media (max-width: 767px) {

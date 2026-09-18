@@ -517,7 +517,7 @@ onBeforeUnmount(() => {
 .album-thumb {
   position: absolute;
   inset: 0;
-  background: #ebeef5;
+  background: var(--app-surface-muted, #f0f7ff);
 }
 
 .album-thumb--video {
@@ -574,7 +574,7 @@ onBeforeUnmount(() => {
   gap: 4px;
   width: 100%;
   height: 100%;
-  color: #c0c4cc;
+  color: var(--app-border-strong);
 }
 
 .album-thumb__fallback--video {
@@ -584,7 +584,7 @@ onBeforeUnmount(() => {
 
 .album-thumb__hint {
   font-size: 10px;
-  color: #909399;
+  color: var(--app-text-muted);
 }
 
 .album-thumb__fallback--retry {
@@ -592,11 +592,11 @@ onBeforeUnmount(() => {
 }
 
 .album-thumb__fallback--retry:hover .album-thumb__hint {
-  color: #606266;
+  color: var(--app-text-secondary);
 }
 
 .album-thumb__fallback.is-loading {
-  color: #909399;
+  color: var(--app-text-muted);
 }
 
 .is-spin {

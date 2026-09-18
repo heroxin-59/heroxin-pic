@@ -1,0 +1,218 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-18T01:56:00.000Z",
+  "title": "Design System: 阿鑫相册",
+  "extensions": {
+    "colorMeta": {
+      "beacon-blue": {
+        "role": "primary",
+        "displayName": "信标蓝",
+        "canonical": "#2f7dff",
+        "tonalRamp": ["#0d3a8c", "#1557c2", "#1a68e8", "#2f7dff", "#5c9aff", "#8bb8ff", "#cce0ff", "#e8f4ff"]
+      },
+      "day-chip": {
+        "role": "secondary",
+        "displayName": "日 chip 蓝",
+        "canonical": "#7ec8ff",
+        "tonalRamp": ["#1a5a8a", "#2f7aad", "#4a9fd4", "#7ec8ff", "#a6dbff", "#c5e9ff", "#dff3ff", "#f3faff"]
+      },
+      "spine-teal": {
+        "role": "secondary",
+        "displayName": "天脊蓝",
+        "canonical": "#2a6fad",
+        "tonalRamp": ["#163a5c", "#1e5080", "#2a6fad", "#3d8fd9", "#5c9aff", "#8bb8ff", "#d6ebff", "#e8f4ff"]
+      },
+      "spine-teal-soft": {
+        "role": "neutral",
+        "displayName": "天脊软底",
+        "canonical": "#d6ebff",
+        "tonalRamp": ["#2a6fad", "#5c9aff", "#8bb8ff", "#b3d2ff", "#d6ebff", "#e8f4ff", "#f0f7ff", "#ffffff"]
+      },
+      "sky-fog": {
+        "role": "neutral",
+        "displayName": "天空雾底",
+        "canonical": "#e8f4ff",
+        "tonalRamp": ["#6a8fb0", "#8eafcc", "#b3cfe3", "#cfe8ff", "#e8f4ff", "#f0f7ff", "#f7fbff", "#ffffff"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "墨青字",
+        "canonical": "#1a2b3d",
+        "tonalRamp": ["#0d1520", "#1a2b3d", "#2e4055", "#4a5d73", "#7a8fa3", "#a8b8c8", "#d0dae4", "#eef2f6"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "相册 masthead 大标题。" },
+      "title": { "displayName": "Title", "purpose": "顶栏品牌名。" },
+      "headline": { "displayName": "Headline / Spine day", "purpose": "时间脊日记日号。" },
+      "body": { "displayName": "Body", "purpose": "说明与列表正文。" },
+      "label": { "displayName": "Label", "purpose": "脊年号、底栏、chip、caption。" }
+    },
+    "shadows": [
+      {
+        "name": "rest",
+        "value": "0 1px 4px rgba(47, 125, 255, 0.08)",
+        "purpose": "静置缩略图、顶栏与筛选条。"
+      },
+      {
+        "name": "lift",
+        "value": "0 8px 24px rgba(15, 55, 120, 0.12)",
+        "purpose": "浮层与批量操作条。"
+      }
+    ],
+    "motion": [
+      {
+        "name": "nav-ease",
+        "value": "cubic-bezier(0.32, 0.72, 0, 1)",
+        "purpose": "手机页切换与跟手松手动画。"
+      },
+      {
+        "name": "state-ease",
+        "value": "0.2s ease",
+        "purpose": "颜色与轻抬状态切换。"
+      }
+    ],
+    "breakpoints": [
+      { "name": "xs-max", "value": "767px" },
+      { "name": "sm", "value": "768px" },
+      { "name": "md", "value": "992px" },
+      { "name": "lg", "value": "1200px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "信标蓝主按钮，仅用于主行动。",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">上传</button>",
+      "css": ".ds-btn-primary { background: var(--brand-primary, #2f7dff); color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-weight: 600; cursor: pointer; transition: background 0.2s, box-shadow 0.2s; box-shadow: 0 1px 4px rgba(47,125,255,0.08);} .ds-btn-primary:hover { background: var(--brand-primary-hover, #5c9aff); box-shadow: 0 8px 24px rgba(15,55,120,0.12);} .ds-btn-primary:focus-visible { outline: 2px solid #2f7dff; outline-offset: 2px; }"
+    },
+    {
+      "name": "Active Nav",
+      "kind": "nav",
+      "refersTo": "nav-active",
+      "description": "桌面顶栏活动项。",
+      "html": "<a class=\"ds-nav-active\" href=\"#\">相册</a>",
+      "css": ".ds-nav-active { display: inline-flex; align-items: center; gap: 6px; color: #2f7dff; background: #d6ebff; text-decoration: none; padding: 8px 12px; border-radius: 8px; font-weight: 600; box-shadow: 0 1px 4px rgba(47,125,255,0.08);} .ds-nav-active:hover { background: #cce0ff; }"
+    },
+    {
+      "name": "Day Chip",
+      "kind": "chip",
+      "refersTo": "day-chip",
+      "description": "masthead 统计等轻计数标记。",
+      "html": "<span class=\"ds-day-chip\">128 个 · 2.4 GB</span>",
+      "css": ".ds-day-chip { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; color: #1a2b3d; background: color-mix(in srgb, #7ec8ff 50%, white); border: 1px solid color-mix(in srgb, #7ec8ff 65%, white); }"
+    },
+    {
+      "name": "Surface Card",
+      "kind": "card",
+      "refersTo": "card-surface",
+      "description": "上传/文件等页的白面内容卡；相册页不用。",
+      "html": "<div class=\"ds-card\"><strong>文件</strong><p>扁平列表浏览</p></div>",
+      "css": ".ds-card { background: #fff; border: 1px solid #cfe0f2; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(47,125,255,0.08); color: #1a2b3d; } .ds-card p { margin: 8px 0 0; color: #4a5d73; font-size: 14px; }"
+    },
+    {
+      "name": "Diary Spine",
+      "kind": "custom",
+      "refersTo": "album-spine",
+      "description": "相册时间脊：年弱日强 + 天脊节点；右井两列大图。",
+      "html": "<div class=\"ds-spine\"><div class=\"ds-spine__rail\" aria-hidden=\"true\"></div><button class=\"ds-spine__btn\" type=\"button\"><span class=\"ds-spine__node\" aria-hidden=\"true\"></span><span class=\"ds-spine__copy\"><span class=\"ds-spine__year\">2026</span><span class=\"ds-spine__day\">18</span><span class=\"ds-spine__month\">9月</span><span class=\"ds-spine__count\">12</span></span></button></div>",
+      "css": ".ds-spine { position: relative; width: 80px; min-height: 120px; font-family: Segoe UI, PingFang SC, Microsoft YaHei, sans-serif; } .ds-spine__rail { position: absolute; top: 0; bottom: 0; left: 14px; width: 2px; background: color-mix(in srgb, #2a6fad 55%, transparent); } .ds-spine__btn { position: relative; display: grid; grid-template-columns: 20px minmax(0,1fr); gap: 4px; width: 100%; margin: 0; padding: 0; border: none; background: none; text-align: left; cursor: pointer; } .ds-spine__btn:focus-visible { outline: 2px solid #2f7dff; outline-offset: 2px; border-radius: 6px; } .ds-spine__node { width: 10px; height: 10px; margin: 6px auto 0; border-radius: 50%; background: #2a6fad; border: 2px solid color-mix(in srgb, #d6ebff 70%, white); box-shadow: 0 0 0 2px color-mix(in srgb, #2a6fad 20%, transparent); } .ds-spine__copy { display: flex; flex-direction: column; gap: 2px; padding-top: 2px; } .ds-spine__year { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #7a8fa3; line-height: 1.2; } .ds-spine__day { font-size: 26px; font-weight: 700; letter-spacing: -0.04em; line-height: 1; color: #2a6fad; } .ds-spine__month { font-size: 11px; font-weight: 600; color: #1a2b3d; line-height: 1.2; } .ds-spine__count { margin-top: 2px; font-size: 11px; font-weight: 600; color: #4a5d73; } .ds-spine__btn:hover .ds-spine__day { color: #1e5080; }"
+    },
+    {
+      "name": "Album Filter Toolbar",
+      "kind": "custom",
+      "refersTo": "album-filter-toolbar",
+      "description": "相册薄粘性筛选条。",
+      "html": "<div class=\"ds-filter-bar\" role=\"toolbar\"><span class=\"ds-filter-bar__seg\">日</span><span class=\"ds-filter-bar__seg is-active\">月</span><span class=\"ds-filter-bar__seg\">年</span><span class=\"ds-filter-bar__seg\">全部</span></div>",
+      "css": ".ds-filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: color-mix(in srgb, #ffffff 88%, #e8f4ff); border: 1px solid color-mix(in srgb, #cfe0f2 85%, transparent); box-shadow: 0 1px 4px rgba(47,125,255,0.08); backdrop-filter: blur(10px); font-family: Segoe UI, PingFang SC, Microsoft YaHei, sans-serif; } .ds-filter-bar__seg { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #4a5d73; background: transparent; cursor: pointer; } .ds-filter-bar__seg.is-active { color: #2f7dff; background: #d6ebff; } .ds-filter-bar__seg:hover { background: #f0f7ff; } .ds-filter-bar__seg:focus-visible { outline: 2px solid #2f7dff; outline-offset: 2px; }"
+    },
+    {
+      "name": "Album Tile",
+      "kind": "custom",
+      "refersTo": "album-tile",
+      "description": "时间脊右井缩略图：圆角井 + caption 渐变遮罩。",
+      "html": "<button class=\"ds-tile\" type=\"button\"><span class=\"ds-tile__photo\" aria-hidden=\"true\"></span><span class=\"ds-tile__caption\">IMG_2048.jpg</span></button>",
+      "css": ".ds-tile { position: relative; display: block; width: 100%; max-width: 220px; aspect-ratio: 4/5; margin: 0; padding: 0; border: none; border-radius: 12px; overflow: hidden; background: #f0f7ff; cursor: pointer; box-shadow: 0 1px 4px rgba(47,125,255,0.08); transition: transform 0.2s ease, box-shadow 0.2s ease; font-family: Segoe UI, PingFang SC, Microsoft YaHei, sans-serif; } .ds-tile__photo { display: block; width: 100%; height: 100%; background: linear-gradient(160deg, #cfe8ff, #8bb8ff 55%, #4a5d73); } .ds-tile__caption { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 8px 6px; font-size: 10px; line-height: 1.2; color: #fff; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: linear-gradient(transparent, rgba(15, 40, 70, 0.55)); pointer-events: none; } .ds-tile:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(15,55,120,0.12); } .ds-tile:focus-visible { outline: 2px solid #2f7dff; outline-offset: 1px; }"
+    },
+    {
+      "name": "Upload Dropzone",
+      "kind": "custom",
+      "refersTo": "button-primary",
+      "description": "虚线上传区，拖入时信标描边。",
+      "html": "<div class=\"ds-upload\" tabindex=\"0\"><strong>点击或拖拽上传</strong><span>源文件直传 OSS</span></div>",
+      "css": ".ds-upload { display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 160px; justify-content: center; border: 1.5px dashed #b3d0eb; border-radius: 12px; background: #fff; color: #4a5d73; padding: 24px; transition: border-color 0.2s, background 0.2s, box-shadow 0.2s; font-family: Segoe UI, PingFang SC, Microsoft YaHei, sans-serif; } .ds-upload:hover, .ds-upload:focus-visible { border-color: #2f7dff; color: #2f7dff; box-shadow: inset 0 0 0 1px #2f7dff; background: #d6ebff; outline: none; } .ds-upload strong { color: #1a2b3d; } .ds-upload span { font-size: 13px; color: #7a8fa3; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "天空口袋",
+    "overview": "阿鑫相册的界面像装进口袋的一片晴空：亮天蓝雾托起照片，信标蓝只出现在可点与选中处。气质是实用、冷静、轻盈；深度是轻触觉——静止浅阴影，悬停或浮层再抬起。相册签名表面改为时间脊日记：左栏日期脊、右栏两列白井大图，淡蓝轨线贯穿滚动；壳层不造「卡片套卡片」的舞台。照片与按日归档仍是主角。",
+    "keyCharacteristics": [
+      "亮天蓝雾底（#e8f4ff）而非中性灰后台",
+      "信标蓝（#2f7dff）专属于动作与选中",
+      "天脊蓝（#2a6fad / #d6ebff）专属于日记时间脊",
+      "相册页无舞台卡片；薄粘性筛选条",
+      "轻触觉阴影；系统中文无衬线",
+      "桌面顶栏 / 手机底栏同一套色语"
+    ],
+    "rules": [
+      {
+        "name": "The Beacon-Only Rule",
+        "body": "信标蓝只出现在可点或明确选中态；装饰性色块用雾底或 chip，不用主色铺满。",
+        "section": "colors"
+      },
+      {
+        "name": "The Spine-Is-Diary Rule",
+        "body": "天脊蓝只服务时间脊（日号、轨、节点）；动作与焦点仍归信标蓝。",
+        "section": "colors"
+      },
+      {
+        "name": "The Photo-Leads Rule",
+        "body": "任何屏上饱和色面积不得超过照片内容的视觉权重。",
+        "section": "colors"
+      },
+      {
+        "name": "The One-Family Rule",
+        "body": "全站一族无衬线，靠字重与尺度分层，不加第二展示字体。",
+        "section": "typography"
+      },
+      {
+        "name": "The Diary Hierarchy Rule",
+        "body": "脊上年份弱、日号强、月份次；地点与计数用 muted/secondary，不与日号抢权。",
+        "section": "typography"
+      },
+      {
+        "name": "The No-Stage-Card Rule",
+        "body": "/images 不包一层白卡片舞台；照片井直接坐在雾底上。",
+        "section": "layout"
+      },
+      {
+        "name": "The Thin-Filter Rule",
+        "body": "筛选是粘顶薄条，不是第二块内容卡。",
+        "section": "layout"
+      },
+      {
+        "name": "The Light-Tactile Rule",
+        "body": "阴影只响应状态（hover / 浮层），不为装饰常驻加重。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do 用雾底 #e8f4ff 作为默认页面大气，而不是灰 #f5f7fa。",
+      "Do 把信标蓝留给导航选中、主按钮、焦点与多选确认。",
+      "Do 相册按日用左脊 + 右井：脊宽 80/60，井内两列，日间约 52px 断层。",
+      "Do 脊日号用天脊蓝；轨线与节点连续贯穿滚动。",
+      "Do 筛选保持薄粘性条；masthead 保持一行标题 + 统计。",
+      "Do 保持轻触觉：静置浅影，抬起再用 lift。"
+    ],
+    "donts": [
+      "Don't 用信标蓝做大面积装饰底或渐变字。",
+      "Don't 用全宽日期横幅 / 大日期标题条替代左脊（拒绝 banner-style day headers）。",
+      "Don't 在 /images 再套一层白舞台卡或 card-in-card 壳。",
+      "Don't 把天脊蓝挪作主按钮或导航选中色（那是信标的活）。",
+      "Don't 引入紫霓虹、暖橙等第三套强调色抢信标与脊。",
+      "Don't 让壳层压过照片的视觉比例。"
+    ]
+  }
+}

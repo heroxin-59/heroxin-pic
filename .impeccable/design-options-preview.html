@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>阿鑫相册 · 设计选项预览</title>
+    <style>
+      :root {
+        --brand-primary: #409eff;
+        --brand-primary-hover: #79bbff;
+        --brand-primary-active: #337ecc;
+        --brand-primary-soft: #ecf5ff;
+        --app-bg: #f5f7fa;
+        --app-bg-accent: #e8eef5;
+        --app-surface: #ffffff;
+        --app-border: #e4e7ed;
+        --app-text: #303133;
+        --app-text-secondary: #606266;
+        --app-text-muted: #909399;
+        --app-radius: 12px;
+        --app-radius-sm: 8px;
+        --app-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: var(--app-text);
+        background: linear-gradient(160deg, var(--app-bg) 0%, var(--app-bg-accent) 100%);
+        line-height: 1.5;
+        padding: 24px 16px 64px;
+      }
+      .wrap { max-width: 880px; margin: 0 auto; }
+      h1 { font-size: 1.35rem; margin: 0 0 8px; }
+      .lede { color: var(--app-text-secondary); margin: 0 0 28px; font-size: 0.95rem; }
+      section {
+        background: var(--app-surface);
+        border: 1px solid var(--app-border);
+        border-radius: var(--app-radius);
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: var(--app-shadow);
+      }
+      h2 { font-size: 1.05rem; margin: 0 0 6px; }
+      .hint { color: var(--app-text-muted); font-size: 0.85rem; margin: 0 0 16px; }
+      .swatches {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 12px;
+      }
+      .swatch {
+        border: 1px solid var(--app-border);
+        border-radius: var(--app-radius-sm);
+        overflow: hidden;
+        background: #fff;
+      }
+      .swatch__chip { height: 72px; }
+      .swatch__meta { padding: 10px; font-size: 0.8rem; }
+      .swatch__meta strong { display: block; margin-bottom: 2px; }
+      .swatch__meta code { color: var(--app-text-muted); font-size: 0.75rem; }
+      .options { display: grid; gap: 10px; }
+      .opt {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        border: 1.5px solid var(--app-border);
+        border-radius: var(--app-radius-sm);
+        padding: 12px;
+        cursor: default;
+      }
+      .opt__mark {
+        flex: 0 0 auto;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--brand-primary-soft);
+        color: var(--brand-primary);
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        font-size: 0.85rem;
+      }
+      .opt strong { display: block; }
+      .opt span { color: var(--app-text-secondary); font-size: 0.85rem; }
+      .elev-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 14px;
+      }
+      .elev-card {
+        border-radius: var(--app-radius);
+        padding: 18px;
+        background: #fff;
+        border: 1px solid var(--app-border);
+        min-height: 120px;
+      }
+      .elev-card h3 { margin: 0 0 6px; font-size: 0.95rem; }
+      .elev-card p { margin: 0; font-size: 0.8rem; color: var(--app-text-muted); }
+      .elev-flat { box-shadow: none; }
+      .elev-light {
+        box-shadow: var(--app-shadow);
+        transition: box-shadow 0.2s, transform 0.2s;
+      }
+      .elev-light:hover {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        transform: translateY(-2px);
+      }
+      .elev-heavy {
+        box-shadow:
+          0 12px 40px rgba(0, 0, 0, 0.18),
+          0 2px 8px rgba(64, 158, 255, 0.25);
+        border-color: transparent;
+      }
+      .mock {
+        display: grid;
+        gap: 12px;
+      }
+      .mock-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 14px;
+        border-radius: var(--app-radius-sm);
+        background: color-mix(in srgb, #fff 92%, transparent);
+        border: 1px solid var(--app-border);
+        backdrop-filter: blur(8px);
+      }
+      .mock-brand { font-weight: 700; }
+      .mock-nav { display: flex; gap: 8px; }
+      .mock-nav span {
+        padding: 6px 10px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        color: var(--app-text-secondary);
+      }
+      .mock-nav .active {
+        color: var(--brand-primary);
+        background: var(--brand-primary-soft);
+      }
+      .mock-upload {
+        border: 1.5px dashed #c0c4cc;
+        border-radius: var(--app-radius);
+        padding: 28px;
+        text-align: center;
+        color: var(--app-text-secondary);
+        background: #fff;
+      }
+      .mock-album {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      .thumb {
+        aspect-ratio: 1;
+        border-radius: 8px;
+        background:
+          linear-gradient(135deg, #d9ecff, #a0cfff 40%, #79bbff 70%, #409eff);
+      }
+      .thumb:nth-child(2) {
+        background: linear-gradient(160deg, #e8eef5, #c0c4cc 50%, #909399);
+      }
+      .thumb:nth-child(3) {
+        background: linear-gradient(120deg, #f0f1fe, #d5d8f8 40%, #626aef);
+      }
+      .phone {
+        max-width: 320px;
+        margin: 0 auto;
+        border: 1px solid var(--app-border);
+        border-radius: 24px;
+        padding: 12px 12px 0;
+        background: var(--app-bg);
+        box-shadow: var(--app-shadow);
+      }
+      .tabbar {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border-top: 1px solid var(--app-border);
+        background: color-mix(in srgb, #fff 96%, transparent);
+        margin: 12px -12px 0;
+        border-radius: 0 0 24px 24px;
+        overflow: hidden;
+      }
+      .tabbar div {
+        text-align: center;
+        padding: 10px 4px 14px;
+        font-size: 0.7rem;
+        color: var(--app-text-muted);
+      }
+      .tabbar .on { color: var(--brand-primary); font-weight: 600; }
+      .note {
+        margin-top: 8px;
+        padding: 10px 12px;
+        background: var(--brand-primary-soft);
+        border-radius: 8px;
+        color: var(--brand-primary-active);
+        font-size: 0.85rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>阿鑫相册 · 视觉选项预览</h1>
+      <p class="lede">
+        这是<strong>现有 UI 体系</strong>的真实色值与布局示意。问题 1/2 只是给同一套色取名字；问题 3 请把鼠标移到中间卡片上看「轻触觉」。
+      </p>
+
+      <section>
+        <h2>现有色板（实际色值）</h2>
+        <p class="hint">下面每块颜色就是线上会用到的色；名字只影响 DESIGN.md 怎么称呼它们。</p>
+        <div class="swatches">
+          <div class="swatch">
+            <div class="swatch__chip" style="background:#409eff"></div>
+            <div class="swatch__meta"><strong>主色</strong><code>#409eff</code></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__chip" style="background:#ecf5ff"></div>
+            <div class="swatch__meta"><strong>主色浅底</strong><code>#ecf5ff</code></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__chip" style="background:#f5f7fa"></div>
+            <div class="swatch__meta"><strong>页面底</strong><code>#f5f7fa</code></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__chip" style="background:#e8eef5"></div>
+            <div class="swatch__meta"><strong>底渐变辅色</strong><code>#e8eef5</code></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__chip" style="background:#ffffff;border-bottom:1px solid #e4e7ed"></div>
+            <div class="swatch__meta"><strong>卡片面</strong><code>#ffffff</code></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__chip" style="background:#303133"></div>
+            <div class="swatch__meta"><strong>主文字</strong><code>#303133</code></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__chip" style="background:#909399"></div>
+            <div class="swatch__meta"><strong>弱文字</strong><code>#909399</code></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__chip" style="background:#626aef"></div>
+            <div class="swatch__meta"><strong>视频标签紫</strong><code>#626aef</code></div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>问题 1 · 主色叫什么名？</h2>
+        <p class="hint">颜色完全一样，只选称呼（写进文档用）。</p>
+        <div class="options">
+          <div class="opt">
+            <div class="opt__mark">A</div>
+            <div>
+              <strong>Element 天蓝</strong>
+              <span>强调「跟 Element Plus 默认一致」</span>
+              <div style="margin-top:8px;height:28px;border-radius:6px;background:#409eff"></div>
+            </div>
+          </div>
+          <div class="opt">
+            <div class="opt__mark">B</div>
+            <div>
+              <strong>口袋蓝</strong>
+              <span>贴合「口袋相册」北星，偏产品昵称</span>
+              <div style="margin-top:8px;height:28px;border-radius:6px;background:#409eff"></div>
+            </div>
+          </div>
+          <div class="opt">
+            <div class="opt__mark">C</div>
+            <div>
+              <strong>清爽信标蓝</strong>
+              <span>强调导航高亮 / 选中态的「指路」感</span>
+              <div style="margin-top:8px;height:28px;border-radius:6px;background:#409eff"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>问题 2 · 中性面怎么称呼？</h2>
+        <p class="hint">仍是同一组色，换一组「人话」标签。</p>
+        <div class="options">
+          <div class="opt">
+            <div class="opt__mark">A</div>
+            <div>
+              <strong>冷灰纸面 + 白卡片 + 墨灰字</strong>
+              <div style="display:flex;gap:6px;margin-top:8px">
+                <div style="flex:1;height:36px;border-radius:6px;background:#f5f7fa;border:1px solid #e4e7ed"></div>
+                <div style="flex:1;height:36px;border-radius:6px;background:#fff;border:1px solid #e4e7ed"></div>
+                <div style="flex:1;height:36px;border-radius:6px;background:#303133"></div>
+              </div>
+            </div>
+          </div>
+          <div class="opt">
+            <div class="opt__mark">B</div>
+            <div>
+              <strong>雾蓝灰底 + 纯白台面 + 炭黑字</strong>
+              <div style="display:flex;gap:6px;margin-top:8px">
+                <div style="flex:1;height:36px;border-radius:6px;background:#e8eef5;border:1px solid #e4e7ed"></div>
+                <div style="flex:1;height:36px;border-radius:6px;background:#fff;border:1px solid #e4e7ed"></div>
+                <div style="flex:1;height:36px;border-radius:6px;background:#303133"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="note">A 更贴「纸面工具」；B 更贴「口袋相册」的雾蓝氛围。色值几乎同一家族。</p>
+      </section>
+
+      <section>
+        <h2>问题 3 · 深度：请把鼠标移到卡片上对比</h2>
+        <p class="hint">左=完全平；中=你上次选的「轻触觉」（hover 才抬起）；右=重阴影（对照，一般不选）。</p>
+        <div class="elev-grid">
+          <div class="elev-card elev-flat">
+            <h3>A · 始终平铺</h3>
+            <p>无阴影。干净，但层次弱。</p>
+          </div>
+          <div class="elev-card elev-light">
+            <h3>B · 轻触觉（推荐）</h3>
+            <p>静止轻阴影；悬停再抬起。请 hover 我。</p>
+          </div>
+          <div class="elev-card elev-heavy">
+            <h3>C · 重阴影（对照）</h3>
+            <p>一直浮着，偏炫、偏吵。</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>口袋相册 · 整体氛围示意（现有体系）</h2>
+        <p class="hint">桌面顶栏 + 手机底栏；内容区限宽；上传虚线框；相册缩略图。</p>
+        <div class="mock" style="margin-bottom:20px">
+          <div class="mock-header">
+            <div class="mock-brand">阿鑫相册</div>
+            <div class="mock-nav">
+              <span>上传</span>
+              <span class="active">相册</span>
+              <span>文件</span>
+            </div>
+          </div>
+          <div class="mock-album">
+            <div class="thumb"></div>
+            <div class="thumb"></div>
+            <div class="thumb"></div>
+          </div>
+          <div class="mock-upload">点击或拖拽上传 · 源文件直传</div>
+        </div>
+        <div class="phone">
+          <div style="font-weight:700;margin:4px 8px 12px">相册</div>
+          <div class="mock-album" style="padding:0 4px">
+            <div class="thumb"></div>
+            <div class="thumb"></div>
+            <div class="thumb"></div>
+          </div>
+          <div class="tabbar">
+            <div>上传</div>
+            <div class="on">相册</div>
+            <div>文件</div>
+          </div>
+        </div>
+      </section>
+
+      <p class="lede" style="margin-top:8px">
+        看完后直接在对话里回复，例如：<strong>1B 2B 3B</strong>。若你想换一套完全不同的主色/风格，也可以说「想看别的视觉方向」。
+      </p>
+    </div>
+  </body>
+</html>

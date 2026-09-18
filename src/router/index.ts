@@ -24,7 +24,7 @@ const router = createRouter({
       path: '/files',
       name: 'files',
       component: () => import('@/views/FileListView.vue'),
-      meta: { title: '文件列表' },
+      meta: { title: '文件' },
     },
     {
       path: '/preview',
