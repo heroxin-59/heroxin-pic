@@ -15,7 +15,6 @@ import { showAppError, showAppSuccess, showAppWarning } from '@/utils/message'
 const {
   configured: connectionReady,
   missingEnvKeys: missing,
-  uploadLimits,
 } = useOss()
 const credentialSource = getCredentialSourceLabel()
 

@@ -5,7 +5,10 @@ const getAccessUrl = vi.fn(async (key: string, options?: { process?: string }) =
   const process = options?.process ? `&process=${options.process}` : ''
   return `https://example.com/${key}?sig=1${process}`
 })
-const getObjectBlob = vi.fn(async () => new Blob(['x'], { type: 'image/jpeg' }))
+const getObjectBlob = vi.fn(
+  async (_key: string, _options?: { signal?: AbortSignal }) =>
+    new Blob(['x'], { type: 'image/jpeg' }),
+)
 
 vi.mock('@/services/fileList', () => ({
   getAccessUrl: (key: string, options?: { process?: string }) => getAccessUrl(key, options),
