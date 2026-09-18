@@ -7,8 +7,8 @@ colors:
   beacon-blue-active: "#1a68e8"
   beacon-soft: "#d6ebff"
   day-chip: "#7ec8ff"
-  spine-teal: "#2a6fad"
-  spine-teal-soft: "#d6ebff"
+  spine-sky: "#2a6fad"
+  spine-sky-soft: "#d6ebff"
   sky-fog: "#e8f4ff"
   sky-fog-deep: "#cfe8ff"
   surface-white: "#ffffff"
@@ -83,7 +83,7 @@ components:
     padding: "{spacing.md}"
   album-spine:
     backgroundColor: "transparent"
-    textColor: "{colors.spine-teal}"
+    textColor: "{colors.spine-sky}"
     width: "80px"
   album-filter-toolbar:
     backgroundColor: "{colors.surface-white}"
@@ -211,13 +211,13 @@ components:
 - **Mobile:** 底栏三入口；活动项信标蓝
 
 ### Signature: Diary spine（时间脊）
-左栏日记标签 + 淡蓝轨 + 空心粘性节点；右侧两列照片井。日粒度排成紧凑块：**大日号**与旁挂 **月 / 年** 并排，其下地点最多两行省略，张数用浅 chip（如 `1 张`）。折叠时节点降饱和。
+左栏日记轨 + 空心节点；右侧两列照片井。**当前节点**以筛选条下方的固定条展示（雾底轻洗、无白卡片壳，贴合脊宽），随滚动切换日/月/年信息；列表内脊项只留轨道圆点。日粒度：**大日号**旁挂 **月 / 年**，其下地点最多两行省略，张数为纯文字（如 `1 张`）。折叠时节点降饱和。
 
 ### Signature: Album tile caption
 文件名叠在井底：白字 10px + `linear-gradient(transparent, rgba(15, 40, 70, 0.55))`，系统级 caption 遮罩，不另造标签条。
 
 ### Signature: Thin sticky filter bar
-半透明白混雾底、软边、rest 阴影、`blur(10px)`；手机横向可滚、更紧 padding。
+半透明白混雾底、软边、rest 阴影、`blur(10px)`；手机横向可滚、更紧 padding。固定当前节点条叠在其下。
 
 ## Do's and Don'ts
 
@@ -225,14 +225,16 @@ components:
 - **Do** 用雾底 `#e8f4ff` 作为默认页面大气，而不是灰 `#f5f7fa`。
 - **Do** 把信标蓝留给导航选中、主按钮、焦点与多选确认。
 - **Do** 相册按日用左脊 + 右井：脊宽 88/68，井内两列，日间约 52px 断层。
-- **Do** 脊日号旁挂月/年成块；地点单列省略，张数用 chip 文案。
-- **Do** 筛选保持薄粘性条；masthead 保持一行标题 + 统计。
+- **Do** 脊日号旁挂月/年成块；地点单列省略；张数用纯文字，不用白卡片壳。
+- **Do** 筛选与当前节点保持粘性；年视图大段也能始终看到当前节点。
+- **Do** masthead 保持一行标题 + 统计。
 - **Do** 保持轻触觉：静置浅影，抬起再用 lift。
 
 ### Don't:
 - **Don't** 用信标蓝做大面积装饰底或渐变字。
 - **Don't** 用全宽日期横幅 / 大日期标题条替代左脊（拒绝 banner-style day headers）。
 - **Don't** 在 `/images` 再套一层白舞台卡或 card-in-card 壳。
+- **Don't** 给固定节点条加白底描边阴影（那是雾底轻洗，不是卡片）。
 - **Don't** 把天脊蓝挪作主按钮或导航选中色（那是信标的活）。
 - **Don't** 再引入青绿等与雾底脱节的第二日记色。
 - **Don't** 让壳层压过照片的视觉比例。

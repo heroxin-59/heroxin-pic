@@ -749,7 +749,7 @@ onUnmounted(() => {
   --album-spine-width: 68px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
 }
 
 .image-album__toolbar {

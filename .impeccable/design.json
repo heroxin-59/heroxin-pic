@@ -16,13 +16,13 @@
         "canonical": "#7ec8ff",
         "tonalRamp": ["#1a5a8a", "#2f7aad", "#4a9fd4", "#7ec8ff", "#a6dbff", "#c5e9ff", "#dff3ff", "#f3faff"]
       },
-      "spine-teal": {
+      "spine-sky": {
         "role": "secondary",
         "displayName": "天脊蓝",
         "canonical": "#2a6fad",
         "tonalRamp": ["#163a5c", "#1e5080", "#2a6fad", "#3d8fd9", "#5c9aff", "#8bb8ff", "#d6ebff", "#e8f4ff"]
       },
-      "spine-teal-soft": {
+      "spine-sky-soft": {
         "role": "neutral",
         "displayName": "天脊软底",
         "canonical": "#d6ebff",
@@ -152,7 +152,7 @@
       "亮天蓝雾底（#e8f4ff）而非中性灰后台",
       "信标蓝（#2f7dff）专属于动作与选中",
       "天脊蓝（#2a6fad / #d6ebff）专属于日记时间脊",
-      "相册页无舞台卡片；薄粘性筛选条",
+      "相册页无舞台卡片；薄粘性筛选条 + 雾底当前节点条",
       "轻触觉阴影；系统中文无衬线",
       "桌面顶栏 / 手机底栏同一套色语"
     ],
@@ -201,15 +201,17 @@
     "dos": [
       "Do 用雾底 #e8f4ff 作为默认页面大气，而不是灰 #f5f7fa。",
       "Do 把信标蓝留给导航选中、主按钮、焦点与多选确认。",
-      "Do 相册按日用左脊 + 右井：脊宽 80/60，井内两列，日间约 52px 断层。",
+      "Do 相册按日用左脊 + 右井：脊宽 88/68，井内两列，日间约 52px 断层。",
       "Do 脊日号用天脊蓝；轨线与节点连续贯穿滚动。",
-      "Do 筛选保持薄粘性条；masthead 保持一行标题 + 统计。",
+      "Do 筛选与当前节点保持粘性（雾底轻洗、无白卡片）；年视图也能始终看到当前节点。",
+      "Do masthead 保持一行标题 + 统计。",
       "Do 保持轻触觉：静置浅影，抬起再用 lift。"
     ],
     "donts": [
       "Don't 用信标蓝做大面积装饰底或渐变字。",
       "Don't 用全宽日期横幅 / 大日期标题条替代左脊（拒绝 banner-style day headers）。",
       "Don't 在 /images 再套一层白舞台卡或 card-in-card 壳。",
+      "Don't 给固定节点条加白底描边阴影。",
       "Don't 把天脊蓝挪作主按钮或导航选中色（那是信标的活）。",
       "Don't 引入紫霓虹、暖橙等第三套强调色抢信标与脊。",
       "Don't 让壳层压过照片的视觉比例。"
