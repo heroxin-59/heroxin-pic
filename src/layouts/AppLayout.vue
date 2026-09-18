@@ -131,21 +131,18 @@ const boundaryKey = computed(() => route.fullPath)
         <span class="mobile-tabbar__label">{{ mainNavItems[0]!.title }}</span>
       </router-link>
 
+      <router-link :to="mainNavItems[1]!.path" class="mobile-tabbar__item">
+        <el-icon class="mobile-tabbar__icon"><component :is="mainNavItems[1]!.icon" /></el-icon>
+        <span class="mobile-tabbar__label">{{ mainNavItems[1]!.title }}</span>
+      </router-link>
+
       <router-link
         :to="uploadNavItem.path"
         class="mobile-tabbar__fab"
         :class="{ 'is-active': isUploadRoute }"
         :aria-label="uploadNavItem.title"
       >
-        <span class="mobile-tabbar__fab-btn">
-          <el-icon class="mobile-tabbar__fab-icon"><component :is="uploadNavItem.icon" /></el-icon>
-        </span>
-        <span class="mobile-tabbar__fab-label">{{ uploadNavItem.title }}</span>
-      </router-link>
-
-      <router-link :to="mainNavItems[1]!.path" class="mobile-tabbar__item">
-        <el-icon class="mobile-tabbar__icon"><component :is="mainNavItems[1]!.icon" /></el-icon>
-        <span class="mobile-tabbar__label">{{ mainNavItems[1]!.title }}</span>
+        <el-icon class="mobile-tabbar__fab-icon"><component :is="uploadNavItem.icon" /></el-icon>
       </router-link>
     </nav>
   </div>
@@ -346,34 +343,58 @@ const boundaryKey = computed(() => route.fullPath)
 }
 
 .mobile-tabbar {
-  --tabbar-surface: color-mix(in srgb, var(--app-surface) 94%, var(--app-bg) 6%);
+  --tabbar-surface: #fff;
+  --fab-size: var(--tabbar-fab-size, 56px);
+  --notch: var(--tabbar-notch, 36px);
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 100;
   display: none;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: 1fr 1fr;
   align-items: end;
-  background: var(--tabbar-surface);
-  border-top: 1px solid color-mix(in srgb, var(--app-border) 70%, transparent);
+  min-height: calc(var(--tabbar-height, 56px) + var(--safe-bottom, 0px));
   padding-bottom: var(--safe-bottom, 0px);
   padding-left: var(--safe-left, 0px);
   padding-right: var(--safe-right, 0px);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 -6px 20px rgba(15, 55, 120, 0.05);
+  background: transparent;
+  border: none;
   overflow: visible;
 }
 
+/* 圆角底栏 + 正中半圆凹槽，托住加号 */
+.mobile-tabbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--tabbar-surface);
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -8px 24px rgba(15, 55, 120, 0.08);
+  pointer-events: none;
+  -webkit-mask: radial-gradient(
+    circle var(--notch) at 50% 0,
+    transparent calc(var(--notch) - 1px),
+    #000 var(--notch)
+  );
+  mask: radial-gradient(
+    circle var(--notch) at 50% 0,
+    transparent calc(var(--notch) - 1px),
+    #000 var(--notch)
+  );
+}
+
 .mobile-tabbar__item {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  gap: 3px;
+  gap: 4px;
   min-height: var(--tabbar-height, 56px);
-  padding: 8px 8px 8px;
+  padding: 6px 8px 8px;
   color: var(--app-text-muted);
   text-decoration: none;
   touch-action: manipulation;
@@ -388,90 +409,53 @@ const boundaryKey = computed(() => route.fullPath)
   font-size: 11px;
   font-weight: 600;
   line-height: 1;
-  letter-spacing: 0.02em;
 }
 
 .mobile-tabbar__item.router-link-active {
   color: var(--brand-primary);
 }
 
-/* 中央抬起加号：嵌在底栏正中，座面与底栏齐平 */
+/* 加号坐在凹槽里，圆心对齐底栏顶缘 */
 .mobile-tabbar__fab {
-  position: relative;
+  position: absolute;
   z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 3px;
-  min-width: 76px;
-  min-height: var(--tabbar-height, 56px);
-  padding: 0 6px 8px;
-  margin-top: calc(var(--tabbar-fab-lift, 22px) * -1);
-  text-decoration: none;
-  color: var(--app-text-muted);
-  touch-action: manipulation;
-}
-
-.mobile-tabbar__fab-btn {
+  left: 50%;
+  top: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 50px;
-  height: 50px;
+  width: var(--fab-size);
+  height: var(--fab-size);
+  margin: 0;
+  padding: 0;
   border-radius: 50%;
   color: #fff;
-  background: linear-gradient(
-    160deg,
-    var(--brand-primary-hover) 0%,
-    var(--brand-primary) 55%,
-    var(--brand-primary-active) 100%
-  );
-  /* 厚座圈盖住底栏顶线，形成嵌槽感 */
-  border: 4px solid var(--tabbar-surface);
-  box-shadow:
-    0 6px 16px rgba(26, 104, 232, 0.28),
-    0 1px 3px rgba(15, 55, 120, 0.12);
+  background: var(--brand-primary);
+  text-decoration: none;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 8px 18px rgba(26, 104, 232, 0.32);
+  touch-action: manipulation;
   transition:
-    background 0.2s,
+    background-color 0.2s,
     box-shadow 0.2s,
     transform 0.2s;
 }
 
 .mobile-tabbar__fab-icon {
-  font-size: 24px;
-}
-
-.mobile-tabbar__fab-label {
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.02em;
+  font-size: 28px;
 }
 
 .mobile-tabbar__fab.is-active,
 .mobile-tabbar__fab.router-link-active {
-  color: var(--brand-primary);
-}
-
-.mobile-tabbar__fab.is-active .mobile-tabbar__fab-btn,
-.mobile-tabbar__fab.router-link-active .mobile-tabbar__fab-btn {
-  background: linear-gradient(
-    160deg,
-    var(--brand-primary) 0%,
-    var(--brand-primary-active) 100%
-  );
-  box-shadow:
-    0 8px 20px rgba(26, 104, 232, 0.34),
-    0 0 0 3px color-mix(in srgb, var(--brand-primary-soft) 75%, transparent);
+  background: var(--brand-primary-active);
+  box-shadow: 0 10px 22px rgba(26, 104, 232, 0.38);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .mobile-tabbar__fab:hover .mobile-tabbar__fab-btn {
-    transform: translateY(-1px);
-    box-shadow:
-      0 10px 22px rgba(26, 104, 232, 0.32),
-      0 1px 3px rgba(15, 55, 120, 0.12);
+  .mobile-tabbar__fab:hover {
+    background: var(--brand-primary-hover);
+    transform: translate(-50%, calc(-50% - 1px));
+    box-shadow: 0 12px 24px rgba(26, 104, 232, 0.36);
   }
 }
 
@@ -564,24 +548,8 @@ const boundaryKey = computed(() => route.fullPath)
   display: none;
 }
 
-.app-layout.is-compact .mobile-tabbar__fab {
-  margin-top: calc(var(--tabbar-fab-lift, 16px) * -1);
-  min-height: 44px;
-  padding-bottom: 6px;
-}
-
-.app-layout.is-compact .mobile-tabbar__fab-btn {
-  width: 44px;
-  height: 44px;
-  border-width: 3px;
-}
-
 .app-layout.is-compact .mobile-tabbar__fab-icon {
   font-size: 22px;
-}
-
-.app-layout.is-compact .mobile-tabbar__fab-label {
-  display: none;
 }
 
 .app-layout.is-compact .app-main {
