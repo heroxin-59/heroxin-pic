@@ -806,18 +806,18 @@ onUnmounted(() => {
     gap: 8px;
   }
 
+  /* 窄屏两行：筛选一行、跳转一行，避免 select 压住 segmented */
   .image-album__toolbar {
-    flex-wrap: nowrap;
-    align-items: center;
+    flex-wrap: wrap;
+    align-items: stretch;
     gap: 6px;
-    padding: 4px 6px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    padding: 6px;
+    overflow: visible;
   }
 
   .image-album__filters {
-    width: auto;
-    flex: 1 1 auto;
+    flex: 1 1 100%;
+    width: 100%;
     min-width: 0;
     flex-wrap: nowrap;
     gap: 6px;
@@ -825,20 +825,26 @@ onUnmounted(() => {
 
   .image-album__granularity,
   .image-album__media-filter {
-    flex: 0 0 auto;
+    flex: 1 1 0;
     min-width: 0;
     width: auto;
   }
 
   .image-album__granularity :deep(.el-segmented),
   .image-album__media-filter :deep(.el-segmented) {
-    width: auto;
+    width: 100%;
+  }
+
+  .image-album__granularity :deep(.el-segmented__item),
+  .image-album__media-filter :deep(.el-segmented__item) {
+    padding: 0 6px;
+    font-size: 12px;
   }
 
   .image-album__jump {
-    flex: 0 0 112px;
-    width: 112px;
-    min-width: 112px;
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
   }
 
   .image-album__jump :deep(.el-select__wrapper) {
@@ -895,37 +901,32 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-/* 固定当前时间节点：雾底轻洗，不要白卡片壳 */
+/* 固定当前时间节点：只占脊栏宽，绝不盖住右侧照片井 */
 .image-album__spine-pin {
   position: sticky;
   top: var(--album-spine-sticky-top, 56px);
   z-index: 5;
   display: flex;
   align-items: flex-start;
-  gap: 4px;
+  gap: 2px;
+  box-sizing: border-box;
   width: var(--album-spine-width, 68px);
   max-width: var(--album-spine-width, 68px);
-  margin: 0 0 2px;
-  padding: 4px 6px 14px 0;
+  margin: 0;
+  padding: 2px 2px 8px 0;
   border: none;
   border-radius: 0;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--app-bg) 94%, transparent) 0%,
-    color-mix(in srgb, var(--app-bg) 78%, transparent) 55%,
-    transparent 100%
-  );
+  background: transparent;
   box-shadow: none;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  mask-image: linear-gradient(180deg, #000 0%, #000 70%, transparent 100%);
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .image-album__spine-pin-btn {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
   align-items: start;
-  gap: 4px;
+  gap: 2px;
   margin: 0;
   padding: 0;
   border: none;
@@ -935,6 +936,7 @@ onUnmounted(() => {
   touch-action: manipulation;
   min-width: 0;
   width: 100%;
+  pointer-events: auto;
 }
 
 .image-album__spine-pin-btn:focus-visible {
@@ -1007,7 +1009,7 @@ onUnmounted(() => {
   font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.05em;
-  line-height: 0.92;
+  line-height: 1;
   color: var(--brand-spine);
   font-variant-numeric: tabular-nums;
 }
@@ -1023,14 +1025,15 @@ onUnmounted(() => {
   justify-content: flex-end;
   gap: 1px;
   min-width: 0;
-  padding-bottom: 1px;
+  padding-bottom: 0;
+  overflow: visible;
 }
 
 .image-album__spine-month {
   font-size: 11px;
   font-weight: 600;
   color: var(--app-text);
-  line-height: 1.15;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
@@ -1039,7 +1042,7 @@ onUnmounted(() => {
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--app-text-muted);
-  line-height: 1.15;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
@@ -1102,6 +1105,7 @@ onUnmounted(() => {
   padding: 0 4px !important;
   height: auto !important;
   min-height: 0 !important;
+  pointer-events: auto;
 }
 
 @media (min-width: 768px) {
@@ -1111,11 +1115,11 @@ onUnmounted(() => {
   }
 
   .image-album__spine-day {
-    font-size: 28px;
+    font-size: 26px;
   }
 
   .image-album__spine-day--year {
-    font-size: 26px;
+    font-size: 24px;
   }
 
   .image-album__spine-month {
@@ -1132,6 +1136,39 @@ onUnmounted(() => {
 
   .image-album__spine-count {
     font-size: 11px;
+  }
+}
+
+@media (max-width: 767px) {
+  /* 日号与月/年上下排，挤进脊栏内，不外溢盖图 */
+  .image-album__spine-head:not(.is-year-only) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+  }
+
+  .image-album__spine-meta {
+    flex-direction: row;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+
+  .image-album__spine-day {
+    font-size: 20px;
+  }
+
+  .image-album__spine-month,
+  .image-album__spine-year {
+    font-size: 10px;
+  }
+
+  .image-album__spine-count {
+    font-size: 10px;
+  }
+
+  .image-album__spine-place {
+    font-size: 9px;
   }
 }
 
