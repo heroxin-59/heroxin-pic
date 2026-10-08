@@ -12,13 +12,15 @@ import { buildObjectKey } from './objectKey'
 const now = new Date(2026, 7, 25) // 2026-08-25 local
 
 describe('shouldUseContentArchiveDate (3.12.1)', () => {
-  it('accepts image extensions from catalog', () => {
+  it('accepts image and video extensions from catalog', () => {
     expect(shouldUseContentArchiveDate('a.jpg')).toBe(true)
     expect(shouldUseContentArchiveDate('a.JPEG')).toBe(true)
     expect(shouldUseContentArchiveDate('x/y/z.png')).toBe(true)
+    expect(shouldUseContentArchiveDate('VID_20260918_102917.mp4')).toBe(true)
+    expect(shouldUseContentArchiveDate('clip.MOV')).toBe(true)
   })
 
-  it('rejects non-image types', () => {
+  it('rejects non-media document types', () => {
     expect(shouldUseContentArchiveDate('a.pdf')).toBe(false)
     expect(shouldUseContentArchiveDate('a.docx')).toBe(false)
     expect(shouldUseContentArchiveDate('a.txt')).toBe(false)
@@ -197,7 +199,7 @@ describe('resolveArchiveDateParts priority (3.12.2)', () => {
     expect(result.path).toBe('2026/08/25')
   })
 
-  it('non-image always uses upload day', () => {
+  it('non-media documents always use upload day', () => {
     const result = resolveArchiveDateParts({
       filename: 'a.pdf',
       exifParts: { year: 2020, month: 1, day: 1 },
@@ -205,6 +207,39 @@ describe('resolveArchiveDateParts priority (3.12.2)', () => {
     })
     expect(result.source).toBe('upload')
     expect(result.path).toBe('2026/08/25')
+  })
+
+  it('archives video by filename like images', () => {
+    const result = resolveArchiveDateParts({
+      filename: 'VID_20260315_102917.mp4',
+      now,
+    })
+    expect(result.source).toBe('filename')
+    expect(result.path).toBe('2026/03/15')
+  })
+
+  it('falls back to upload day when video filename has no date', () => {
+    const result = resolveArchiveDateParts({
+      filename: 'holiday-clip.mp4',
+      now,
+    })
+    expect(result.source).toBe('upload')
+    expect(result.path).toBe('2026/08/25')
+  })
+})
+
+describe('parseDateFromFilename video names', () => {
+  it('parses common camera video filenames', () => {
+    expect(parseDateFromFilename('VID_20260315_102917.mp4', now)).toEqual({
+      year: 2026,
+      month: 3,
+      day: 15,
+    })
+    expect(parseDateFromFilename('Video_1785202559418_616.mp4', now)).toEqual({
+      year: 2026,
+      month: 7,
+      day: 28,
+    })
   })
 })
 

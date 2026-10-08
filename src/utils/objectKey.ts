@@ -129,7 +129,7 @@ function resolveArchiveFolderSegment(archiveDatePath?: string, now = new Date())
  * - overwrite:     `{dir}{yyyy}/{MM}/{dd}/{filename}`
  * - suffix:        `{dir}{yyyy}/{MM}/{dd}/{filename}`，重名则 `{stem}-1.ext`
  *
- * `yyyy/MM/dd` 默认上传当天；图片可传入 `archiveDatePath`（文件名/EXIF 解析结果）。
+ * `yyyy/MM/dd` 默认上传当天；图片/视频可传入 `archiveDatePath`（文件名或图片 EXIF 解析结果）。
  * 列表 / 下载展示名通过 `displayNameFromStoredFilename` 去掉 UUID 前缀。
  */
 export function buildObjectKey(options: BuildObjectKeyOptions): string {
@@ -196,7 +196,7 @@ export class ObjectKeyPlanner {
   }
 
   /**
-   * @param archiveDatePath 可选 `yyyy/MM/dd`；图片归档日由调用方解析后传入
+   * @param archiveDatePath 可选 `yyyy/MM/dd`；图片/视频归档日由调用方解析后传入
    */
   plan(filename: string, archiveDatePath?: string): string {
     const key = buildObjectKey({

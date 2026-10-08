@@ -135,9 +135,17 @@ export function formatMsSeqFilenameDisplay(match: MsSeqTimestampMatch): string {
 
 /**
  * 3.12.1：是否按「内容日期」归档。
- * 仅图片类（与 `fileTypes` 目录中 category=image 一致）；PDF/Word/文本等返回 false。
+ * 图片与视频（`fileTypes` 中 category=image|video）走文件名/元数据；PDF/Word/文本等返回 false。
  */
 export function shouldUseContentArchiveDate(filename: string): boolean {
+  const base = filename.split(/[/\\]/).pop() || filename
+  const dot = base.lastIndexOf('.')
+  const ext = dot > 0 ? base.slice(dot + 1).toLowerCase() : ''
+  const category = getCatalogByExt(ext)?.category
+  return category === 'image' || category === 'video'
+}
+
+function isImageFilename(filename: string): boolean {
   const base = filename.split(/[/\\]/).pop() || filename
   const dot = base.lastIndexOf('.')
   const ext = dot > 0 ? base.slice(dot + 1).toLowerCase() : ''
@@ -497,8 +505,8 @@ export function parseDateFromFilename(
 }
 
 /**
- * 3.12.1 + 3.12.2（当前仅落地 filename → upload；exif 见 3.12.4）。
- * 非图片一律 upload 当日。
+ * 3.12.1 + 3.12.2（filename → exif → upload）。
+ * 非图片/视频一律 upload 当日；视频通常只有文件名，exif 由调用方按需传入。
  */
 export function resolveArchiveDateParts(options: {
   filename: string
@@ -615,7 +623,7 @@ export async function readExifArchiveDateParts(
 }
 
 /**
- * 图片：文件名 → EXIF → 上传日；非图片：上传日。
+ * 图片：文件名 → EXIF → 上传日；视频：文件名 → 上传日（不读大文件元数据）；其它：上传日。
  * 供上传队列在入队前调用（3.12.6）。
  */
 export async function resolveArchiveDateForFile(
@@ -635,7 +643,10 @@ export async function resolveArchiveDateForFile(
     }
   }
 
-  const exifParts = await readExifArchiveDateParts(file, now)
+  // 视频只靠文件名；EXIF 仅对图片尝试，避免对大视频做无谓解析
+  const exifParts = isImageFilename(file.name)
+    ? await readExifArchiveDateParts(file, now)
+    : null
   return resolveArchiveDateParts({
     filename: file.name,
     exifParts,

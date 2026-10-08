@@ -100,8 +100,8 @@ export function useUploadQueue() {
   }
 
   /**
-   * 入队：图片解析归档日（文件名 / EXIF）后写入对应日期目录 Key。
-   * EXIF 读取并发限流，避免一次选很多图时卡死主线程。
+   * 入队：图片/视频解析归档日（文件名；图片另可读 EXIF）后写入对应日期目录 Key。
+   * 解析并发限流，避免一次选很多文件时卡死主线程。
    */
   async function enqueueFiles(files: File[]) {
     if (files.length === 0) return
