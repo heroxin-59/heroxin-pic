@@ -9,7 +9,7 @@ describe('fileValidate video size limit', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.stubEnv('VITE_MAX_SIZE_MB', '50')
-    vi.stubEnv('VITE_MAX_VIDEO_SIZE_MB', '200')
+    vi.stubEnv('VITE_MAX_VIDEO_SIZE_MB', '500')
     vi.stubEnv('VITE_ALLOWED_EXT', 'jpg,mp4')
   })
 

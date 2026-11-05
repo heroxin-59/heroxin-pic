@@ -1,7 +1,7 @@
-# 图片按内容日期归档（阶段 3.12）
+# 图片 / 视频按内容日期归档（阶段 3.12）
 
-> 上传**图片**时，Object Key 中的日期目录优先使用文件名 / EXIF 中的日历日，而不是「今天」。  
-> 非图片（PDF / Word / 文本等）行为不变，仍写入上传当日目录。
+> 上传**图片**或**视频**时，Object Key 中的日期目录优先使用文件名（图片另可读 EXIF）中的日历日，而不是「今天」。  
+> 其它类型（PDF / Word / 文本等）行为不变，仍写入上传当日目录。
 
 ---
 
@@ -16,20 +16,21 @@
 | 源文件 | 归档目录 | 来源 |
 | ------ | -------- | ---- |
 | `IMG_20260315_120001.jpg` | `uploads/2026/03/15/` | 文件名 |
-| 无日期文件名 + EXIF 拍摄日 2026-01-02 | `uploads/2026/01/02/` | EXIF |
+| `VID_20260315_102917.mp4` | `uploads/2026/03/15/` | 文件名 |
+| 无日期文件名 + EXIF 拍摄日 2026-01-02 | `uploads/2026/01/02/` | EXIF（仅图片） |
 | `report.pdf` | `uploads/{今天}/` | 上传当日 |
-| `photo.jpg`（无文件名日期、无 EXIF） | `uploads/{今天}/` | 上传当日 |
+| `photo.jpg` / `clip.mp4`（无文件名日期） | `uploads/{今天}/` | 上传当日 |
 
 ---
 
-## 2. 解析优先级（仅图片）
+## 2. 解析优先级
 
-1. **文件名**中的日期  
-2. **EXIF** 拍摄时间：`DateTimeOriginal` → `CreateDate` → `ModifyDate`  
-3. **上传当天**（本地日历）
+**图片：** 文件名 → EXIF（`DateTimeOriginal` → `CreateDate` → `ModifyDate`）→ 上传当天  
+
+**视频：** 文件名 → 上传当天（不对大视频做元数据扫描）
 
 实现：`src/utils/archiveDate.ts`  
-入队接线：`useUploadQueue.enqueueFiles`（EXIF 并发上限 3）  
+入队接线：`useUploadQueue.enqueueFiles`（解析并发限流）  
 Key 生成：`buildObjectKey({ archiveDatePath })` / `ObjectKeyPlanner.plan(name, path)`
 
 ---
@@ -55,7 +56,7 @@ Key 生成：`buildObjectKey({ archiveDatePath })` / `ObjectKeyPlanner.plan(name
 
 **其他**
 
-- 带前后缀：`IMG_20260315_120001.jpg`、`photo-2026-03-15.jpg`、`截图2026年3月15日.png`
+- 带前后缀：`IMG_20260315_120001.jpg`、`VID_20260315_102917.mp4`、`photo-2026-03-15.jpg`、`截图2026年3月15日.png`
 - **Unix 时间戳**：13 位毫秒、10 位秒（分数低于日历格式）
 
 多候选时取「更像完整日历日」且校验通过的一个；无法判定则跳过文件名，继续 EXIF / 上传日。

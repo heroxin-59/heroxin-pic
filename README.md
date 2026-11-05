@@ -337,7 +337,7 @@ heroxin-pic/
 | `VITE_OSS_DIR`            | 上传目录前缀              | 如 `uploads/`                                                            |
 | `VITE_STS_URL`            | 获取 STS 的接口           | 推荐；本地可用 `/api/sts`（代理到 `sts-server`）                         |
 | `VITE_MAX_SIZE_MB`        | 单文件上限（MB）          | 默认 50（图片 / 文档等）                                                 |
-| `VITE_MAX_VIDEO_SIZE_MB`  | 视频单文件上限（MB）      | 默认 200                                                                 |
+| `VITE_MAX_VIDEO_SIZE_MB`  | 视频单文件上限（MB）      | 默认 500                                                                 |
 | `VITE_MAX_TOTAL_SIZE_MB`  | 本批/队列总体积上限（MB） | 默认 500                                                                 |
 | `VITE_ALLOWED_EXT`        | 允许扩展名列表            | 逗号分隔；含常见图片、视频、文档、文本扩展名 |
 | `VITE_DUPLICATE_STRATEGY` | 重名策略                  | `uuid`（默认，OSS 为 `UUID-文件名`，界面显示原名）/ `timestamp` / `overwrite` / `suffix` |

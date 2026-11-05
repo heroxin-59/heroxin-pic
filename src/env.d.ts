@@ -27,7 +27,7 @@ interface ImportMetaEnv {
   readonly VITE_OSS_STS_TOKEN?: string
   /** 单文件大小上限（MB） */
   readonly VITE_MAX_SIZE_MB: string
-  /** 视频单文件大小上限（MB）；未配置时默认 200 */
+  /** 视频单文件大小上限（MB）；未配置时默认 500 */
   readonly VITE_MAX_VIDEO_SIZE_MB?: string
   /** 单次选择/队列总体积上限（MB） */
   readonly VITE_MAX_TOTAL_SIZE_MB: string

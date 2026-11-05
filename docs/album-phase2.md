@@ -169,7 +169,7 @@ VITE_OSS_THUMB_PROCESS=image/resize,m_lfit,w_480/quality,q_80
 | `VITE_UPLOAD_CONCURRENCY` | 上传并行数 | `2` |
 | `VITE_OSS_THUMB_PROCESS` | OSS 图片处理参数，须以 `image/` 开头 | 已配置 resize 约 480 |
 | `VITE_OSS_VIDEO_SNAPSHOT_PROCESS` | 视频封面截帧，须以 `video/` 开头；留空用内置默认 | `video/snapshot,t_0,f_jpg,w_480,m_fast` |
-| `VITE_MAX_VIDEO_SIZE_MB` | 视频单文件上传上限（MB）；图片等仍用 `VITE_MAX_SIZE_MB` | `200` |
+| `VITE_MAX_VIDEO_SIZE_MB` | 视频单文件上传上限（MB）；图片等仍用 `VITE_MAX_SIZE_MB` | `500` |
 
 完整变量表见 README「环境变量」与根目录 [`.env`](../.env)。
 
