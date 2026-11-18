@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, shallowRef } from 'vue'
+defineOptions({ name: 'ImagesView' })
+
+import { computed, onActivated, onMounted, ref, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { Refresh } from '@element-plus/icons-vue'
@@ -167,11 +169,15 @@ async function onAlbumBatchDelete(items: FileRecord[]) {
   }
 }
 
-onMounted(() => {
+function ensureGalleryData() {
   void fileStore.loadAllFilesForGallery().catch((error) => {
     showAppError(error)
   })
-})
+}
+
+onMounted(ensureGalleryData)
+/** KeepAlive 再次进入时恢复全量相册列表（文件页会改写同一份 records） */
+onActivated(ensureGalleryData)
 </script>
 
 <template>

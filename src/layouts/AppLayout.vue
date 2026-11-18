@@ -84,6 +84,11 @@ onMounted(() => {
 
 /** 路由变化时重置错误边界，避免卡在错误页 */
 const boundaryKey = computed(() => route.fullPath)
+
+/** 主 Tab 缓存，切页不销毁，避免相册「整页刷新」感 */
+const KEEP_ALIVE_VIEWS = ['ImagesView', 'FileListView', 'HomeView'] as const
+
+const viewCacheKey = computed(() => String(route.name ?? route.path))
 </script>
 
 <template>
@@ -113,15 +118,20 @@ const boundaryKey = computed(() => route.fullPath)
 
     <main class="app-main">
       <div class="app-main__viewport" :style="viewportStyle">
-        <router-view v-slot="{ Component }">
-          <transition :name="mobileTransitionName" @after-enter="onNavTransitionDone">
-            <div :key="route.path" class="app-main__page">
-              <AppErrorBoundary :reset-key="boundaryKey">
-                <component :is="Component" />
-              </AppErrorBoundary>
-            </div>
-          </transition>
-        </router-view>
+        <AppErrorBoundary :reset-key="boundaryKey">
+          <router-view v-slot="{ Component }">
+            <transition :name="mobileTransitionName" @after-enter="onNavTransitionDone">
+              <keep-alive :include="[...KEEP_ALIVE_VIEWS]">
+                <component
+                  :is="Component"
+                  v-if="Component"
+                  :key="viewCacheKey"
+                  class="app-main__page"
+                />
+              </keep-alive>
+            </transition>
+          </router-view>
+        </AppErrorBoundary>
       </div>
     </main>
 

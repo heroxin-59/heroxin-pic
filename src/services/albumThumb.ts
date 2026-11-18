@@ -41,7 +41,8 @@ type CacheEntry = {
 const SIGNED_URL_TTL_SEC = 3600
 /** 签名 URL 提前刷新余量 */
 const SIGNED_REFRESH_MARGIN_MS = 60_000
-const MAX_IDLE_CACHE = 192
+/** 无引用时仍保留的闲置缩略图数（滑出虚拟列表后回滑可命中） */
+const MAX_IDLE_CACHE = 320
 
 const limiter = createLimiter(appEnv.albumThumbConcurrency)
 const metaLimiter = createLimiter(Math.max(1, Math.floor(appEnv.albumThumbConcurrency / 2)))
@@ -277,6 +278,18 @@ export function releaseAlbumThumb(key: string) {
 export function peekAlbumThumb(key: string): AlbumThumbResult | null {
   const entry = cache.get(key)
   if (!entry || !isUsable(entry)) return null
+  touch(entry)
+  return toResult(key, entry)
+}
+
+/**
+ * 同步占用已有缓存（不发起网络）。命中时 refs+1，须成对 release。
+ * 用于虚拟列表重新挂载时首帧立刻展示，避免等 IntersectionObserver / await。
+ */
+export function tryRetainAlbumThumb(key: string): AlbumThumbResult | null {
+  const entry = cache.get(key)
+  if (!entry || !isUsable(entry)) return null
+  entry.refs += 1
   touch(entry)
   return toResult(key, entry)
 }

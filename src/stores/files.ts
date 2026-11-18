@@ -155,7 +155,11 @@ export const useFileStore = defineStore('files', () => {
   }
 
   async function applyListViewFromCache(options?: { force?: boolean }) {
-    loading.value = true
+    // 有缓存时静默切视图，避免文件 ↔ 相册切换闪 loading
+    const silent = Boolean(fullListSnapshot.value) && !options?.force
+    if (!silent) {
+      loading.value = true
+    }
     errorMessage.value = ''
 
     try {
@@ -179,7 +183,10 @@ export const useFileStore = defineStore('files', () => {
 
   /** 相册页：扁平列举前缀下全部文件，不改变列表页的目录/全部模式偏好 */
   async function loadAllFilesForGallery(options?: { force?: boolean }) {
-    loading.value = true
+    const silent = Boolean(fullListSnapshot.value) && !options?.force
+    if (!silent) {
+      loading.value = true
+    }
     errorMessage.value = ''
 
     try {

@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+defineOptions({ name: 'FileListView' })
+
+import { computed, onActivated, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import {
@@ -206,11 +208,15 @@ async function deleteFile(row: FileRecord) {
   }
 }
 
-onMounted(() => {
+function ensureListData() {
   void fileStore.loadFromOss().catch((error) => {
     showAppError(error)
   })
-})
+}
+
+onMounted(ensureListData)
+/** KeepAlive 再次进入时恢复目录/全部列表视图 */
+onActivated(ensureListData)
 </script>
 
 <template>

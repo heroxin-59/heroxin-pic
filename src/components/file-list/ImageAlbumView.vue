@@ -119,8 +119,8 @@ const allSelected = computed(
 const { visibleRows: visibleItems, scheduleUpdate } = useWindowVirtualRows({
   rootRef,
   rows: items,
-  overscan: 6,
-  overscanPx: 900,
+  overscan: 8,
+  overscanPx: 1200,
 })
 
 let resizeObserver: ResizeObserver | null = null

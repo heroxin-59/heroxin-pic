@@ -20,8 +20,8 @@ type VideoThumbEntry = {
 
 const SIGNED_URL_TTL_SEC = 3600
 const SIGNED_REFRESH_MARGIN_MS = 60_000
-/** 无引用时仍保留的闲置封面数（与图片缩略图策略一致） */
-const MAX_IDLE_CACHE = 96
+/** 无引用时仍保留的闲置封面数（滑出虚拟列表后回滑可命中） */
+const MAX_IDLE_CACHE = 160
 
 const limiter = createLimiter(appEnv.albumThumbConcurrency)
 const cache = new Map<string, VideoThumbEntry>()
@@ -145,6 +145,17 @@ export function setVideoAlbumPoster(key: string, posterUrl: string) {
 
 export function peekVideoAlbumPoster(key: string): string | undefined {
   return cache.get(key)?.posterUrl ?? undefined
+}
+
+/**
+ * 同步占用已有视频缩略图缓存（不发起网络）。命中时 refs+1，须成对 release。
+ */
+export function tryRetainVideoAlbumThumb(key: string): VideoAlbumThumbResult | null {
+  const entry = cache.get(key)
+  if (!entry || !isUsable(entry)) return null
+  entry.refs += 1
+  touch(entry)
+  return toResult(key, entry)
 }
 
 /** 释放一次引用；poster 在无引用且超出闲置上限时淘汰 */

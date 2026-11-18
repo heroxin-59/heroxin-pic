@@ -1,4 +1,6 @@
 <script setup lang="ts">
+defineOptions({ name: 'HomeView' })
+
 import { computed } from 'vue'
 import UploadPanel from '@/components/upload/UploadPanel.vue'
 import UploadProgressBar from '@/components/upload/UploadProgressBar.vue'

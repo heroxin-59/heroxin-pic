@@ -8,14 +8,15 @@ import {
   ensureAlbumThumbMeta,
   invalidateAlbumThumb,
   isAlbumThumbProcessEnabled,
-  peekAlbumThumb,
   releaseAlbumThumb,
+  tryRetainAlbumThumb,
 } from '@/services/albumThumb'
 import {
   acquireVideoAlbumThumb,
   peekVideoAlbumPoster,
   releaseVideoAlbumThumb,
   setVideoAlbumPoster,
+  tryRetainVideoAlbumThumb,
 } from '@/services/videoAlbumThumb'
 import { getCachedAlbumAspect, setAlbumAspect } from '@/services/imageAspect'
 import { isAbortError } from '@/utils/error'
@@ -110,33 +111,71 @@ function captureVideoPoster(video: HTMLVideoElement): Promise<string | null> {
   })
 }
 
-function hydrateVideoFromCache() {
-  const poster = peekVideoAlbumPoster(props.record.key)
-  if (!poster) return false
-  posterUrl.value = poster
-  videoUrl.value = ''
-  videoReady.value = true
-  const cachedAspect = getCachedAlbumAspect(props.record.key)
+function emitVideoAspect(key: string) {
+  const cachedAspect = getCachedAlbumAspect(key)
   if (cachedAspect != null) {
-    emit('aspect', { key: props.record.key, aspectRatio: cachedAspect })
+    emit('aspect', { key, aspectRatio: cachedAspect })
   } else {
-    setAlbumAspect(props.record.key, VIDEO_ASPECT)
-    emit('aspect', { key: props.record.key, aspectRatio: VIDEO_ASPECT })
+    setAlbumAspect(key, VIDEO_ASPECT)
+    emit('aspect', { key, aspectRatio: VIDEO_ASPECT })
+  }
+}
+
+/**
+ * 从内存缓存同步占住并回填展示（不发网络）。
+ * 虚拟列表卸载后回滑时，首帧即可出图，避免空壳闪一下再加载。
+ */
+function hydrateAndHoldFromCache(): boolean {
+  const key = props.record.key
+
+  if (heldKey === key) {
+    return isVideo.value
+      ? Boolean(posterUrl.value || videoUrl.value)
+      : Boolean(imageUrl.value)
+  }
+
+  if (isVideo.value) {
+    const retained = tryRetainVideoAlbumThumb(key)
+    if (retained?.posterUrl) {
+      if (heldKey) releaseHeldRef()
+      heldKey = key
+      heldKind = 'video'
+      posterUrl.value = retained.posterUrl
+      videoUrl.value = ''
+      videoReady.value = true
+      emitVideoAspect(key)
+      return true
+    }
+    // 仅有签名 URL、尚无 poster：不提前占引用，交给 load 统一 acquire
+    const poster = peekVideoAlbumPoster(key)
+    if (!poster) return false
+    posterUrl.value = poster
+    videoUrl.value = ''
+    videoReady.value = true
+    emitVideoAspect(key)
+    return true
+  }
+
+  const retained = tryRetainAlbumThumb(key)
+  if (!retained?.url) return false
+  if (heldKey) releaseHeldRef()
+  heldKey = key
+  heldKind = 'image'
+  imageUrl.value = retained.url
+  emit('meta', retained.meta)
+  const cachedAspect = getCachedAlbumAspect(key)
+  if (cachedAspect != null) {
+    emit('aspect', { key, aspectRatio: cachedAspect })
   }
   return true
 }
 
-function hydrateImageFromCache(): boolean {
-  const cached = peekAlbumThumb(props.record.key)
-  if (!cached?.url) return false
+function hydrateVideoFromCache() {
+  return hydrateAndHoldFromCache()
+}
 
-  imageUrl.value = cached.url
-  emit('meta', cached.meta)
-  const cachedAspect = getCachedAlbumAspect(props.record.key)
-  if (cachedAspect != null) {
-    emit('aspect', { key: props.record.key, aspectRatio: cachedAspect })
-  }
-  return true
+function hydrateImageFromCache(): boolean {
+  return hydrateAndHoldFromCache()
 }
 
 function abortActiveLoad() {
@@ -420,6 +459,8 @@ function resetForRecordChange() {
 watch(() => props.record.key, resetForRecordChange)
 
 onMounted(() => {
+  // 先同步回填缓存，再挂观察器，减少回滑首帧空白
+  hydrateAndHoldFromCache()
   setupViewportObserver()
   setupResizeRetry()
 })
