@@ -218,7 +218,10 @@ async function parseExifMeta(key: string, blob: Blob): Promise<AlbumImageMeta> {
   const meta: AlbumImageMeta = { key }
 
   try {
-    const exif = await exifr.parse(blob, {
+    // Node Blob 不被 exifr 接受；浏览器 File/Blob 也统一转 ArrayBuffer 更稳
+    const bytes = await blob.arrayBuffer()
+    // translateKeys 建议 true；拍摄日仍兼容数字 tag（36867 等）
+    const exif = (await exifr.parse(bytes, {
       pick: [
         'DateTimeOriginal',
         'CreateDate',
@@ -228,16 +231,19 @@ async function parseExifMeta(key: string, blob: Blob): Promise<AlbumImageMeta> {
         'latitude',
         'longitude',
       ],
-      translateKeys: false,
+      translateKeys: true,
       reviveValues: true,
       sanitize: false,
-    })
+    })) as Record<string | number, unknown> | undefined
 
     if (exif) {
       meta.captureAt =
         toIsoFromExifDate(exif.DateTimeOriginal) ||
         toIsoFromExifDate(exif.CreateDate) ||
-        toIsoFromExifDate(exif.ModifyDate)
+        toIsoFromExifDate(exif.ModifyDate) ||
+        toIsoFromExifDate(exif[36867]) ||
+        toIsoFromExifDate(exif[36868]) ||
+        toIsoFromExifDate(exif[306])
 
       const lat =
         typeof exif.latitude === 'number'

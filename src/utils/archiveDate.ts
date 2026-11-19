@@ -568,6 +568,27 @@ function toIsoLikeDate(value: unknown): Date | null {
   return null
 }
 
+/** EXIF 拍摄日：兼容 translateKeys true（名）与 false（数字 tag） */
+function pickExifCaptureDate(exif: Record<string | number, unknown>): Date | null {
+  return (
+    toIsoLikeDate(exif.DateTimeOriginal) ||
+    toIsoLikeDate(exif.CreateDate) ||
+    toIsoLikeDate(exif.ModifyDate) ||
+    toIsoLikeDate(exif[36867]) || // DateTimeOriginal
+    toIsoLikeDate(exif[36868]) || // CreateDate
+    toIsoLikeDate(exif[306]) || // ModifyDate / DateTime
+    null
+  )
+}
+
+async function toExifParseInput(
+  input: Blob | ArrayBuffer | Uint8Array,
+): Promise<ArrayBuffer | Uint8Array> {
+  if (input instanceof Uint8Array || input instanceof ArrayBuffer) return input
+  // Node 的 Blob 不被 exifr 接受；统一转 ArrayBuffer（浏览器 File 亦适用）
+  return input.arrayBuffer()
+}
+
 /**
  * 从 Object Key 中解析归档目录日（`…/yyyy/MM/dd/…`）。
  * 与上传归档路径一致，供相册分组优先使用。
@@ -593,26 +614,25 @@ export function parseArchiveDateFromObjectKey(key: string): ArchiveDateParts | n
 }
 
 /**
- * 3.12.4：从图片 Blob 读取 EXIF 拍摄日（仅日历日）。
+ * 3.12.4：从图片读取 EXIF 拍摄日（仅日历日）。
  * 失败 / 无 EXIF 返回 null，不抛错。
  */
 export async function readExifArchiveDateParts(
-  blob: Blob,
+  input: Blob | ArrayBuffer | Uint8Array,
   now = new Date(),
 ): Promise<ArchiveDateParts | null> {
   try {
-    const exif = await exifr.parse(blob, {
+    const bytes = await toExifParseInput(input)
+    // translateKeys 建议 true；pickExifCaptureDate 仍兼容数字 tag，避免再踩坑
+    const exif = await exifr.parse(bytes, {
       pick: ['DateTimeOriginal', 'CreateDate', 'ModifyDate'],
-      translateKeys: false,
+      translateKeys: true,
       reviveValues: true,
       sanitize: false,
     })
     if (!exif) return null
 
-    const date =
-      toIsoLikeDate(exif.DateTimeOriginal) ||
-      toIsoLikeDate(exif.CreateDate) ||
-      toIsoLikeDate(exif.ModifyDate)
+    const date = pickExifCaptureDate(exif as Record<string | number, unknown>)
     if (!date) return null
 
     const parts = archiveDatePartsFromDate(date)

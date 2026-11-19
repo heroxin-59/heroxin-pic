@@ -1,13 +1,21 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   formatArchiveDatePath,
   isValidArchiveCalendarDate,
   parseArchiveDateFromObjectKey,
   parseDateFromFilename,
+  readExifArchiveDateParts,
+  resolveArchiveDateForFile,
   resolveArchiveDateParts,
   shouldUseContentArchiveDate,
 } from './archiveDate'
 import { buildObjectKey } from './objectKey'
+
+const fixtureDir = dirname(fileURLToPath(import.meta.url))
+const canonExifJpeg = readFileSync(join(fixtureDir, '__fixtures__/canon-exif.jpg'))
 
 const now = new Date(2026, 7, 25) // 2026-08-25 local
 
@@ -274,5 +282,21 @@ describe('buildObjectKey archiveDatePath (3.12.5)', () => {
       archiveDatePath: 'not-a-date',
     })
     expect(key).toMatch(/^uploads\/\d{4}\/\d{2}\/\d{2}\/a\.jpg$/)
+  })
+})
+
+describe('readExifArchiveDateParts (3.12.4)', () => {
+  it('reads DateTimeOriginal from real JPEG (translateKeys must stay true)', async () => {
+    const parts = await readExifArchiveDateParts(new Uint8Array(canonExifJpeg), now)
+    expect(parts).toEqual({ year: 2008, month: 5, day: 30 })
+  })
+
+  it('archives camera filenames like DSC08691 via EXIF when name has no date', async () => {
+    const file = new File([new Uint8Array(canonExifJpeg)], 'DSC08691.JPG', {
+      type: 'image/jpeg',
+    })
+    const result = await resolveArchiveDateForFile(file, now)
+    expect(result.source).toBe('exif')
+    expect(result.path).toBe('2008/05/30')
   })
 })
